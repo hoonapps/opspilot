@@ -45,6 +45,8 @@ The sync endpoint reads a repository tree, downloads Markdown files under `rootP
 
 Set `GITHUB_TOKEN` for higher GitHub API limits or private repository access.
 
+The Next.js web console includes the same GitHub sync controls so a demo can show repository docs being indexed without using curl.
+
 ## Smoke Test
 
 ```bash

@@ -15,6 +15,6 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - verify new Markdown indexing with `pnpm indexing:smoke`
 - verify GitHub Markdown sync indexing with `pnpm github:smoke`
 - verify sensitive-action review and feedback with `pnpm review:smoke`
-- start the API and web console, then run Playwright `pnpm web:smoke`
+- start the API and web console, then run Playwright `pnpm web:smoke` against GitHub sync, answer, feedback, and approval flows
 
 The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, permission boundaries, GitHub document sync, runbook tool calling, human approval separation, feedback logging, and a working browser demo.

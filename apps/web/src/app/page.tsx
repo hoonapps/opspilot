@@ -6,8 +6,10 @@ import {
   askOpsPilot,
   AskResponse,
   createFeedback,
+  GithubSyncResponse,
   IngestResponse,
   listApprovals,
+  syncGithubDocuments,
   updateApproval,
   upsertMarkdown
 } from "../lib/api";
@@ -40,12 +42,18 @@ export default function Home() {
   const [roles, setRoles] = useState("ops_admin");
   const [path, setPath] = useState("public/status-page-policy.md");
   const [markdown, setMarkdown] = useState(sampleMarkdown);
+  const [githubOwner, setGithubOwner] = useState("hoonapps");
+  const [githubRepo, setGithubRepo] = useState("opspilot");
+  const [githubBranch, setGithubBranch] = useState("main");
+  const [githubRootPath, setGithubRootPath] = useState("docs");
+  const [githubSourcePrefix, setGithubSourcePrefix] = useState("github/hoonapps/opspilot");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
+  const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"ask" | "ingest" | "approval" | "feedback" | null>(null);
+  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "feedback" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
@@ -108,9 +116,30 @@ export default function Home() {
     setLoading("ingest");
     try {
       setIngest(await upsertMarkdown({ path, markdown }));
-      setQuestion("장애 공지는 몇 분 안에 올려야 해?");
+      setQuestion("고객 영향 장애의 첫 status page notice는 몇 분 안에 게시해야 해?");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Indexing request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function submitGithubSync(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading("github");
+    try {
+      const result = await syncGithubDocuments({
+        owner: githubOwner,
+        repo: githubRepo,
+        branch: githubBranch || undefined,
+        rootPath: githubRootPath || undefined,
+        sourcePrefix: githubSourcePrefix || undefined
+      });
+      setGithubSync(result);
+      setQuestion("OpsPilot의 permission boundary는 어디에서 적용돼?");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "GitHub sync request failed");
     } finally {
       setLoading(null);
     }
@@ -280,6 +309,49 @@ export default function Home() {
             {ingest ? (
               <p className="ingestResult">
                 {ingest.title} indexed as {ingest.chunks} chunks.
+              </p>
+            ) : null}
+          </form>
+
+          <form onSubmit={submitGithubSync} className="indexPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Sync</p>
+                <h2>GitHub Markdown</h2>
+              </div>
+              {githubSync ? <span className="badge">{githubSync.documents.length} docs</span> : null}
+            </div>
+
+            <div className="fieldGrid compactFields">
+              <label>
+                Owner
+                <input value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)} />
+              </label>
+              <label>
+                Repo
+                <input value={githubRepo} onChange={(event) => setGithubRepo(event.target.value)} />
+              </label>
+            </div>
+            <div className="fieldGrid compactFields">
+              <label>
+                Branch
+                <input value={githubBranch} onChange={(event) => setGithubBranch(event.target.value)} />
+              </label>
+              <label>
+                Root path
+                <input value={githubRootPath} onChange={(event) => setGithubRootPath(event.target.value)} />
+              </label>
+            </div>
+            <label>
+              Source prefix
+              <input value={githubSourcePrefix} onChange={(event) => setGithubSourcePrefix(event.target.value)} />
+            </label>
+            <button className="secondaryButton" disabled={loading === "github"} type="submit">
+              {loading === "github" ? "Syncing..." : "Sync GitHub docs"}
+            </button>
+            {githubSync ? (
+              <p className="ingestResult">
+                Synced {githubSync.documents.length} Markdown docs from {githubSync.owner}/{githubSync.repo}.
               </p>
             ) : null}
           </form>

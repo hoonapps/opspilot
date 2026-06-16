@@ -36,12 +36,13 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 ## Web Console Flow
 
 1. Operator opens the Next.js console on `localhost:3001`.
-2. The console calls `POST /documents/markdown` to upsert Markdown knowledge.
-3. The console calls `POST /ask` with team and role headers.
-4. The answer panel renders the generated response, confidence, review state, and tool calls.
-5. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
-6. Operators can save answer feedback through `POST /feedback`.
-7. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
+2. The console calls `POST /documents/github/sync` to import repository Markdown docs.
+3. The console calls `POST /documents/markdown` to upsert ad hoc Markdown knowledge.
+4. The console calls `POST /ask` with team and role headers.
+5. The answer panel renders the generated response, confidence, review state, and tool calls.
+6. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
+7. Operators can save answer feedback through `POST /feedback`.
+8. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
 
 ## Permission Boundary
 

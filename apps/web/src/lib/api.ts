@@ -40,6 +40,15 @@ export type IngestResponse = {
   changed: boolean;
 };
 
+export type GithubSyncResponse = {
+  source: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  rootPath: string;
+  documents: IngestResponse[];
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -116,4 +125,24 @@ export async function upsertMarkdown(input: { path: string; markdown: string }):
   }
 
   return response.json() as Promise<IngestResponse>;
+}
+
+export async function syncGithubDocuments(input: {
+  owner: string;
+  repo: string;
+  branch?: string;
+  rootPath?: string;
+  sourcePrefix?: string;
+}): Promise<GithubSyncResponse> {
+  const response = await fetch(`${API_BASE_URL}/documents/github/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<GithubSyncResponse>;
 }

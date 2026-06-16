@@ -15,6 +15,10 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
 
+    await page.getByRole("button", { name: "Sync GitHub docs" }).click();
+    await page.getByText("Synced", { exact: false }).waitFor({ timeout: 20000 });
+    const githubSyncVisible = await page.getByText("Markdown docs from hoonapps/opspilot", { exact: false }).isVisible();
+
     await page.getByRole("button", { name: "Upsert document" }).click();
     await page.getByText("Status Page Incident Communication indexed as", { exact: false }).waitFor({ timeout: 10000 });
 
@@ -23,7 +27,7 @@ async function main() {
     await answerPanel.getByText("publish the first status page notice within 15 minutes", { exact: false }).waitFor({
       timeout: 10000
     });
-    await page.locator(".sourceList").getByText("public/status-page-policy.md", { exact: false }).waitFor({
+    await page.locator(".sourceList").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({
       timeout: 10000
     });
 
@@ -51,7 +55,8 @@ async function main() {
         sourceText.length > 0 &&
         metaText.includes("request_human_approval") &&
         approvalText.includes("sensitive_operation") &&
-        feedbackSaved,
+        feedbackSaved &&
+        githubSyncVisible,
       baseUrl,
       screenshotPath,
       checks: {
@@ -59,7 +64,8 @@ async function main() {
         sourcesVisible: sourceText.length > 0,
         approvalToolCallVisible: metaText.includes("request_human_approval"),
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
-        feedbackSaved
+        feedbackSaved,
+        githubSyncVisible
       }
     };
 

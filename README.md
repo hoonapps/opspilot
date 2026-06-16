@@ -88,7 +88,7 @@ Verify GitHub Markdown sync indexing with an offline fixture:
 pnpm github:smoke
 ```
 
-With the API and web console running, verify the browser flow and refresh the README screenshot:
+With the API and web console running, verify the browser flow, GitHub sync UI, and refresh the README screenshot:
 
 ```bash
 pnpm web:smoke
@@ -165,7 +165,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Approval queue API and feedback logging API
 - Evaluation script with expected source hit rate
 - New document indexing smoke test
-- Next.js web console for asking questions, upserting Markdown documents, saving feedback, and resolving approval requests
+- Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
 
 ## Implementation Status
 
@@ -193,7 +193,7 @@ Done:
 - Runtime Markdown document upsert API and indexing smoke test
 - GitHub Markdown sync API and offline sync smoke test
 - Review workflow smoke test
-- Next.js web console and Playwright smoke test with feedback and approval queue coverage
+- Next.js web console and Playwright smoke test with GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, eval, checklist, GitHub sync, indexing, review, and browser smoke gates
 - README product preview image
 
@@ -243,11 +243,13 @@ POST /documents/markdown
 
 This replaces chunks for the same document path, records a new document version when content changes, stores embeddings in pgvector, and optionally updates Elasticsearch for hybrid retrieval.
 
+The web console also exposes a GitHub Markdown sync form for syncing repository docs into the same RAG index.
+
 Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
