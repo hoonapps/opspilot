@@ -9,6 +9,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
 - Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
+- AI Adapter Package: `@opspilot/ai` provides local deterministic embedding, OpenAI chat/embedding, and Anthropic chat adapters
 - Worker: BullMQ indexing worker consumes Redis jobs and reuses the document ingestion service
 - Slack Bot: receives mentions and replies in threads with answer, sources, confidence, review reasons, tool calls, and review status
 

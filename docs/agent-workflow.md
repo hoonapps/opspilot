@@ -66,4 +66,6 @@ OpenAI mode uses:
 - chat completions for grounded answer generation
 - embeddings with `OPENAI_EMBEDDING_DIMENSIONS=64` so pgvector schema remains stable
 
-If the OpenAI request fails, the API falls back to local generation to keep demos reproducible.
+Anthropic mode uses the Messages API for grounded answer generation. Embeddings still use the local deterministic provider unless `AI_PROVIDER=openai` is selected with an OpenAI key.
+
+If a provider request fails, the API falls back to local generation to keep demos reproducible.

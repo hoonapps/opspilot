@@ -28,7 +28,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Database: PostgreSQL with pgvector on `localhost:25432`
 - Queue/cache: Redis and BullMQ indexing worker
 - Search target: Elasticsearch optional local profile for hybrid BM25 + vector search
-- AI layer: local deterministic embedding by default, OpenAI adapter planned
+- AI layer: local deterministic mode by default, OpenAI and Anthropic chat adapters, OpenAI embedding adapter
 - Integration target: Slack Bot
 - Web console: Next.js
 - Infra: Docker Compose
@@ -197,7 +197,16 @@ OPENAI_EMBEDDING_DIMENSIONS=64 \
 pnpm ingest
 ```
 
-Without an OpenAI key, OpsPilot uses deterministic local embeddings and a grounded local answer generator so the project remains fully reproducible.
+Optional Anthropic chat mode:
+
+```bash
+AI_PROVIDER=anthropic \
+ANTHROPIC_API_KEY=... \
+ANTHROPIC_CHAT_MODEL=claude-3-5-haiku-latest \
+pnpm dev:api
+```
+
+Without provider keys, OpsPilot uses deterministic local embeddings and a grounded local answer generator so the project remains fully reproducible.
 
 ## Current MVP
 
@@ -234,7 +243,7 @@ Done:
 - Optional Elasticsearch Docker profile for later hybrid search
 - Markdown seed document ingestion
 - Local deterministic embedding and pgvector retrieval
-- Optional OpenAI chat and embedding provider
+- Provider adapter package with local embedding, OpenAI chat/embedding, and Anthropic chat support
 - Optional Elasticsearch BM25 indexing
 - Hybrid retrieval with vector + lexical rank fusion
 - `/ask` API with source citations
@@ -258,10 +267,6 @@ Done:
 - Next.js web console and Playwright smoke test with evaluation metrics, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, eval, permission boundary, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
-
-Not done yet:
-
-- Anthropic provider adapter
 
 ## Slack Bot
 
@@ -338,7 +343,6 @@ Documents include `public`, `team`, and `restricted` visibility so permission bo
 
 ## Roadmap
 
-- Slack mention event handling and thread replies
-- OpenAI and Anthropic provider adapters
-- Elasticsearch BM25 index and hybrid fusion
-- Feedback UI and admin review screen
+- Production-grade user authentication and audit roles
+- Additional eval cases for larger document sets
+- Deployment profile for a hosted demo environment

@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { ChatProvider, createChatProviderFromEnv } from "@opspilot/ai";
 import { RunbookChecklist } from "./runbook-checklist.service";
 import { SearchResult } from "./search.service";
 
@@ -11,24 +12,24 @@ export class AnswerGeneratorService {
     sensitiveAction: boolean;
     checklist?: RunbookChecklist | null;
   }): Promise<string> {
-    if (process.env.AI_PROVIDER === "openai" && process.env.OPENAI_API_KEY) {
-      return this.generateWithOpenAI(input);
+    const chatProvider = createChatProviderFromEnv();
+    if (chatProvider) {
+      return this.generateWithProvider(input, chatProvider);
     }
 
     return this.generateLocal(input);
   }
 
-  private async generateWithOpenAI(input: {
+  private async generateWithProvider(input: {
     question: string;
     sources: SearchResult[];
     needsHumanReview: boolean;
     sensitiveAction: boolean;
     checklist?: RunbookChecklist | null;
-  }): Promise<string> {
+  }, chatProvider: ChatProvider): Promise<string> {
     if (input.sources.length === 0) {
       return this.generateLocal(input);
     }
-
     const context = input.sources
       .slice(0, 4)
       .map((source, index) => {
@@ -36,38 +37,14 @@ export class AnswerGeneratorService {
       })
       .join("\n\n");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_CHAT_MODEL ?? "gpt-4.1-mini",
-        temperature: 0.1,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are OpsPilot, an operational support agent. Answer only from the supplied sources. If a structured runbook checklist is supplied, preserve it as numbered action items. If the sources are insufficient, say 담당자 확인이 필요합니다. Always include a concise 근거 line with source titles."
-          },
-          {
-            role: "user",
-            content: `Question: ${input.question}\n\nSources:\n${context}\n\nRunbook checklist:\n${formatChecklist(input.checklist)}\n\nSensitive action: ${input.sensitiveAction}\nNeeds human review: ${input.needsHumanReview}`
-          }
-        ]
-      })
+    const answer = await chatProvider.complete({
+      temperature: 0.1,
+      system:
+        "You are OpsPilot, an operational support agent. Answer only from the supplied sources. If a structured runbook checklist is supplied, preserve it as numbered action items. If the sources are insufficient, say 담당자 확인이 필요합니다. Always include a concise 근거 line with source titles.",
+      user: `Question: ${input.question}\n\nSources:\n${context}\n\nRunbook checklist:\n${formatChecklist(input.checklist)}\n\nSensitive action: ${input.sensitiveAction}\nNeeds human review: ${input.needsHumanReview}`
     });
 
-    if (!response.ok) {
-      return this.generateLocal(input);
-    }
-
-    const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    return json.choices?.[0]?.message?.content?.trim() || this.generateLocal(input);
+    return answer || this.generateLocal(input);
   }
 
   private generateLocal(input: {

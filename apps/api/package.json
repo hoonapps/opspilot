@@ -25,6 +25,7 @@
     "worker:indexing": "ts-node src/cli/indexing-worker.ts"
   },
   "dependencies": {
+    "@opspilot/ai": "workspace:*",
     "@elastic/elasticsearch": "^8.17.0",
     "@mikro-orm/core": "^6.4.2",
     "@mikro-orm/migrations": "^6.4.2",
