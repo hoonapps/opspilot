@@ -9,7 +9,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 - Vector Search: pgvector performs permission-aware semantic retrieval
 - Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
 - Worker: indexing and Slack event processing move to BullMQ workers in later phases
-- Slack Bot: receives mentions and replies in threads with answer, sources, and review status
+- Slack Bot: receives mentions and replies in threads with answer, sources, confidence, tool calls, and review status
 
 ## Request Flow
 
@@ -20,6 +20,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 5. Agent generates an answer from retrieved chunks.
 6. Sensitive actions are converted into approval requests.
 7. Question, answer, sources, tool calls, and approval state are logged.
+8. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
 
 ## Permission Boundary
 
@@ -37,3 +38,12 @@ The key design rule is that inaccessible chunks are filtered at retrieval time. 
 - PostgreSQL permission re-check for Elasticsearch chunk ids
 
 The last step is intentional. Elasticsearch improves recall, but PostgreSQL remains the source of truth for access control.
+
+## Slack Event Flow
+
+1. Slack sends `POST /slack/events`.
+2. OpsPilot verifies `x-slack-signature` when `SLACK_SIGNING_SECRET` is configured.
+3. `app_mention` text is normalized into a question.
+4. Slack user context is mapped to roles and teams.
+5. The agent answers through the same RAG path as `/ask`.
+6. A Slack thread reply payload is generated. If `SLACK_POST_REPLIES=true`, OpsPilot calls `chat.postMessage`.

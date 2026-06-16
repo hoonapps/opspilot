@@ -12,6 +12,7 @@ Expected behavior for a `payments` team user:
 2. Return the checklist from the runbook.
 3. Include the source document.
 4. Store question, answer, source, and `search_documents` tool call.
+5. In Slack, reply in the original thread with confidence, review status, sources, and tool call summary.
 
 Expected behavior for a user without the `payments` team:
 

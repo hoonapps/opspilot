@@ -9,16 +9,18 @@
 
 ## Decision Flow
 
-1. Classify the question and actor context.
-2. Call `search_documents`.
-3. In `vector` mode, retrieve with pgvector. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
-4. Re-check accessible chunk ids in PostgreSQL before prompt construction.
-5. Generate a grounded answer with citations.
-6. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
-7. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
-8. If confidence is low or the action is sensitive, mark `needsHumanReview`.
-9. If sensitive, call `request_human_approval`.
-10. Persist every question, answer, source, and tool call.
+1. Receive the question through HTTP `/ask`, Slack `app_mention`, or evaluation script.
+2. Classify the question and actor context.
+3. Call `search_documents`.
+4. In `vector` mode, retrieve with pgvector and PostgreSQL lexical overlap. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
+5. Re-check accessible chunk ids in PostgreSQL before prompt construction.
+6. Generate a grounded answer with citations.
+7. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
+8. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
+9. If confidence is low or the action is sensitive, mark `needsHumanReview`.
+10. If sensitive, call `request_human_approval`.
+11. Persist every question, answer, source, and tool call.
+12. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 

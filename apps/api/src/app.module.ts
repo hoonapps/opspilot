@@ -7,6 +7,7 @@ import { AuthzModule } from "./authz/authz.module";
 import { DocumentsModule } from "./documents/documents.module";
 import { EvaluationModule } from "./evaluation/evaluation.module";
 import { HealthModule } from "./health/health.module";
+import { SlackModule } from "./slack/slack.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { HealthModule } from "./health/health.module";
     DocumentsModule,
     AgentModule,
     EvaluationModule,
+    SlackModule,
     HealthModule
   ]
 })

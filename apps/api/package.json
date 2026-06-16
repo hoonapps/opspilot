@@ -12,7 +12,8 @@
     "db:migrate": "mikro-orm migration:up --config src/config/mikro-orm.config.ts",
     "db:create": "mikro-orm migration:create --config src/config/mikro-orm.config.ts",
     "ingest": "ts-node src/cli/ingest.ts",
-    "eval": "ts-node src/cli/evaluate.ts"
+    "eval": "ts-node src/cli/evaluate.ts",
+    "slack:simulate": "ts-node src/cli/simulate-slack.ts"
   },
   "dependencies": {
     "@mikro-orm/core": "^6.4.2",

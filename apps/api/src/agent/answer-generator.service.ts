@@ -86,7 +86,7 @@ export class AnswerGeneratorService {
       ? "\n\n운영 DB 변경, 권한 부여, 삭제 같은 민감 작업은 Agent가 직접 실행하지 않고 승인 요청으로 분리합니다."
       : "";
 
-    return `${evidence || summarize(top.content)}\n\n근거: ${top.title} (${top.path})${reviewLine}${approvalLine}`;
+    return `${evidence || summarizeForAnswer(top.content)}\n\n근거: ${top.title} (${top.path})${reviewLine}${approvalLine}`;
   }
 }
 
@@ -103,6 +103,7 @@ function extractRelevantLines(question: string, content: string): string[] {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
+    .filter((line) => !isSearchAliasLine(line))
     .filter((line) => {
       const lower = line.toLowerCase();
       return [...questionTokens].some((token) => lower.includes(token));
@@ -110,11 +111,17 @@ function extractRelevantLines(question: string, content: string): string[] {
     .slice(0, 5);
 }
 
-function summarize(content: string): string {
+function summarizeForAnswer(content: string): string {
   return content
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .slice(0, 5)
+    .filter((line) => !isSearchAliasLine(line))
+    .filter((line) => !/^#{1,6}\s/.test(line))
+    .slice(0, 6)
     .join("\n");
+}
+
+function isSearchAliasLine(line: string): boolean {
+  return /^korean aliases:/i.test(line);
 }

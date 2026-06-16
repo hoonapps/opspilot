@@ -1,0 +1,15 @@
+{
+  "token": "local-dev-token",
+  "team_id": "T_LOCAL",
+  "api_app_id": "A_LOCAL",
+  "type": "event_callback",
+  "event_id": "Ev_LOCAL_001",
+  "event_time": 1781577600,
+  "event": {
+    "type": "app_mention",
+    "user": "U_PAYMENTS_USER",
+    "text": "<@U_OPSPILOT> 정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?",
+    "channel": "C_INCIDENTS",
+    "ts": "1781577600.000100"
+  }
+}

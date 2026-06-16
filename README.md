@@ -47,6 +47,12 @@ curl -X POST http://localhost:3000/ask \
   -d '{"question":"E102 에러가 발생하면 어떻게 대응해야 해?"}'
 ```
 
+Simulate a Slack mention without Slack credentials:
+
+```bash
+pnpm slack:simulate
+```
+
 Run evaluation:
 
 ```bash
@@ -120,16 +126,48 @@ Done:
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
 - Tool call logging
+- Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
 - README product preview image
 
 Not done yet:
 
-- Slack Bot mention and thread reply flow
 - BullMQ indexing worker
 - Next.js product UI
 - GitHub Markdown sync
 - Feedback UI and admin approval screen
+
+## Slack Bot
+
+OpsPilot exposes a Slack Events API endpoint:
+
+```txt
+POST /slack/events
+```
+
+Supported events:
+
+- `url_verification`
+- `event_callback` with `app_mention`
+
+Local mode does not require Slack credentials. It builds the same thread reply payload without calling Slack:
+
+```bash
+pnpm slack:simulate
+```
+
+To post real thread replies, set:
+
+```bash
+SLACK_SIGNING_SECRET=...
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_BOT_USER_ID=U...
+SLACK_POST_REPLIES=true
+```
+
+Slack user access is mapped through `SLACK_DEFAULT_TEAM_SLUGS` and `SLACK_DEFAULT_ROLES` for the current demo. A production implementation should resolve Slack users to application users and teams in the database.
+
+Details: [docs/slack-bot.md](docs/slack-bot.md)
 
 ## Demo Knowledge Base
 
