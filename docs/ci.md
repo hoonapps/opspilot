@@ -10,7 +10,7 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - typecheck every workspace package
 - build the NestJS API, worker, packages, and Next.js console
 - run Jest package tests
-- run seed RAG evaluation
+- run seed RAG evaluation, including source hit, top source, human review, and document agreement metrics
 - verify permission boundary audit behavior with `pnpm permission:smoke`
 - verify runbook checklist tool calling with `pnpm checklist:smoke`
 - verify new Markdown indexing with `pnpm indexing:smoke`
@@ -19,4 +19,4 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - verify sensitive-action review and feedback with `pnpm review:smoke`
 - start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, permission audit, tool call audit, GitHub sync, answer, feedback, and approval flows
 
-The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, evaluation metrics, permission boundary enforcement, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, and a working browser demo.
+The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, document agreement scoring, evaluation metrics, permission boundary enforcement, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, and a working browser demo.

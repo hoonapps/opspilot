@@ -140,7 +140,8 @@ Expected seed result:
 {
   "sourceHitRate": 1,
   "topSourceAccuracy": 1,
-  "humanReviewAccuracy": 1
+  "humanReviewAccuracy": 1,
+  "documentAgreementScore": 1
 }
 ```
 
@@ -186,7 +187,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
-- Evaluation script with expected source hit rate
+- Evaluation script with expected source hit rate and document agreement score
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
 - Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
@@ -214,7 +215,7 @@ Done:
 - Tool call logging and recent audit API
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
-- Evaluation command with expected source hit rate
+- Evaluation command with expected source hit rate and deterministic document agreement score
 - Latest evaluation API and web console quality gate panel
 - Runtime Markdown document upsert API and indexing smoke test
 - GitHub Markdown sync API and offline sync smoke test

@@ -7,6 +7,7 @@ OpsPilot evaluates RAG behavior with a seed question set.
 - Source hit rate: whether the expected document appears in returned sources
 - Top source accuracy: whether the first returned source is the expected document
 - Human review accuracy: whether restricted or sensitive questions are routed to human review
+- Document agreement score: how much of the answer's content-bearing tokens are supported by returned source chunks
 - Confidence: retrieval-derived score stored with each answer
 
 ## Run
@@ -17,6 +18,8 @@ pnpm eval
 
 The evaluation command ingests seed documents, asks each question, stores metric rows in `evaluation_results`, and prints a JSON report.
 
+Document agreement is deterministic and does not call an LLM judge. It removes citation/review boilerplate, tokenizes the answer and returned source chunks, then calculates the percentage of answer tokens that also appear in the cited source context. This is not a full factuality proof, but it is a stable regression signal for whether answers stay grounded in retrieved documents.
+
 ## Latest Report API
 
 ```txt
@@ -24,11 +27,10 @@ GET /evaluations/latest
 GET /evaluations/latest?suiteName=seed-ops-wiki
 ```
 
-The API returns the latest source hit rate, top source accuracy, human review accuracy, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
+The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
 
 ## Planned Additions
 
-- groundedness check per answer sentence
 - citation accuracy review
 - larger regression set for newly added documents
 

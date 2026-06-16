@@ -68,6 +68,7 @@ export type EvaluationReport = {
     sourceHitRate: number;
     topSourceAccuracy: number;
     humanReviewAccuracy: number;
+    documentAgreementScore: number;
   };
   rows: Array<{
     id: string;
@@ -76,6 +77,7 @@ export type EvaluationReport = {
     expectedSources: string[];
     actualSources: string[];
     confidence: number;
+    documentAgreement: number;
   }>;
 };
 

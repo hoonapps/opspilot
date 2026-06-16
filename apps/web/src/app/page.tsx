@@ -309,9 +309,11 @@ export default function Home() {
                   <Metric label="Source hit" value={formatPercent(evaluation.metrics.sourceHitRate)} />
                   <Metric label="Top source" value={formatPercent(evaluation.metrics.topSourceAccuracy)} />
                   <Metric label="Human review" value={formatPercent(evaluation.metrics.humanReviewAccuracy)} />
+                  <Metric label="Document match" value={formatPercent(evaluation.metrics.documentAgreementScore)} />
                 </div>
                 <p className="ingestResult">
-                  {evaluation.suiteName} · {evaluation.total} cases · {evaluation.rows.filter((row) => row.hit).length} hits
+                  {evaluation.suiteName} · {evaluation.total} cases · {evaluation.rows.filter((row) => row.hit).length} hits ·{" "}
+                  {formatPercent(evaluation.metrics.documentAgreementScore)} match
                 </p>
               </>
             ) : (
