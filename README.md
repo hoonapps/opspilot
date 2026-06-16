@@ -10,6 +10,17 @@ Permission-aware RAG agent for operational knowledge, runbooks, and Slack suppor
 
 OpsPilot is a portfolio-grade AI agent project focused on operational support. It answers questions from Markdown wiki documents, returns grounded sources, applies document-level permission boundaries before retrieval results reach the LLM layer, logs tool calls, and marks sensitive work for human approval.
 
+## Demo Proof
+
+The screenshot above is generated from the working Next.js console by `pnpm web:smoke`. It exercises the core portfolio flow end to end:
+
+- load evaluation metrics and document match gates
+- upsert a new Markdown document and retrieve it as a cited source
+- ask a sensitive operations question and force human approval
+- show permission audit counts, review reasons, answer trace, tool calls, feedback, and approval queue state
+
+Design and demo assets are tracked in [docs/design.md](docs/design.md).
+
 ## Why This Project Exists
 
 Most RAG demos stop at document upload and answer generation. OpsPilot focuses on the production questions that matter for an AI operations agent:
@@ -264,6 +275,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
 - Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
+- Design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
 
@@ -307,6 +319,7 @@ Done:
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
+- Design proof document with exported assets and runtime screenshot workflow
 
 ## Slack Bot
 
