@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: opspilot
+          POSTGRES_USER: opspilot
+          POSTGRES_PASSWORD: opspilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opspilot -d opspilot"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      CI: true
+      NODE_ENV: test
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_NAME: opspilot
+      DATABASE_USER: opspilot
+      DATABASE_PASSWORD: opspilot
+      REDIS_URL: redis://localhost:6379
+      ENABLE_ELASTICSEARCH: "false"
+      RETRIEVAL_MODE: vector
+      AI_PROVIDER: local
+      CONFIDENCE_THRESHOLD: 0.3
+      SEED_DOCUMENTS_DIR: ../../seed/documents
+      EVAL_SET_PATH: ../../seed/eval/questions.json
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run migrations
+        run: pnpm --filter @opspilot/api db:migrate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: RAG evaluation
+        run: pnpm eval
+
+      - name: New document indexing smoke
+        run: pnpm indexing:smoke
+
+      - name: Review workflow smoke
+        run: pnpm review:smoke
+
+      - name: Start API
+        run: |
+          pnpm --filter @opspilot/api start > /tmp/opspilot-api.log 2>&1 &
+          echo $! > /tmp/opspilot-api.pid
+          for i in {1..30}; do
+            curl -fsS http://localhost:3000/health && exit 0
+            sleep 1
+          done
+          cat /tmp/opspilot-api.log
+          exit 1
+
+      - name: Start web
+        run: |
+          pnpm --filter @opspilot/web start > /tmp/opspilot-web.log 2>&1 &
+          echo $! > /tmp/opspilot-web.pid
+          for i in {1..30}; do
+            curl -fsS http://localhost:3001 && exit 0
+            sleep 1
+          done
+          cat /tmp/opspilot-web.log
+          exit 1
+
+      - name: Web smoke
+        run: WEB_BASE_URL=http://localhost:3001 pnpm web:smoke
+
+      - name: Upload web screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opspilot-web-console
+          path: docs/assets/opspilot-web-console.png
+          if-no-files-found: ignore
+
+      - name: Print server logs
+        if: failure()
+        run: |
+          cat /tmp/opspilot-api.log || true
+          cat /tmp/opspilot-web.log || true

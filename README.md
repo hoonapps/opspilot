@@ -1,5 +1,7 @@
 # OpsPilot
 
+[![CI](https://github.com/hoonapps/opspilot/actions/workflows/ci.yml/badge.svg)](https://github.com/hoonapps/opspilot/actions/workflows/ci.yml)
+
 Permission-aware RAG agent for operational knowledge, runbooks, and Slack support workflows.
 
 ![OpsPilot dashboard preview](docs/assets/opspilot-dashboard.svg)
@@ -86,6 +88,17 @@ Verify the review workflow without a browser:
 pnpm review:smoke
 ```
 
+CI runs the same core gates on GitHub Actions:
+
+```bash
+pnpm typecheck
+pnpm build
+pnpm eval
+pnpm indexing:smoke
+pnpm review:smoke
+pnpm web:smoke
+```
+
 Expected seed result:
 
 ```json
@@ -163,6 +176,7 @@ Done:
 - Runtime Markdown document upsert API and indexing smoke test
 - Review workflow smoke test
 - Next.js web console and Playwright smoke test with feedback and approval queue coverage
+- GitHub Actions CI for build, eval, indexing, review, and browser smoke gates
 - README product preview image
 
 Not done yet:
@@ -213,6 +227,12 @@ POST /documents/markdown
 This replaces chunks for the same document path, records a new document version when content changes, stores embeddings in pgvector, and optionally updates Elasticsearch for hybrid retrieval.
 
 Details: [docs/indexing.md](docs/indexing.md)
+
+## CI
+
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, review smoke, and browser smoke tests.
+
+Details: [docs/ci.md](docs/ci.md)
 
 ## Demo Knowledge Base
 
