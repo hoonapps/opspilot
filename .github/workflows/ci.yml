@@ -134,6 +134,9 @@ jobs:
       - name: Portfolio demo
         run: pnpm portfolio:demo
 
+      - name: OpenAPI contract smoke
+        run: pnpm openapi:smoke
+
       - name: Start API
         run: |
           pnpm --filter @opspilot/api start > /tmp/opspilot-api.log 2>&1 &

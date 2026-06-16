@@ -99,6 +99,14 @@ Verify that a persisted answer can be reconstructed for audit from sources, tool
 pnpm trace:smoke
 ```
 
+Verify the public OpenAPI contract:
+
+```bash
+pnpm openapi:smoke
+```
+
+Swagger UI is available at `/docs`, and OpenAPI JSON is available at `/docs-json`. Details: [docs/api.md](docs/api.md)
+
 Verify that the quality gate fails on a deliberately bad expected source:
 
 ```bash
@@ -191,6 +199,7 @@ pnpm queue:smoke
 pnpm review:smoke
 pnpm trace:smoke
 pnpm portfolio:demo
+pnpm openapi:smoke
 pnpm web:smoke
 ```
 
@@ -336,6 +345,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
+- OpenAPI contract smoke test for the public API surface and request schemas
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
@@ -402,9 +412,15 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 Details: [docs/demo.md](docs/demo.md)
 
+## API Contract
+
+Swagger UI is available at `/docs`, and the generated OpenAPI JSON is available at `/docs-json`. `pnpm openapi:smoke` verifies that the portfolio-critical paths and request schemas are present.
+
+Details: [docs/api.md](docs/api.md)
+
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, OpenAPI contract smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
