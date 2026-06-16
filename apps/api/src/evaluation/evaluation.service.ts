@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
 import { AgentService } from "../agent/agent.service";
+import { calculateDocumentAgreement } from "../agent/document-agreement";
 import { RequestContext } from "../shared/request-context";
 
 export type EvalQuestion = {
@@ -97,7 +98,7 @@ export class EvaluationService {
         expectedSources: item.expectedSources,
         actualSources,
         confidence: response.confidence,
-        documentAgreement: calculateDocumentAgreement(response.answer, sourceContents),
+        documentAgreement: calculateDocumentAgreement(response.answer, sourceContents).score,
         citationPresent
       });
     }
@@ -292,17 +293,6 @@ function average(values: number[]): number {
   return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(3));
 }
 
-function calculateDocumentAgreement(answer: string, sourceContents: string[]): number {
-  const answerTokens = new Set(tokenizeForAgreement(removeEvaluationBoilerplate(answer)));
-  if (answerTokens.size === 0) {
-    return sourceContents.length === 0 ? 1 : 0;
-  }
-
-  const sourceTokens = new Set(sourceContents.flatMap((content) => tokenizeForAgreement(content)));
-  const matched = [...answerTokens].filter((token) => sourceTokens.has(token)).length;
-  return Number((matched / answerTokens.size).toFixed(3));
-}
-
 function answerCitesReturnedSource(answer: string, sources: Array<{ title: string; path: string }>): boolean {
   const normalizedAnswer = normalizeCitationText(answer);
   return sources.some((source) => {
@@ -315,47 +305,3 @@ function answerCitesReturnedSource(answer: string, sources: Array<{ title: strin
 function normalizeCitationText(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
-
-function removeEvaluationBoilerplate(answer: string): string {
-  return answer
-    .split(/\n+/)
-    .filter((line) => !/^\s*근거\s*:/u.test(line))
-    .filter((line) => !/신뢰도가 낮거나 민감 작업이 포함되어 담당자 확인이 필요합니다/u.test(line))
-    .filter((line) => !/운영 DB 변경, 권한 부여, 삭제 같은 민감 작업은 Agent가 직접 실행하지 않고 승인 요청으로 분리합니다/u.test(line))
-    .join(" ");
-}
-
-function tokenizeForAgreement(value: string): string[] {
-  return value
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}_./:-]+/gu, " ")
-    .split(/\s+/)
-    .map((token) => stripParticle(token.trim()))
-    .filter((token) => token.length >= 2)
-    .filter((token) => !AGREEMENT_STOPWORDS.has(token));
-}
-
-function stripParticle(token: string): string {
-  return token.replace(/(에서|으로|에게|한테|부터|까지|처럼|보다|은|는|이|가|을|를|도|만|와|과|로)$/u, "");
-}
-
-const AGREEMENT_STOPWORDS = new Set([
-  "the",
-  "and",
-  "for",
-  "with",
-  "that",
-  "this",
-  "from",
-  "must",
-  "when",
-  "what",
-  "how",
-  "are",
-  "should",
-  "해야",
-  "어떻게",
-  "무엇",
-  "필요",
-  "확인"
-]);

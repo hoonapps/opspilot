@@ -4,6 +4,7 @@ import { AuthzService } from "../authz/authz.service";
 import { ToolCallStatus } from "../database/entities/types";
 import { RequestContext } from "../shared/request-context";
 import { AnswerGeneratorService } from "./answer-generator.service";
+import { calculateDocumentAgreement, DocumentAgreement } from "./document-agreement";
 import { RunbookChecklistService } from "./runbook-checklist.service";
 import { PermissionBoundaryAudit, SearchResult, SearchService } from "./search.service";
 
@@ -12,6 +13,7 @@ export type AskResponse = {
   answerId: string;
   answer: string;
   confidence: number;
+  documentAgreement: DocumentAgreement;
   needsHumanReview: boolean;
   reviewReasons: ReviewReason[];
   sources: Array<{
@@ -103,6 +105,10 @@ export class AgentService {
     });
     const needsHumanReview = reviewReasons.length > 0;
     const answer = await this.answerGenerator.generate({ question, sources, needsHumanReview, sensitiveAction, checklist });
+    const documentAgreement = calculateDocumentAgreement(
+      answer,
+      sources.map((source) => source.content)
+    );
 
     const [answerRow] = await connection.execute<{ id: string }[]>(
       `
@@ -118,6 +124,7 @@ export class AgentService {
         JSON.stringify({
           sensitiveAction,
           sourceCount: sources.length,
+          documentAgreement,
           reviewReasons,
           checklist: checklist ? { path: checklist.path, itemCount: checklist.items.length } : null
         })
@@ -165,6 +172,7 @@ export class AgentService {
       answerId: answerRow.id,
       answer,
       confidence,
+      documentAgreement,
       needsHumanReview,
       reviewReasons,
       sources: sources.map((source) => ({

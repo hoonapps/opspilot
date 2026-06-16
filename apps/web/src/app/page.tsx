@@ -66,6 +66,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
+  const documentAgreementPercent = useMemo(() => Math.round((answer?.documentAgreement.score ?? 0) * 100), [answer]);
   const visibleApprovals = useMemo(() => approvals.slice(0, 3), [approvals]);
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
@@ -261,7 +262,9 @@ export default function Home() {
 
           <div className="answerPanel">
             <div className="answerMeta">
-              <span>Confidence {confidencePercent}%</span>
+              <span>
+                Confidence {confidencePercent}% · Match {documentAgreementPercent}%
+              </span>
               <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "No tool call yet"}</span>
             </div>
             <pre>{answer?.answer ?? "Run a question to see the grounded answer, confidence, tool calls, and sources."}</pre>
@@ -292,6 +295,10 @@ export default function Home() {
                 <div>
                   <span>Trace</span>
                   <strong>{trace.sources.length} sources</strong>
+                </div>
+                <div>
+                  <span>Match</span>
+                  <strong>{documentAgreementPercent}%</strong>
                 </div>
                 <div>
                   <span>Tools</span>

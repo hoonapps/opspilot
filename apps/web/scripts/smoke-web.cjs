@@ -52,6 +52,7 @@ async function main() {
     await page.getByRole("button", { name: "운영 DB에서 고객 정보를 바로 수정해도 돼?" }).click();
     await page.getByRole("button", { name: "Ask OpsPilot" }).click();
     await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".answerMeta").getByText("Match", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".boundaryAudit").getByText("denied candidates", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("Trace", { exact: true }).waitFor({ timeout: 10000 });
@@ -81,6 +82,7 @@ async function main() {
         answerText.includes("담당자 확인") &&
         sourceText.length > 0 &&
         metaText.includes("request_human_approval") &&
+        metaText.includes("Match") &&
         approvalText.includes("sensitive_operation") &&
         feedbackSaved &&
         githubSyncVisible &&
@@ -98,6 +100,7 @@ async function main() {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
         approvalToolCallVisible: metaText.includes("request_human_approval"),
+        documentAgreementVisible: metaText.includes("Match"),
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
         feedbackSaved,
         githubSyncVisible,

@@ -3,6 +3,13 @@ export type AskResponse = {
   answerId: string;
   answer: string;
   confidence: number;
+  documentAgreement: {
+    score: number;
+    matchedTokenCount: number;
+    answerTokenCount: number;
+    sourceChunkCount: number;
+    method: "token_overlap_v1";
+  };
   needsHumanReview: boolean;
   reviewReasons: Array<{
     code: "no_sources" | "low_confidence" | "sensitive_action";

@@ -104,6 +104,9 @@ jobs:
       - name: Signed actor token smoke
         run: pnpm authn:smoke
 
+      - name: Answer document agreement smoke
+        run: pnpm agreement:smoke
+
       - name: Queue indexing worker smoke
         run: pnpm queue:smoke
 

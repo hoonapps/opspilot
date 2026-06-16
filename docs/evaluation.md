@@ -21,6 +21,8 @@ The evaluation command ingests seed documents, asks each question, stores metric
 
 Document agreement is deterministic and does not call an LLM judge. It removes citation/review boilerplate, tokenizes the answer and returned source chunks, then calculates the percentage of answer tokens that also appear in the cited source context. This is not a full factuality proof, but it is a stable regression signal for whether answers stay grounded in retrieved documents.
 
+The same calculation is returned by `/ask` as `documentAgreement`, stored in answer metadata, rendered in the web console as `Match`, and verified by `pnpm agreement:smoke`. This lets a portfolio demo show the final answer's source-document match ratio without running the full evaluation suite.
+
 ## Quality Gates
 
 `pnpm eval` fails with a non-zero exit code when any metric falls below its threshold. Defaults:
