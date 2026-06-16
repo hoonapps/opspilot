@@ -16,6 +16,7 @@
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
+    "permission:smoke": "ts-node src/cli/permission-boundary-smoke.ts",
     "queue:smoke": "ts-node src/cli/queue-indexing-smoke.ts",
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "slack:simulate": "ts-node src/cli/simulate-slack.ts",

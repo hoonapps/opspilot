@@ -16,6 +16,7 @@
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",
     "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
+    "permission:smoke": "pnpm --filter @opspilot/api permission:smoke",
     "queue:smoke": "pnpm --filter @opspilot/api queue:smoke",
     "review:smoke": "pnpm --filter @opspilot/api review:smoke",
     "slack:simulate": "pnpm --filter @opspilot/api slack:simulate",

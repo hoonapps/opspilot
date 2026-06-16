@@ -90,6 +90,9 @@ jobs:
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
+      - name: Permission boundary smoke
+        run: pnpm permission:smoke
+
       - name: Queue indexing worker smoke
         run: pnpm queue:smoke
 

@@ -77,6 +77,12 @@ Prove that a newly added Markdown document is indexed and becomes the top source
 pnpm indexing:smoke
 ```
 
+Verify that inaccessible RAG candidates are denied before they become prompt sources:
+
+```bash
+pnpm permission:smoke
+```
+
 Verify that a runbook question triggers structured checklist tool calling:
 
 ```bash
@@ -119,6 +125,7 @@ CI runs the same core gates on GitHub Actions:
 pnpm typecheck
 pnpm build
 pnpm eval
+pnpm permission:smoke
 pnpm checklist:smoke
 pnpm github:smoke
 pnpm indexing:smoke
@@ -173,6 +180,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - GitHub Markdown sync API
 - BullMQ queued Markdown indexing API and worker
 - Permission-aware retrieval filtering
+- Permission boundary audit counts for denied retrieval candidates
 - Sensitive action detection
 - Tool call logs and recent audit API
 - Runbook checklist tool calling
@@ -199,6 +207,7 @@ Done:
 - Hybrid retrieval with vector + lexical rank fusion
 - `/ask` API with source citations
 - Permission-aware retrieval filtering
+- Permission boundary smoke test and web audit summary
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
 - Approval list/update API and feedback create API
@@ -211,8 +220,8 @@ Done:
 - GitHub Markdown sync API and offline sync smoke test
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
-- Next.js web console and Playwright smoke test with evaluation metrics, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, eval, checklist, GitHub sync, direct indexing, queue indexing, review, and browser smoke gates
+- Next.js web console and Playwright smoke test with evaluation metrics, permission audit, tool call audit, GitHub sync, feedback, and approval queue coverage
+- GitHub Actions CI for build, eval, permission boundary, checklist, GitHub sync, direct indexing, queue indexing, review, and browser smoke gates
 - README product preview image
 
 Not done yet:
@@ -276,7 +285,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the evaluation panel, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, permission boundary smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the evaluation panel, permission audit, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

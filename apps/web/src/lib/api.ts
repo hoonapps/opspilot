@@ -4,6 +4,17 @@ export type AskResponse = {
   answer: string;
   confidence: number;
   needsHumanReview: boolean;
+  permissionAudit: {
+    enforcement: "pre_ranking_sql_filter" | "postgres_recheck_after_elasticsearch";
+    candidateWindow: number;
+    allowedCandidateCount: number;
+    deniedCandidateCount: number;
+    deniedByVisibility: Record<string, number>;
+    actor: {
+      roles: string[];
+      teamSlugs: string[];
+    };
+  };
   sources: Array<{
     title: string;
     path: string;

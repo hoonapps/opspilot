@@ -5,7 +5,7 @@ import { ToolCallStatus } from "../database/entities/types";
 import { RequestContext } from "../shared/request-context";
 import { AnswerGeneratorService } from "./answer-generator.service";
 import { RunbookChecklistService } from "./runbook-checklist.service";
-import { SearchResult, SearchService } from "./search.service";
+import { PermissionBoundaryAudit, SearchResult, SearchService } from "./search.service";
 
 export type AskResponse = {
   questionId: string;
@@ -24,6 +24,7 @@ export type AskResponse = {
     toolName: string;
     status: ToolCallStatus;
   }>;
+  permissionAudit: PermissionBoundaryAudit;
 };
 
 @Injectable()
@@ -44,7 +45,7 @@ export class AgentService {
       [question, channel ?? null, JSON.stringify(context)]
     );
 
-    const sources = await this.searchService.search(question, context, 5);
+    const { results: sources, permissionAudit } = await this.searchService.searchWithAudit(question, context, 5);
     await connection.execute(
       `
         insert into tool_call_logs (question_id, tool_name, input, output, status)
@@ -53,7 +54,7 @@ export class AgentService {
       [
         questionRow.id,
         JSON.stringify({ question, limit: 5, actor: context }),
-        JSON.stringify({ sourceCount: sources.length, paths: sources.map((source) => source.path) }),
+        JSON.stringify({ sourceCount: sources.length, paths: sources.map((source) => source.path), permissionAudit }),
         ToolCallStatus.Allowed
       ]
     );
@@ -147,7 +148,8 @@ export class AgentService {
         { toolName: "search_documents", status: ToolCallStatus.Allowed },
         ...(checklist ? [{ toolName: "create_runbook_checklist", status: ToolCallStatus.Allowed }] : []),
         ...(sensitiveAction ? [{ toolName: "request_human_approval", status: ToolCallStatus.NeedsApproval }] : [])
-      ]
+      ],
+      permissionAudit
     };
   }
 

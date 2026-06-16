@@ -243,6 +243,13 @@ export default function Home() {
               <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "No tool call yet"}</span>
             </div>
             <pre>{answer?.answer ?? "Run a question to see the grounded answer, confidence, tool calls, and sources."}</pre>
+            {answer ? (
+              <div className="boundaryAudit">
+                <span>{answer.permissionAudit.enforcement}</span>
+                <strong>{answer.permissionAudit.deniedCandidateCount} denied candidates</strong>
+                <code>{formatDeniedVisibility(answer.permissionAudit.deniedByVisibility)}</code>
+              </div>
+            ) : null}
             <div className="feedbackBar">
               <input
                 aria-label="feedback comment"
@@ -460,7 +467,12 @@ function formatPercent(value: number): string {
 
 function summarizeToolOutput(output: Record<string, unknown>): string {
   if (typeof output.sourceCount === "number") {
-    return `${output.sourceCount} sources`;
+    const permissionAudit = output.permissionAudit as { deniedCandidateCount?: unknown } | undefined;
+    const denied =
+      permissionAudit && typeof permissionAudit.deniedCandidateCount === "number"
+        ? `, ${permissionAudit.deniedCandidateCount} denied`
+        : "";
+    return `${output.sourceCount} sources${denied}`;
   }
   if (typeof output.approvalStatus === "string") {
     return `approval ${output.approvalStatus}`;
@@ -469,4 +481,13 @@ function summarizeToolOutput(output: Record<string, unknown>): string {
     return `${output.itemCount} checklist items`;
   }
   return "logged";
+}
+
+function formatDeniedVisibility(deniedByVisibility: Record<string, number>): string {
+  const entries = Object.entries(deniedByVisibility);
+  if (entries.length === 0) {
+    return "no denied visibility";
+  }
+
+  return entries.map(([visibility, count]) => `${visibility}:${count}`).join(" ");
 }

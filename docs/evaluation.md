@@ -36,6 +36,10 @@ The API returns the latest source hit rate, top source accuracy, human review ac
 
 `pnpm indexing:smoke` upserts a new Markdown document, asks a Korean incident communication question, and fails unless the top returned source is the newly indexed document. This covers the core portfolio proof that new operational knowledge can be added and retrieved without manually resetting the system.
 
+## Permission Boundary Regression
+
+`pnpm permission:smoke` asks a restricted production database question as an unprivileged actor. It fails unless restricted candidates are counted in the aggregated permission audit and no restricted source is returned to the answer.
+
 ## Retrieval Comparison
 
 Run vector-only:

@@ -23,6 +23,23 @@ export type SearchResult = {
   };
 };
 
+export type PermissionBoundaryAudit = {
+  enforcement: "pre_ranking_sql_filter" | "postgres_recheck_after_elasticsearch";
+  candidateWindow: number;
+  allowedCandidateCount: number;
+  deniedCandidateCount: number;
+  deniedByVisibility: Record<string, number>;
+  actor: {
+    roles: string[];
+    teamSlugs: string[];
+  };
+};
+
+export type SearchWithAudit = {
+  results: SearchResult[];
+  permissionAudit: PermissionBoundaryAudit;
+};
+
 @Injectable()
 export class SearchService {
   constructor(
@@ -33,11 +50,19 @@ export class SearchService {
   ) {}
 
   async search(question: string, context: RequestContext, limit = 5): Promise<SearchResult[]> {
-    if (process.env.RETRIEVAL_MODE === "hybrid" && this.elasticsearch.isEnabled()) {
-      return this.hybridSearch(question, context, limit);
-    }
+    return (await this.searchWithAudit(question, context, limit)).results;
+  }
 
-    return this.vectorSearch(question, context, limit);
+  async searchWithAudit(question: string, context: RequestContext, limit = 5): Promise<SearchWithAudit> {
+    const results =
+      process.env.RETRIEVAL_MODE === "hybrid" && this.elasticsearch.isEnabled()
+        ? await this.hybridSearch(question, context, limit)
+        : await this.vectorSearch(question, context, limit);
+
+    return {
+      results,
+      permissionAudit: await this.auditPermissionBoundary(question, context, limit)
+    };
   }
 
   private async vectorSearch(question: string, context: RequestContext, limit = 5): Promise<SearchResult[]> {
@@ -150,6 +175,74 @@ export class SearchService {
           and ${access.sql};
       `,
       [...chunkIds, ...access.params]
+    );
+  }
+
+  private async auditPermissionBoundary(question: string, context: RequestContext, limit: number): Promise<PermissionBoundaryAudit> {
+    const candidateWindow = Math.max(limit * 3, 10);
+    const candidates = await this.unauthorizedCandidateWindow(question, candidateWindow);
+    const deniedByVisibility: Record<string, number> = {};
+    let allowedCandidateCount = 0;
+    let deniedCandidateCount = 0;
+
+    for (const candidate of candidates) {
+      if (this.authz.canAccessDocument(context, candidate.visibility, candidate.teamSlug)) {
+        allowedCandidateCount += 1;
+      } else {
+        deniedCandidateCount += 1;
+        deniedByVisibility[candidate.visibility] = (deniedByVisibility[candidate.visibility] ?? 0) + 1;
+      }
+    }
+
+    return {
+      enforcement:
+        process.env.RETRIEVAL_MODE === "hybrid" && this.elasticsearch.isEnabled()
+          ? "postgres_recheck_after_elasticsearch"
+          : "pre_ranking_sql_filter",
+      candidateWindow,
+      allowedCandidateCount,
+      deniedCandidateCount,
+      deniedByVisibility,
+      actor: {
+        roles: context.roles,
+        teamSlugs: context.teamSlugs
+      }
+    };
+  }
+
+  private async unauthorizedCandidateWindow(question: string, limit: number): Promise<Array<{ visibility: string; teamSlug?: string | null }>> {
+    const vector = this.embeddings.toSqlVector(await this.embeddings.embed(question));
+    const lexicalTokens = tokenizeForSearch(question);
+    const lexicalScoreSql =
+      lexicalTokens.length > 0
+        ? `(${lexicalTokens.map(() => "case when search_text like ? then 1 else 0 end").join(" + ")})::float / ${lexicalTokens.length}`
+        : "0";
+
+    return this.orm.em.fork().getConnection().execute<Array<{ visibility: string; teamSlug?: string | null }>>(
+      `
+        with base as (
+          select
+            d.visibility,
+            d.team_slug as "teamSlug",
+            lower(concat_ws(' ', d.title, d.path, c.content)) as search_text,
+            greatest(0, 1 - (c.embedding <=> ?::vector)) as vector_score
+          from document_chunks c
+          join documents d on d.id = c.document_id
+        ),
+        scored as (
+          select
+            *,
+            ${lexicalScoreSql} as lexical_score
+          from base
+        )
+        select
+          visibility,
+          "teamSlug"
+        from scored
+        order by (vector_score * 0.45 + lexical_score * 0.55) desc
+        limit ?;
+      `,
+      [vector, ...lexicalTokens.map((token) => `%${token}%`), limit]
     );
   }
 }
