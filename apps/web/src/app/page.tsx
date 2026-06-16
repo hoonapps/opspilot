@@ -116,7 +116,7 @@ export default function Home() {
     setLoading("ingest");
     try {
       setIngest(await upsertMarkdown({ path, markdown }));
-      setQuestion("고객 영향 장애의 첫 status page notice는 몇 분 안에 게시해야 해?");
+      setQuestion("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Indexing request failed");
     } finally {

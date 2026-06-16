@@ -1,10 +1,11 @@
 # Document Indexing
 
-OpsPilot supports three ingestion paths:
+OpsPilot supports four ingestion paths:
 
 - Seed folder ingestion for local demos and repeatable evaluations
 - Runtime Markdown upsert for proving that new documents become searchable
 - GitHub Markdown sync for importing repository docs into the same RAG index
+- BullMQ queued Markdown indexing for production-style async ingestion
 
 ## Seed Folder
 
@@ -26,6 +27,31 @@ curl -X POST http://localhost:3000/documents/markdown \
 ```
 
 If the document path already exists, OpsPilot updates the document metadata, records a new document version when the content hash changed, replaces old chunks, and indexes fresh chunks.
+
+## Queued Markdown Indexing
+
+```bash
+curl -X POST http://localhost:3000/documents/indexing-jobs/markdown \
+  -H "content-type: application/json" \
+  -d '{
+    "path": "public/queue-indexing-proof.md",
+    "markdown": "---\ntitle: \"Queued Indexing Proof\"\nvisibility: public\n---\n# Queued Indexing Proof\n\nQIDX-77 proves that a BullMQ indexing worker completed the queued Markdown job."
+  }'
+```
+
+Check job state:
+
+```bash
+curl http://localhost:3000/documents/indexing-jobs/{jobId}
+```
+
+Run the long-lived worker:
+
+```bash
+pnpm worker:indexing
+```
+
+The queued path stores jobs in Redis through BullMQ. The worker processes `index-markdown` jobs and calls the same `DocumentsService.ingestMarkdown` path used by synchronous ingestion, so chunking, embeddings, pgvector writes, and optional Elasticsearch mirroring stay consistent.
 
 ## GitHub Markdown Sync
 
@@ -57,7 +83,7 @@ The smoke test:
 
 1. Ingests the seed wiki
 2. Upserts a new `public/status-page-policy.md` Markdown document
-3. Asks `장애 공지는 몇 분 안에 올려야 해?`
+3. Asks a status-page SLA question using terms that are unique to the newly indexed document
 4. Fails unless the top source is the newly indexed document and the answer includes the 15 minute SLA
 
 Run the same proof with hybrid retrieval:
@@ -68,6 +94,14 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm indexing:smoke
 ```
 
 Elasticsearch results are treated as candidate chunk ids only. OpsPilot reloads those chunks through PostgreSQL with the same permission filter before using them as answer context.
+
+## Queue Indexing Smoke Test
+
+```bash
+pnpm queue:smoke
+```
+
+The queue smoke test starts the BullMQ worker in-process, enqueues a Markdown indexing job, waits for Redis job completion, asks about `QIDX-77`, and fails unless the queued document is the top RAG source.
 
 ## GitHub Sync Smoke Test
 

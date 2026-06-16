@@ -11,7 +11,11 @@ async function main() {
 
     const response = await app
       .get(AgentService)
-      .ask("정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?", { roles: [], teamSlugs: ["payments"] }, "checklist-smoke");
+      .ask(
+        "settlement-worker queue depth와 settlement.dlq.count를 확인해야 하는 정산 체크리스트는?",
+        { roles: [], teamSlugs: ["payments"] },
+        "checklist-smoke"
+      );
 
     const hasChecklistTool = response.toolCalls.some((tool) => tool.toolName === "create_runbook_checklist");
     const hasRunbookSource = response.sources[0]?.path === "team/settlement-runbook.md";

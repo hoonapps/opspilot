@@ -90,6 +90,9 @@ jobs:
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
+      - name: Queue indexing worker smoke
+        run: pnpm queue:smoke
+
       - name: GitHub markdown sync smoke
         run: pnpm github:smoke
 

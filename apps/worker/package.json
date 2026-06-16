@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "start:indexing": "pnpm --filter @opspilot/api worker:indexing",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "echo \"worker tests are planned\""
+    "test": "echo \"worker behavior is covered by pnpm queue:smoke\""
   },
   "devDependencies": {
     "typescript": "^5.7.2"

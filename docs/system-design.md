@@ -4,12 +4,12 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for document ingestion, GitHub Markdown sync, asking questions, feedback, and approvals
+- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, feedback, and approvals
 - Web Console: Next.js UI for asking questions, viewing sources/tool calls, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, approvals, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
 - Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
-- Worker: indexing and Slack event processing move to BullMQ workers in later phases
+- Worker: BullMQ indexing worker consumes Redis jobs and reuses the document ingestion service
 - Slack Bot: receives mentions and replies in threads with answer, sources, confidence, tool calls, and review status
 
 ## Request Flow
@@ -29,9 +29,11 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 1. Seed ingestion reads local Markdown fixtures for reproducible demos and evaluation.
 2. Runtime upsert accepts one Markdown document through `POST /documents/markdown`.
-3. GitHub sync reads repository Markdown through `POST /documents/github/sync`.
-4. Every ingestion path normalizes metadata, chunks content, stores embeddings in PostgreSQL, and optionally mirrors chunks into Elasticsearch.
-5. Re-indexing the same path preserves chunk identity where possible and deletes obsolete chunks after the fresh version is written.
+3. Async indexing accepts one Markdown document through `POST /documents/indexing-jobs/markdown` and stores a BullMQ job in Redis.
+4. The indexing worker consumes `index-markdown` jobs and calls the same document ingestion service.
+5. GitHub sync reads repository Markdown through `POST /documents/github/sync`.
+6. Every ingestion path normalizes metadata, chunks content, stores embeddings in PostgreSQL, and optionally mirrors chunks into Elasticsearch.
+7. Re-indexing the same path preserves chunk identity where possible and deletes obsolete chunks after the fresh version is written.
 
 ## Web Console Flow
 

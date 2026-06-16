@@ -29,7 +29,11 @@ async function main() {
 
     await documents.ingestSeedDocuments();
     const ingested = await documents.ingestMarkdown(SMOKE_DOCUMENT_PATH, SMOKE_DOCUMENT);
-    const response = await agent.ask("장애 공지는 몇 분 안에 올려야 해?", { roles: [], teamSlugs: [] }, "indexing-smoke");
+    const response = await agent.ask(
+      "고객 공지 SLA와 15분 공지 기준은 무엇이야?",
+      { roles: [], teamSlugs: [] },
+      "indexing-smoke"
+    );
     const topSource = response.sources[0];
     const ok = topSource?.path === SMOKE_DOCUMENT_PATH && response.answer.includes("15");
 

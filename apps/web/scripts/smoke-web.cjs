@@ -22,6 +22,9 @@ async function main() {
     await page.getByRole("button", { name: "Upsert document" }).click();
     await page.getByText("Status Page Incident Communication indexed as", { exact: false }).waitFor({ timeout: 10000 });
 
+    await page
+      .getByLabel("Question")
+      .fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
     await page.getByRole("button", { name: "Ask OpsPilot" }).click();
     const answerPanel = page.locator(".answerPanel pre");
     await answerPanel.getByText("publish the first status page notice within 15 minutes", { exact: false }).waitFor({

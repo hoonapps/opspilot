@@ -25,7 +25,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Backend: NestJS, TypeScript
 - ORM: MikroORM, not Prisma
 - Database: PostgreSQL with pgvector on `localhost:25432`
-- Queue/cache target: Redis and BullMQ in later phases
+- Queue/cache: Redis and BullMQ indexing worker
 - Search target: Elasticsearch optional local profile for hybrid BM25 + vector search
 - AI layer: local deterministic embedding by default, OpenAI adapter planned
 - Integration target: Slack Bot
@@ -88,6 +88,18 @@ Verify GitHub Markdown sync indexing with an offline fixture:
 pnpm github:smoke
 ```
 
+Verify that a BullMQ worker processes a queued Markdown indexing job:
+
+```bash
+pnpm queue:smoke
+```
+
+Run the long-lived indexing worker:
+
+```bash
+pnpm worker:indexing
+```
+
 With the API and web console running, verify the browser flow, GitHub sync UI, and refresh the README screenshot:
 
 ```bash
@@ -109,6 +121,7 @@ pnpm eval
 pnpm checklist:smoke
 pnpm github:smoke
 pnpm indexing:smoke
+pnpm queue:smoke
 pnpm review:smoke
 pnpm web:smoke
 ```
@@ -157,6 +170,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Source citation response
 - Runtime Markdown document upsert API
 - GitHub Markdown sync API
+- BullMQ queued Markdown indexing API and worker
 - Permission-aware retrieval filtering
 - Sensitive action detection
 - Tool call logs
@@ -174,7 +188,7 @@ Done:
 - NestJS API monorepo scaffold
 - MikroORM PostgreSQL entities and initial migration
 - PostgreSQL + pgvector Docker setup
-- Redis Docker setup for later queue work
+- Redis Docker setup for BullMQ queue work
 - Optional Elasticsearch Docker profile for later hybrid search
 - Markdown seed document ingestion
 - Local deterministic embedding and pgvector retrieval
@@ -192,14 +206,15 @@ Done:
 - Evaluation command with expected source hit rate
 - Runtime Markdown document upsert API and indexing smoke test
 - GitHub Markdown sync API and offline sync smoke test
+- BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
 - Next.js web console and Playwright smoke test with GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, eval, checklist, GitHub sync, indexing, review, and browser smoke gates
+- GitHub Actions CI for build, eval, checklist, GitHub sync, direct indexing, queue indexing, review, and browser smoke gates
 - README product preview image
 
 Not done yet:
 
-- BullMQ indexing worker
+- Anthropic provider adapter
 
 ## Slack Bot
 
@@ -243,13 +258,22 @@ POST /documents/markdown
 
 This replaces chunks for the same document path, records a new document version when content changes, stores embeddings in pgvector, and optionally updates Elasticsearch for hybrid retrieval.
 
+Queued indexing endpoint:
+
+```txt
+POST /documents/indexing-jobs/markdown
+GET /documents/indexing-jobs/:id
+```
+
+The queue path stores a BullMQ job in Redis. `pnpm worker:indexing` processes jobs and reuses the same document ingestion code path as the synchronous API.
+
 The web console also exposes a GitHub Markdown sync form for syncing repository docs into the same RAG index.
 
 Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the GitHub sync UI.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
@@ -269,6 +293,5 @@ Documents include `public`, `team`, and `restricted` visibility so permission bo
 
 - Slack mention event handling and thread replies
 - OpenAI and Anthropic provider adapters
-- BullMQ indexing worker
 - Elasticsearch BM25 index and hybrid fusion
 - Feedback UI and admin review screen
