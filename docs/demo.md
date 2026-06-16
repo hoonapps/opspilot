@@ -2,6 +2,8 @@
 
 `pnpm portfolio:demo` runs a compact end-to-end demo without requiring a browser or external LLM provider. It creates a Nest application context, ingests the seed wiki, upserts a new Markdown document, asks representative operations questions, and prints a JSON report.
 
+`pnpm portfolio:report` runs the same assertions and writes `docs/demo-report.md`. That file is intended for portfolio review: it shows the retrieved source paths, document agreement ratio, tool calls, human review state, new-document indexing proof, and persisted audit trace evidence.
+
 ## What It Proves
 
 - A normal incident question returns grounded RAG sources.
@@ -19,6 +21,12 @@ pnpm portfolio:demo
 ```
 
 The command exits non-zero if any portfolio claim is not proven.
+
+Generate the Markdown proof report:
+
+```bash
+pnpm portfolio:report
+```
 
 ## Report Shape
 

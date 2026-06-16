@@ -25,6 +25,7 @@
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "trace:smoke": "ts-node src/cli/answer-trace-smoke.ts",
     "portfolio:demo": "ts-node src/cli/portfolio-demo.ts",
+    "portfolio:report": "ts-node src/cli/portfolio-demo.ts --report ../../docs/demo-report.md",
     "observability:smoke": "ts-node src/cli/observability-smoke.ts",
     "openapi:smoke": "ts-node src/cli/openapi-smoke.ts",
     "slack:simulate": "ts-node src/cli/simulate-slack.ts",

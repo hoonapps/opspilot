@@ -134,6 +134,9 @@ jobs:
       - name: Portfolio demo
         run: pnpm portfolio:demo
 
+      - name: Portfolio markdown report
+        run: pnpm portfolio:report
+
       - name: Observability smoke
         run: pnpm observability:smoke
 

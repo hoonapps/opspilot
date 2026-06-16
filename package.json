@@ -25,6 +25,7 @@
     "review:smoke": "pnpm --filter @opspilot/api review:smoke",
     "trace:smoke": "pnpm --filter @opspilot/api trace:smoke",
     "portfolio:demo": "pnpm --filter @opspilot/api portfolio:demo",
+    "portfolio:report": "pnpm --filter @opspilot/api portfolio:report",
     "observability:smoke": "pnpm --filter @opspilot/api observability:smoke",
     "openapi:smoke": "pnpm --filter @opspilot/api openapi:smoke",
     "slack:simulate": "pnpm --filter @opspilot/api slack:simulate",

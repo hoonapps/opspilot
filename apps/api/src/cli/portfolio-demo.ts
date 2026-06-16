@@ -1,5 +1,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { AgentService, AskResponse } from "../agent/agent.service";
 import { AnswerTraceService } from "../agent/answer-trace.service";
 import { AppModule } from "../app.module";
@@ -32,6 +34,10 @@ type DemoStep = {
   answerId: string;
   confidence: number;
   documentAgreement: number;
+  documentAgreementTokens: {
+    matched: number;
+    answer: number;
+  };
   needsHumanReview: boolean;
   reviewReasons: string[];
   sources: string[];
@@ -39,7 +45,28 @@ type DemoStep = {
   assertions: Record<string, boolean>;
 };
 
+type PortfolioReport = {
+  ok: boolean;
+  generatedAt: string;
+  demoClaims: string[];
+  ingestedDocument: {
+    path: string;
+    title: string;
+    chunks: number;
+    changed: boolean;
+  };
+  steps: DemoStep[];
+  traceSummary: {
+    answerId: string;
+    sourceCount: number;
+    toolCalls: string[];
+    approvals: string[];
+    feedbackCount: number;
+  };
+};
+
 async function main() {
+  const markdownReportPath = getMarkdownReportPath(process.argv);
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
   try {
     const documents = app.get(DocumentsService);
@@ -107,7 +134,7 @@ async function main() {
     ];
 
     const ok = steps.every((step) => Object.values(step.assertions).every(Boolean));
-    const report = {
+    const report: PortfolioReport = {
       ok,
       generatedAt: new Date().toISOString(),
       demoClaims: [
@@ -135,6 +162,13 @@ async function main() {
 
     console.log(JSON.stringify(report, null, 2));
 
+    if (markdownReportPath) {
+      const absolutePath = resolve(process.cwd(), markdownReportPath);
+      await mkdir(dirname(absolutePath), { recursive: true });
+      await writeFile(absolutePath, renderMarkdownReport(report), "utf8");
+      console.log(JSON.stringify({ markdownReportPath: absolutePath }, null, 2));
+    }
+
     if (!ok) {
       throw new Error("Portfolio demo failed");
     }
@@ -150,6 +184,10 @@ function toStep(name: string, question: string, answer: AskResponse, assertions:
     answerId: answer.answerId,
     confidence: answer.confidence,
     documentAgreement: answer.documentAgreement.score,
+    documentAgreementTokens: {
+      matched: answer.documentAgreement.matchedTokenCount,
+      answer: answer.documentAgreement.answerTokenCount
+    },
     needsHumanReview: answer.needsHumanReview,
     reviewReasons: answer.reviewReasons.map((reason) => reason.code),
     sources: answer.sources.map((source) => source.path),
@@ -160,6 +198,75 @@ function toStep(name: string, question: string, answer: AskResponse, assertions:
 
 function hasTool(answer: AskResponse, toolName: string): boolean {
   return answer.toolCalls.some((tool) => tool.toolName === toolName);
+}
+
+function getMarkdownReportPath(argv: string[]): string | null {
+  const reportIndex = argv.indexOf("--report");
+  if (reportIndex >= 0) {
+    return argv[reportIndex + 1] ?? "docs/demo-report.md";
+  }
+
+  return process.env.PORTFOLIO_REPORT_PATH ?? null;
+}
+
+function renderMarkdownReport(report: PortfolioReport): string {
+  const lines = [
+    "# OpsPilot Portfolio Demo Report",
+    "",
+    `Generated at: ${report.generatedAt}`,
+    "",
+    `Overall result: ${report.ok ? "PASS" : "FAIL"}`,
+    "",
+    "## Proven Claims",
+    "",
+    ...report.demoClaims.map((claim) => `- ${claim}`),
+    "",
+    "## Runtime Evidence",
+    "",
+    "| Step | Sources | Document agreement | Tool calls | Human review | Assertions |",
+    "| --- | --- | ---: | --- | --- | --- |",
+    ...report.steps.map((step) =>
+      [
+        escapeTable(step.name),
+        escapeTable(step.sources.join("<br>")),
+        `${Math.round(step.documentAgreement * 100)}% (${step.documentAgreement.toFixed(3)}, ${step.documentAgreementTokens.matched}/${step.documentAgreementTokens.answer} tokens)`,
+        escapeTable(step.toolCalls.join("<br>")),
+        step.needsHumanReview ? "yes" : "no",
+        escapeTable(renderAssertions(step.assertions))
+      ].join(" | ")
+    ).map((row) => `| ${row} |`),
+    "",
+    "## New Document Indexing Proof",
+    "",
+    `- Path: \`${report.ingestedDocument.path}\``,
+    `- Title: ${report.ingestedDocument.title}`,
+    `- Indexed chunks: ${report.ingestedDocument.chunks}`,
+    `- Upsert changed content hash in this run: ${report.ingestedDocument.changed ? "yes" : "no"}`,
+    "- Retrieval proof: the demo asks a Korean SLA question and fails unless this document is returned as the top source.",
+    "",
+    "## Audit Trace Proof",
+    "",
+    `- Answer ID: \`${report.traceSummary.answerId}\``,
+    `- Source count: ${report.traceSummary.sourceCount}`,
+    `- Tool calls: ${report.traceSummary.toolCalls.join(", ")}`,
+    `- Approvals: ${report.traceSummary.approvals.join(", ")}`,
+    `- Feedback records: ${report.traceSummary.feedbackCount}`,
+    "",
+    "This report is generated by `pnpm portfolio:report`, which runs the same assertions as `pnpm portfolio:demo` before writing this file.",
+    ""
+  ];
+
+  return lines.join("\n");
+}
+
+function renderAssertions(assertions: Record<string, boolean>): string {
+  return Object.entries(assertions)
+    .map(([name, passed]) => `${passed ? "PASS" : "FAIL"} ${name}`)
+    .join("<br>");
+}
+
+function escapeTable(value: string): string {
+  return value.replace(/\|/g, "\\|");
 }
 
 void main().catch((error) => {

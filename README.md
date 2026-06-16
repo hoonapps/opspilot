@@ -95,6 +95,14 @@ pnpm portfolio:demo
 
 This single command proves grounded RAG, new document indexing, runbook tool calling, human approval separation, and answer trace reconstruction. Details: [docs/demo.md](docs/demo.md)
 
+Generate a checked-in Markdown proof report with the same assertions:
+
+```bash
+pnpm portfolio:report
+```
+
+The latest generated report lives at [docs/demo-report.md](docs/demo-report.md).
+
 Verify that a persisted answer can be reconstructed for audit from sources, tool calls, approvals, and feedback, while unauthorized trace reads are denied:
 
 ```bash
@@ -207,6 +215,7 @@ pnpm queue:smoke
 pnpm review:smoke
 pnpm trace:smoke
 pnpm portfolio:demo
+pnpm portfolio:report
 pnpm observability:smoke
 pnpm openapi:smoke
 pnpm web:smoke
@@ -355,6 +364,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
+- Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
 - Next.js web console and Playwright smoke test with evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
@@ -419,7 +429,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## Portfolio Demo
 
-`pnpm portfolio:demo` runs a compact terminal demo report that covers the highest-signal interview path without a browser. It verifies a grounded incident answer, newly indexed Markdown retrieval, runbook checklist tool calling, sensitive-operation human approval, feedback logging, and answer trace reconstruction.
+`pnpm portfolio:demo` runs a compact terminal demo report that covers the highest-signal interview path without a browser. `pnpm portfolio:report` runs the same assertions and writes [docs/demo-report.md](docs/demo-report.md), including source paths, document agreement ratios, tool calls, human review state, and audit trace evidence. It verifies a grounded incident answer, newly indexed Markdown retrieval, runbook checklist tool calling, sensitive-operation human approval, feedback logging, and answer trace reconstruction.
 
 Details: [docs/demo.md](docs/demo.md)
 
