@@ -5,6 +5,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 ## Components
 
 - API: NestJS HTTP API for document ingestion, asking questions, feedback, and approvals
+- Web Console: Next.js UI for asking questions, viewing sources/tool calls, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, approvals, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
 - Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
@@ -13,14 +14,23 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Request Flow
 
-1. User asks a question through API or Slack.
+1. User asks a question through the web console, API, or Slack.
 2. API builds actor context from auth headers or Slack identity.
 3. Retrieval filter is built from actor roles and team memberships.
 4. Search tool retrieves chunks only from accessible documents.
 5. Agent generates an answer from retrieved chunks.
 6. Sensitive actions are converted into approval requests.
 7. Question, answer, sources, tool calls, and approval state are logged.
-8. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+8. Web requests render the grounded answer, sources, confidence, and tool calls in the console.
+9. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+
+## Web Console Flow
+
+1. Operator opens the Next.js console on `localhost:3001`.
+2. The console calls `POST /documents/markdown` to upsert Markdown knowledge.
+3. The console calls `POST /ask` with team and role headers.
+4. The answer panel renders the generated response, confidence, review state, and tool calls.
+5. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
 
 ## Permission Boundary
 

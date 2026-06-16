@@ -4,6 +4,8 @@ Permission-aware RAG agent for operational knowledge, runbooks, and Slack suppor
 
 ![OpsPilot dashboard preview](docs/assets/opspilot-dashboard.svg)
 
+![OpsPilot web console](docs/assets/opspilot-web-console.png)
+
 OpsPilot is a portfolio-grade AI agent project focused on operational support. It answers questions from Markdown wiki documents, returns grounded sources, applies document-level permission boundaries before retrieval results reach the LLM layer, logs tool calls, and marks sensitive work for human approval.
 
 ## Why This Project Exists
@@ -25,6 +27,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Search target: Elasticsearch optional local profile for hybrid BM25 + vector search
 - AI layer: local deterministic embedding by default, OpenAI adapter planned
 - Integration target: Slack Bot
+- Web console: Next.js
 - Infra: Docker Compose
 
 ## Local Quick Start
@@ -36,6 +39,12 @@ docker compose up -d postgres redis
 pnpm --filter @opspilot/api db:migrate
 pnpm ingest
 pnpm dev:api
+```
+
+Run the web console in another terminal:
+
+```bash
+pnpm dev:web
 ```
 
 Ask a question:
@@ -63,6 +72,12 @@ Prove that a newly added Markdown document is indexed and becomes the top source
 
 ```bash
 pnpm indexing:smoke
+```
+
+With the API and web console running, verify the browser flow and refresh the README screenshot:
+
+```bash
+pnpm web:smoke
 ```
 
 Expected seed result:
@@ -114,6 +129,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Human approval request creation for sensitive work
 - Evaluation script with expected source hit rate
 - New document indexing smoke test
+- Next.js web console for asking questions and upserting Markdown documents
 
 ## Implementation Status
 
@@ -137,12 +153,12 @@ Done:
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
 - Runtime Markdown document upsert API and indexing smoke test
+- Next.js web console and Playwright smoke test
 - README product preview image
 
 Not done yet:
 
 - BullMQ indexing worker
-- Next.js product UI
 - GitHub Markdown sync
 - Feedback UI and admin approval screen
 

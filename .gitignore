@@ -6,3 +6,4 @@ coverage
 *.log
 pnpm-debug.log*
 .turbo
+.next
