@@ -1,7 +1,7 @@
 [
   {
     "id": "error-e102",
-    "question": "E102 에러가 발생하면 어떻게 대응해야 해?",
+    "question": "E102 Payment Approval Timeout에서 payment.approval.timeout metric은 언제 확인하고 누구에게 escalate 해야 해?",
     "expectedSources": ["public/payment-error-codes.md"],
     "actor": {
       "roles": [],
@@ -10,7 +10,7 @@
   },
   {
     "id": "settlement-delay-payments-team",
-    "question": "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?",
+    "question": "settlement-worker queue depth와 settlement.dlq.count를 확인해야 하는 정산 체크리스트는?",
     "expectedSources": ["team/settlement-runbook.md"],
     "actor": {
       "roles": [],
@@ -19,7 +19,7 @@
   },
   {
     "id": "restricted-prod-db",
-    "question": "운영 DB에서 user status를 직접 update 해도 돼?",
+    "question": "운영 DB에서 merchant balance, payment state, refund state를 직접 update 해도 돼?",
     "expectedSources": ["restricted/production-db-policy.md"],
     "actor": {
       "roles": ["ops_admin"],
@@ -28,7 +28,7 @@
   },
   {
     "id": "refund-forced",
-    "question": "강제 환불은 Agent가 바로 실행해도 돼?",
+    "question": "강제 환불을 요청할 때 payment id, merchant id, reason, customer ticket은 어떻게 처리해야 해?",
     "expectedSources": ["public/refund-policy.md"],
     "actor": {
       "roles": [],

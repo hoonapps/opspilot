@@ -17,6 +17,15 @@ pnpm eval
 
 The evaluation command ingests seed documents, asks each question, stores metric rows in `evaluation_results`, and prints a JSON report.
 
+## Latest Report API
+
+```txt
+GET /evaluations/latest
+GET /evaluations/latest?suiteName=seed-ops-wiki
+```
+
+The API returns the latest source hit rate, top source accuracy, human review accuracy, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
+
 ## Planned Additions
 
 - groundedness check per answer sentence

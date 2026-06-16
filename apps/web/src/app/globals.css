@@ -246,6 +246,7 @@ textarea:focus {
 .chip,
 .primaryButton,
 .secondaryButton,
+.smallButton,
 .feedbackBar button,
 .approvalActions button {
   min-height: 42px;
@@ -277,6 +278,15 @@ textarea:focus {
   width: 100%;
   background: #20362f;
   color: white;
+}
+
+.smallButton {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 .answerPanel {
@@ -390,11 +400,28 @@ pre {
   box-shadow: none;
 }
 
+.evalPanel,
 .approvalPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   padding: 16px;
+}
+
+.evalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evalGrid .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.evalGrid .metric strong {
+  font-size: 17px;
 }
 
 .approvalList {
@@ -456,6 +483,7 @@ pre {
   .workspace,
   .fieldGrid,
   .quickGrid,
+  .evalGrid,
   .feedbackBar {
     grid-template-columns: 1fr;
   }

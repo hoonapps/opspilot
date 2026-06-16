@@ -6,6 +6,8 @@ import {
   askOpsPilot,
   AskResponse,
   createFeedback,
+  EvaluationReport,
+  getLatestEvaluation,
   GithubSyncResponse,
   IngestResponse,
   listApprovals,
@@ -49,11 +51,12 @@ export default function Home() {
   const [githubSourcePrefix, setGithubSourcePrefix] = useState("github/hoonapps/opspilot");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "feedback" | null>(null);
+  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "evaluation" | "feedback" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
@@ -140,6 +143,18 @@ export default function Home() {
       setQuestion("OpsPilot의 permission boundary는 어디에서 적용돼?");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "GitHub sync request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadEvaluation() {
+    setError(null);
+    setLoading("evaluation");
+    try {
+      setEvaluation(await getLatestEvaluation());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Evaluation request failed");
     } finally {
       setLoading(null);
     }
@@ -256,6 +271,32 @@ export default function Home() {
             )}
           </div>
 
+          <section className="evalPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Evaluation</p>
+                <h2>Quality gates</h2>
+              </div>
+              <button className="smallButton" disabled={loading === "evaluation"} onClick={loadEvaluation} type="button">
+                {loading === "evaluation" ? "Loading..." : "Load eval"}
+              </button>
+            </div>
+            {evaluation ? (
+              <>
+                <div className="evalGrid">
+                  <Metric label="Source hit" value={formatPercent(evaluation.metrics.sourceHitRate)} />
+                  <Metric label="Top source" value={formatPercent(evaluation.metrics.topSourceAccuracy)} />
+                  <Metric label="Human review" value={formatPercent(evaluation.metrics.humanReviewAccuracy)} />
+                </div>
+                <p className="ingestResult">
+                  {evaluation.suiteName} · {evaluation.total} cases · {evaluation.rows.filter((row) => row.hit).length} hits
+                </p>
+              </>
+            ) : (
+              <p className="empty">Run `pnpm eval`, then load the latest quality report.</p>
+            )}
+          </section>
+
           <section className="approvalPanel">
             <div className="sectionHeader compact">
               <div>
@@ -368,4 +409,8 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }

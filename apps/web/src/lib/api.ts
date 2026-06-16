@@ -49,6 +49,25 @@ export type GithubSyncResponse = {
   documents: IngestResponse[];
 };
 
+export type EvaluationReport = {
+  suiteName: string;
+  createdAt: string;
+  total: number;
+  metrics: {
+    sourceHitRate: number;
+    topSourceAccuracy: number;
+    humanReviewAccuracy: number;
+  };
+  rows: Array<{
+    id: string;
+    hit: boolean;
+    needsHumanReview: boolean;
+    expectedSources: string[];
+    actualSources: string[];
+    confidence: number;
+  }>;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -145,4 +164,15 @@ export async function syncGithubDocuments(input: {
   }
 
   return response.json() as Promise<GithubSyncResponse>;
+}
+
+export async function getLatestEvaluation(): Promise<EvaluationReport | null> {
+  const response = await fetch(`${API_BASE_URL}/evaluations/latest`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { report: EvaluationReport | null };
+  return data.report;
 }

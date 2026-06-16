@@ -15,6 +15,11 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
 
+    await page.getByRole("button", { name: "Load eval" }).click();
+    await page.getByText("Source hit", { exact: false }).waitFor({ timeout: 10000 });
+    await page.getByText("seed-ops-wiki", { exact: false }).waitFor({ timeout: 10000 });
+    const evaluationVisible = await page.getByText("Human review", { exact: true }).first().isVisible();
+
     await page.getByRole("button", { name: "Sync GitHub docs" }).click();
     await page.getByText("Synced", { exact: false }).waitFor({ timeout: 20000 });
     const githubSyncVisible = await page.getByText("Markdown docs from hoonapps/opspilot", { exact: false }).isVisible();
@@ -59,7 +64,8 @@ async function main() {
         metaText.includes("request_human_approval") &&
         approvalText.includes("sensitive_operation") &&
         feedbackSaved &&
-        githubSyncVisible,
+        githubSyncVisible &&
+        evaluationVisible,
       baseUrl,
       screenshotPath,
       checks: {
@@ -68,7 +74,8 @@ async function main() {
         approvalToolCallVisible: metaText.includes("request_human_approval"),
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
         feedbackSaved,
-        githubSyncVisible
+        githubSyncVisible,
+        evaluationVisible
       }
     };
 

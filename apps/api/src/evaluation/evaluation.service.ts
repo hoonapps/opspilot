@@ -26,6 +26,25 @@ export type EvalReport = {
   }>;
 };
 
+export type LatestEvalReport = {
+  suiteName: string;
+  createdAt: string;
+  total: number;
+  metrics: {
+    sourceHitRate: number;
+    topSourceAccuracy: number;
+    humanReviewAccuracy: number;
+  };
+  rows: EvalReport["rows"];
+} | null;
+
+type EvaluationMetricRow = {
+  metric_name: string;
+  score: number;
+  details: { total?: number; rows?: EvalReport["rows"] };
+  created_at: Date | string;
+};
+
 @Injectable()
 export class EvaluationService {
   constructor(
@@ -93,6 +112,46 @@ export class EvaluationService {
     );
 
     return report;
+  }
+
+  async latest(suiteName: string): Promise<{ report: LatestEvalReport }> {
+    const rows = (await this.orm.em.fork().getConnection().execute(
+      `
+        select distinct on (metric_name)
+          metric_name,
+          score,
+          details,
+          created_at
+        from evaluation_results
+        where suite_name = ?
+        order by metric_name, created_at desc;
+      `,
+      [suiteName]
+    )) as EvaluationMetricRow[];
+
+    if (rows.length === 0) {
+      return { report: null };
+    }
+
+    const byMetric = new Map(rows.map((row) => [row.metric_name, row]));
+    const details = byMetric.get("source_hit_rate")?.details ?? rows[0].details;
+    const createdAt = rows
+      .map((row) => new Date(row.created_at))
+      .reduce((latest, value) => (value > latest ? value : latest), new Date(rows[0].created_at));
+
+    return {
+      report: {
+        suiteName,
+        createdAt: createdAt.toISOString(),
+        total: details.total ?? details.rows?.length ?? 0,
+        metrics: {
+          sourceHitRate: byMetric.get("source_hit_rate")?.score ?? 0,
+          topSourceAccuracy: byMetric.get("top_source_accuracy")?.score ?? 0,
+          humanReviewAccuracy: byMetric.get("human_review_accuracy")?.score ?? 0
+        },
+        rows: details.rows ?? []
+      }
+    };
   }
 }
 

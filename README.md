@@ -178,6 +178,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
 - Evaluation script with expected source hit rate
+- Latest evaluation API and web quality gate panel
 - New document indexing smoke test
 - Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
 
@@ -204,11 +205,12 @@ Done:
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
+- Latest evaluation API and web console quality gate panel
 - Runtime Markdown document upsert API and indexing smoke test
 - GitHub Markdown sync API and offline sync smoke test
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
-- Next.js web console and Playwright smoke test with GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with evaluation metrics, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, eval, checklist, GitHub sync, direct indexing, queue indexing, review, and browser smoke gates
 - README product preview image
 
@@ -273,7 +275,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the GitHub sync UI.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the evaluation panel and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
