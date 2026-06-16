@@ -10,6 +10,7 @@
     "start:api": "pnpm --filter @opspilot/api start",
     "ingest": "pnpm --filter @opspilot/api ingest",
     "eval": "pnpm --filter @opspilot/api eval",
+    "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
     "slack:simulate": "pnpm --filter @opspilot/api slack:simulate",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"

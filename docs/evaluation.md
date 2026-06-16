@@ -21,7 +21,11 @@ The evaluation command ingests seed documents, asks each question, stores metric
 
 - groundedness check per answer sentence
 - citation accuracy review
-- regression test for newly added documents
+- larger regression set for newly added documents
+
+## New Document Regression
+
+`pnpm indexing:smoke` upserts a new Markdown document, asks a Korean incident communication question, and fails unless the top returned source is the newly indexed document. This covers the core portfolio proof that new operational knowledge can be added and retrieved without manually resetting the system.
 
 ## Retrieval Comparison
 

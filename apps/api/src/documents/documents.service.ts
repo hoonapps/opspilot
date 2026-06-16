@@ -81,7 +81,11 @@ export class DocumentsService {
         [document.id]
       );
       await connection.execute(
-        "insert into document_versions (document_id, version, content_hash, content) values (?::uuid, ?, ?, ?)",
+        `
+          insert into document_versions (document_id, version, content_hash, content)
+          values (?::uuid, ?, ?, ?)
+          on conflict (document_id, version) do nothing;
+        `,
         [document.id, nextVersion, contentHash, parsed.body]
       );
     }
@@ -96,6 +100,11 @@ export class DocumentsService {
         `
           insert into document_chunks (document_id, chunk_index, content, embedding, metadata)
           values (?::uuid, ?, ?, ?::vector, ?::jsonb)
+          on conflict (document_id, chunk_index)
+          do update set
+            content = excluded.content,
+            embedding = excluded.embedding,
+            metadata = excluded.metadata
           returning id;
         `,
         [

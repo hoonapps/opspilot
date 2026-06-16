@@ -59,6 +59,12 @@ Run evaluation:
 pnpm eval
 ```
 
+Prove that a newly added Markdown document is indexed and becomes the top source:
+
+```bash
+pnpm indexing:smoke
+```
+
 Expected seed result:
 
 ```json
@@ -101,11 +107,13 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - pgvector similarity search
 - `/ask` API
 - Source citation response
+- Runtime Markdown document upsert API
 - Permission-aware retrieval filtering
 - Sensitive action detection
 - Tool call logs
 - Human approval request creation for sensitive work
 - Evaluation script with expected source hit rate
+- New document indexing smoke test
 
 ## Implementation Status
 
@@ -128,6 +136,7 @@ Done:
 - Tool call logging
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
+- Runtime Markdown document upsert API and indexing smoke test
 - README product preview image
 
 Not done yet:
@@ -168,6 +177,18 @@ SLACK_POST_REPLIES=true
 Slack user access is mapped through `SLACK_DEFAULT_TEAM_SLUGS` and `SLACK_DEFAULT_ROLES` for the current demo. A production implementation should resolve Slack users to application users and teams in the database.
 
 Details: [docs/slack-bot.md](docs/slack-bot.md)
+
+## Document Indexing
+
+Runtime upsert endpoint:
+
+```txt
+POST /documents/markdown
+```
+
+This replaces chunks for the same document path, records a new document version when content changes, stores embeddings in pgvector, and optionally updates Elasticsearch for hybrid retrieval.
+
+Details: [docs/indexing.md](docs/indexing.md)
 
 ## Demo Knowledge Base
 

@@ -13,6 +13,7 @@
     "db:create": "mikro-orm migration:create --config src/config/mikro-orm.config.ts",
     "ingest": "ts-node src/cli/ingest.ts",
     "eval": "ts-node src/cli/evaluate.ts",
+    "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
     "slack:simulate": "ts-node src/cli/simulate-slack.ts"
   },
   "dependencies": {
