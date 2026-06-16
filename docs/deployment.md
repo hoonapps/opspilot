@@ -18,6 +18,11 @@ This starts:
 
 The API container runs migrations and seed ingestion before starting. Ingestion is idempotent, so restarting the stack keeps the demo usable.
 
+The API exposes:
+
+- `GET /health`: liveness, used to confirm the process is running
+- `GET /health/ready`: readiness, used by the production Compose healthcheck to confirm PostgreSQL, Redis, and optional Elasticsearch are reachable
+
 ## Hosted Environment Shape
 
 For a hosted demo, keep these process boundaries:
@@ -62,4 +67,4 @@ ANTHROPIC_CHAT_MODEL=claude-3-5-haiku-latest
 
 ## CI Proof
 
-GitHub Actions builds the Docker image target after typecheck and package build, then runs tests, RAG evaluation, authentication smoke tests, answer agreement smoke tests, permission boundary smoke tests, and browser smoke tests. This proves the checked-in deployment artifact can build from a clean environment and that the runtime behavior still passes the portfolio gates.
+GitHub Actions builds the Docker image target after typecheck and package build, then runs tests, RAG evaluation, authentication smoke tests, readiness smoke tests, answer agreement smoke tests, permission boundary smoke tests, and browser smoke tests. This proves the checked-in deployment artifact can build from a clean environment and that the runtime behavior still passes the portfolio gates.

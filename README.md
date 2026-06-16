@@ -104,6 +104,12 @@ Verify that signed actor tokens are required when `OPSPILOT_ACTOR_TOKEN_SECRET` 
 pnpm authn:smoke
 ```
 
+Verify production readiness checks for PostgreSQL, Redis, and optional Elasticsearch:
+
+```bash
+pnpm readiness:smoke
+```
+
 Verify that each answer exposes and persists a source document agreement score:
 
 ```bash
@@ -156,6 +162,7 @@ pnpm eval
 pnpm eval:gate-smoke
 pnpm permission:smoke
 pnpm authn:smoke
+pnpm readiness:smoke
 pnpm agreement:smoke
 pnpm checklist:smoke
 pnpm github:smoke
@@ -242,6 +249,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - GitHub Markdown sync API
 - BullMQ queued Markdown indexing API and worker
 - Optional signed actor token authentication boundary
+- Liveness and readiness endpoints for PostgreSQL, Redis, and optional Elasticsearch
 - Permission-aware retrieval filtering
 - Permission boundary audit counts for denied retrieval candidates
 - Per-answer document agreement score
@@ -275,9 +283,11 @@ Done:
 - Hybrid retrieval with vector + lexical rank fusion
 - `/ask` API with source citations
 - Optional signed actor token authentication boundary
+- `/health` liveness and `/health/ready` dependency readiness checks
 - Permission-aware retrieval filtering
 - Permission boundary smoke test and web audit summary
 - Signed actor token smoke test for missing, tampered, expired, and valid tokens
+- Readiness smoke test for PostgreSQL, Redis, and optional Elasticsearch state
 - Per-answer document agreement score in `/ask`, answer metadata, the web console, and CI smoke tests
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
@@ -295,7 +305,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, Docker image build, eval, permission boundary, signed actor token auth, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- GitHub Actions CI for build, Docker image build, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 
 ## Slack Bot
@@ -355,7 +365,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

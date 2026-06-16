@@ -107,6 +107,9 @@ jobs:
       - name: Signed actor token smoke
         run: pnpm authn:smoke
 
+      - name: Readiness smoke
+        run: pnpm readiness:smoke
+
       - name: Answer document agreement smoke
         run: pnpm agreement:smoke
 
@@ -130,7 +133,7 @@ jobs:
           pnpm --filter @opspilot/api start > /tmp/opspilot-api.log 2>&1 &
           echo $! > /tmp/opspilot-api.pid
           for i in {1..30}; do
-            curl -fsS http://localhost:3000/health && exit 0
+            curl -fsS http://localhost:3000/health/ready && exit 0
             sleep 1
           done
           cat /tmp/opspilot-api.log

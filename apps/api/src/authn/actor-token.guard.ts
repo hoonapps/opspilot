@@ -33,7 +33,7 @@ export class ActorTokenGuard implements CanActivate {
       return true;
     }
 
-    return path === "/health" || path.startsWith("/docs") || path === "/slack/events";
+    return path === "/health" || path === "/health/ready" || path.startsWith("/docs") || path === "/slack/events";
   }
 }
 

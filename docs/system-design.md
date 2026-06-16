@@ -4,7 +4,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for signed actor authentication, document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer-level document agreement, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
+- API: NestJS HTTP API for signed actor authentication, liveness/readiness checks, document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer-level document agreement, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
 - Web Console: Next.js UI for asking questions, viewing answer trace, sources/tool calls, review reasons, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
