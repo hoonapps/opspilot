@@ -18,11 +18,12 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 2. API builds actor context from auth headers or Slack identity.
 3. Retrieval filter is built from actor roles and team memberships.
 4. Search tool retrieves chunks only from accessible documents.
-5. Agent generates an answer from retrieved chunks.
-6. Sensitive actions are converted into approval requests.
-7. Question, answer, sources, tool calls, and approval state are logged.
-8. Web requests render the grounded answer, sources, confidence, and tool calls in the console.
-9. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+5. Runbook questions can call `create_runbook_checklist` to structure action items from retrieved runbooks.
+6. Agent generates an answer from retrieved chunks.
+7. Sensitive actions are converted into approval requests.
+8. Question, answer, sources, tool calls, and approval state are logged.
+9. Web requests render the grounded answer, sources, confidence, and tool calls in the console.
+10. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
 
 ## Web Console Flow
 

@@ -76,6 +76,12 @@ Prove that a newly added Markdown document is indexed and becomes the top source
 pnpm indexing:smoke
 ```
 
+Verify that a runbook question triggers structured checklist tool calling:
+
+```bash
+pnpm checklist:smoke
+```
+
 With the API and web console running, verify the browser flow and refresh the README screenshot:
 
 ```bash
@@ -94,6 +100,7 @@ CI runs the same core gates on GitHub Actions:
 pnpm typecheck
 pnpm build
 pnpm eval
+pnpm checklist:smoke
 pnpm indexing:smoke
 pnpm review:smoke
 pnpm web:smoke
@@ -145,6 +152,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Permission-aware retrieval filtering
 - Sensitive action detection
 - Tool call logs
+- Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
 - Evaluation script with expected source hit rate
@@ -171,12 +179,13 @@ Done:
 - Sensitive action detection and approval request records
 - Approval list/update API and feedback create API
 - Tool call logging
+- `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
 - Runtime Markdown document upsert API and indexing smoke test
 - Review workflow smoke test
 - Next.js web console and Playwright smoke test with feedback and approval queue coverage
-- GitHub Actions CI for build, eval, indexing, review, and browser smoke gates
+- GitHub Actions CI for build, eval, checklist, indexing, review, and browser smoke gates
 - README product preview image
 
 Not done yet:

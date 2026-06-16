@@ -5,7 +5,7 @@
 - `search_documents`: retrieves accessible document chunks
 - `request_human_approval`: records approval requests for sensitive actions
 - `save_feedback`: records answer quality feedback
-- `create_runbook_checklist`: planned for incident checklist generation
+- `create_runbook_checklist`: extracts numbered action items from retrieved runbooks
 
 ## Decision Flow
 
@@ -14,15 +14,16 @@
 3. Call `search_documents`.
 4. In `vector` mode, retrieve with pgvector and PostgreSQL lexical overlap. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
 5. Re-check accessible chunk ids in PostgreSQL before prompt construction.
-6. Generate a grounded answer with citations.
-7. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
-8. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
-9. If confidence is low or the action is sensitive, mark `needsHumanReview`.
-10. If sensitive, call `request_human_approval`.
-11. Persist every question, answer, source, and tool call.
-12. Store optional feedback against the persisted answer id.
-13. Expose pending approval requests for human review.
-14. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
+6. If the user asks for a runbook/checklist and the retrieved source has a checklist section, call `create_runbook_checklist`.
+7. Generate a grounded answer with citations.
+8. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
+9. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
+10. If confidence is low or the action is sensitive, mark `needsHumanReview`.
+11. If sensitive, call `request_human_approval`.
+12. Persist every question, answer, source, and tool call.
+13. Store optional feedback against the persisted answer id.
+14. Expose pending approval requests for human review.
+15. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 

@@ -13,6 +13,7 @@
     "web:smoke": "pnpm --filter @opspilot/web smoke",
     "ingest": "pnpm --filter @opspilot/api ingest",
     "eval": "pnpm --filter @opspilot/api eval",
+    "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
     "review:smoke": "pnpm --filter @opspilot/api review:smoke",
     "slack:simulate": "pnpm --filter @opspilot/api slack:simulate",

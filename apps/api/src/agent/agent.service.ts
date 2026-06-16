@@ -4,6 +4,7 @@ import { AuthzService } from "../authz/authz.service";
 import { ToolCallStatus } from "../database/entities/types";
 import { RequestContext } from "../shared/request-context";
 import { AnswerGeneratorService } from "./answer-generator.service";
+import { RunbookChecklistService } from "./runbook-checklist.service";
 import { SearchResult, SearchService } from "./search.service";
 
 export type AskResponse = {
@@ -31,7 +32,8 @@ export class AgentService {
     private readonly orm: MikroORM,
     private readonly searchService: SearchService,
     private readonly authz: AuthzService,
-    private readonly answerGenerator: AnswerGeneratorService
+    private readonly answerGenerator: AnswerGeneratorService,
+    private readonly runbookChecklist: RunbookChecklistService
   ) {}
 
   async ask(question: string, context: RequestContext, channel?: string): Promise<AskResponse> {
@@ -57,10 +59,25 @@ export class AgentService {
     );
 
     const sensitiveAction = this.authz.isSensitiveAction(question);
+    const checklist = this.runbookChecklist.create(question, sources);
+    if (checklist) {
+      await connection.execute(
+        `
+          insert into tool_call_logs (question_id, tool_name, input, output, status)
+          values (?::uuid, 'create_runbook_checklist', ?::jsonb, ?::jsonb, ?);
+        `,
+        [
+          questionRow.id,
+          JSON.stringify({ question, sourcePath: checklist.path }),
+          JSON.stringify({ title: checklist.title, itemCount: checklist.items.length, items: checklist.items }),
+          ToolCallStatus.Allowed
+        ]
+      );
+    }
     const confidence = calculateConfidence(sources);
     const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
     const needsHumanReview = sources.length === 0 || confidence < confidenceThreshold || sensitiveAction;
-    const answer = await this.answerGenerator.generate({ question, sources, needsHumanReview, sensitiveAction });
+    const answer = await this.answerGenerator.generate({ question, sources, needsHumanReview, sensitiveAction, checklist });
 
     const [answerRow] = await connection.execute<{ id: string }[]>(
       `
@@ -73,7 +90,7 @@ export class AgentService {
         answer,
         confidence,
         needsHumanReview,
-        JSON.stringify({ sensitiveAction, sourceCount: sources.length })
+        JSON.stringify({ sensitiveAction, sourceCount: sources.length, checklist: checklist ? { path: checklist.path, itemCount: checklist.items.length } : null })
       ]
     );
 
@@ -128,6 +145,7 @@ export class AgentService {
       })),
       toolCalls: [
         { toolName: "search_documents", status: ToolCallStatus.Allowed },
+        ...(checklist ? [{ toolName: "create_runbook_checklist", status: ToolCallStatus.Allowed }] : []),
         ...(sensitiveAction ? [{ toolName: "request_human_approval", status: ToolCallStatus.NeedsApproval }] : [])
       ]
     };

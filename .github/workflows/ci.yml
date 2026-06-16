@@ -90,6 +90,9 @@ jobs:
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
+      - name: Runbook checklist smoke
+        run: pnpm checklist:smoke
+
       - name: Review workflow smoke
         run: pnpm review:smoke
 

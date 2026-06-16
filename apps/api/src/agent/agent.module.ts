@@ -5,12 +5,20 @@ import { AgentService } from "./agent.service";
 import { AnswerGeneratorService } from "./answer-generator.service";
 import { ElasticsearchService } from "./elasticsearch.service";
 import { EmbeddingService } from "./embedding.service";
+import { RunbookChecklistService } from "./runbook-checklist.service";
 import { SearchService } from "./search.service";
 
 @Module({
   imports: [AuthzModule],
   controllers: [AgentController],
-  providers: [AgentService, AnswerGeneratorService, EmbeddingService, ElasticsearchService, SearchService],
+  providers: [
+    AgentService,
+    AnswerGeneratorService,
+    EmbeddingService,
+    ElasticsearchService,
+    SearchService,
+    RunbookChecklistService
+  ],
   exports: [EmbeddingService, ElasticsearchService, SearchService, AgentService]
 })
 export class AgentModule {}

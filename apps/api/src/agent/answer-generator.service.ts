@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { RunbookChecklist } from "./runbook-checklist.service";
 import { SearchResult } from "./search.service";
 
 @Injectable()
@@ -8,6 +9,7 @@ export class AnswerGeneratorService {
     sources: SearchResult[];
     needsHumanReview: boolean;
     sensitiveAction: boolean;
+    checklist?: RunbookChecklist | null;
   }): Promise<string> {
     if (process.env.AI_PROVIDER === "openai" && process.env.OPENAI_API_KEY) {
       return this.generateWithOpenAI(input);
@@ -21,6 +23,7 @@ export class AnswerGeneratorService {
     sources: SearchResult[];
     needsHumanReview: boolean;
     sensitiveAction: boolean;
+    checklist?: RunbookChecklist | null;
   }): Promise<string> {
     if (input.sources.length === 0) {
       return this.generateLocal(input);
@@ -46,11 +49,11 @@ export class AnswerGeneratorService {
           {
             role: "system",
             content:
-              "You are OpsPilot, an operational support agent. Answer only from the supplied sources. If the sources are insufficient, say 담당자 확인이 필요합니다. Always include a concise 근거 line with source titles."
+              "You are OpsPilot, an operational support agent. Answer only from the supplied sources. If a structured runbook checklist is supplied, preserve it as numbered action items. If the sources are insufficient, say 담당자 확인이 필요합니다. Always include a concise 근거 line with source titles."
           },
           {
             role: "user",
-            content: `Question: ${input.question}\n\nSources:\n${context}\n\nSensitive action: ${input.sensitiveAction}\nNeeds human review: ${input.needsHumanReview}`
+            content: `Question: ${input.question}\n\nSources:\n${context}\n\nRunbook checklist:\n${formatChecklist(input.checklist)}\n\nSensitive action: ${input.sensitiveAction}\nNeeds human review: ${input.needsHumanReview}`
           }
         ]
       })
@@ -72,13 +75,16 @@ export class AnswerGeneratorService {
     sources: SearchResult[];
     needsHumanReview: boolean;
     sensitiveAction: boolean;
+    checklist?: RunbookChecklist | null;
   }): string {
     if (input.sources.length === 0) {
       return "관련 운영 문서를 찾지 못했습니다. 담당자 확인이 필요합니다.";
     }
 
     const top = input.sources[0];
-    const evidence = extractRelevantLines(input.question, top.content).join("\n");
+    const evidence = input.checklist
+      ? formatChecklist(input.checklist)
+      : extractRelevantLines(input.question, top.content).join("\n");
     const reviewLine = input.needsHumanReview
       ? "\n\n신뢰도가 낮거나 민감 작업이 포함되어 담당자 확인이 필요합니다."
       : "";
@@ -86,8 +92,16 @@ export class AnswerGeneratorService {
       ? "\n\n운영 DB 변경, 권한 부여, 삭제 같은 민감 작업은 Agent가 직접 실행하지 않고 승인 요청으로 분리합니다."
       : "";
 
-    return `${evidence || summarizeForAnswer(top.content)}\n\n근거: ${top.title} (${top.path})${reviewLine}${approvalLine}`;
+    return `${evidence || summarizeForAnswer(top.content)}${input.checklist ? "" : `\n\n근거: ${top.title} (${top.path})`}${reviewLine}${approvalLine}`;
   }
+}
+
+function formatChecklist(checklist?: RunbookChecklist | null): string {
+  if (!checklist) {
+    return "";
+  }
+
+  return `${checklist.items.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\n근거: ${checklist.title} (${checklist.path})`;
 }
 
 function extractRelevantLines(question: string, content: string): string[] {

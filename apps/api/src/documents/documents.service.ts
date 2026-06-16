@@ -90,7 +90,6 @@ export class DocumentsService {
       );
     }
 
-    await connection.execute("delete from document_chunks where document_id = ?::uuid", [document.id]);
     await this.elasticsearch.deleteDocumentChunks(document.id);
 
     const chunks = this.chunker.chunk(parsed.body);
@@ -127,6 +126,11 @@ export class DocumentsService {
         metadata: { heading: chunk.heading, tags: parsed.metadata.tags ?? [] }
       });
     }
+
+    await connection.execute("delete from document_chunks where document_id = ?::uuid and chunk_index >= ?", [
+      document.id,
+      chunks.length
+    ]);
 
     return {
       path,
