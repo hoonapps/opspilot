@@ -18,6 +18,7 @@
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
     "permission:smoke": "ts-node src/cli/permission-boundary-smoke.ts",
+    "authn:smoke": "ts-node src/cli/authn-smoke.ts",
     "queue:smoke": "ts-node src/cli/queue-indexing-smoke.ts",
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "trace:smoke": "ts-node src/cli/answer-trace-smoke.ts",

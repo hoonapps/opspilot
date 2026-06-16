@@ -101,6 +101,9 @@ jobs:
       - name: Permission boundary smoke
         run: pnpm permission:smoke
 
+      - name: Signed actor token smoke
+        run: pnpm authn:smoke
+
       - name: Queue indexing worker smoke
         run: pnpm queue:smoke
 

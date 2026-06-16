@@ -4,7 +4,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
+- API: NestJS HTTP API for signed actor authentication, document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
 - Web Console: Next.js UI for asking questions, viewing answer trace, sources/tool calls, review reasons, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
@@ -16,7 +16,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 ## Request Flow
 
 1. User asks a question through the web console, API, or Slack.
-2. API builds actor context from auth headers or Slack identity.
+2. API builds actor context from a verified signed actor token, local demo headers, or Slack identity.
 3. Retrieval filter is built from actor roles and team memberships.
 4. Search tool retrieves chunks only from accessible documents and stores an aggregated permission audit.
 5. Runbook questions can call `create_runbook_checklist` to structure action items from retrieved runbooks.
@@ -55,6 +55,8 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 ## Permission Boundary
 
 The key design rule is that inaccessible chunks are filtered at retrieval time. The LLM layer never receives restricted text for users who cannot access it. Search logs keep only aggregate denied counts by visibility, not denied document titles or paths.
+
+When `OPSPILOT_ACTOR_TOKEN_SECRET` is configured, protected HTTP routes require `x-opspilot-actor-token`. The token is HMAC-signed and contains the actor id, roles, team slugs, and expiration. Local demos can leave the secret empty to use role/team headers directly, but the CI smoke test proves the stricter signed-token path.
 
 ## Retrieval Modes
 

@@ -2,7 +2,22 @@
 
 ## Local Demo vs Production
 
-Local Docker disables Elasticsearch security and uses simple header-based actor context for demonstration. Production must replace this with real authentication, signed Slack identities, secret management, rate limits, and encrypted credentials.
+Local Docker disables Elasticsearch security and, by default, accepts simple header-based actor context for fast demos. When `OPSPILOT_ACTOR_TOKEN_SECRET` is configured, OpsPilot requires a signed actor token on protected API routes and derives `actorId`, `email`, `roles`, and `teamSlugs` from that verified token instead of trusting caller-supplied role headers.
+
+The signed actor token is an HMAC-SHA256 JWT-shaped token carried in `x-opspilot-actor-token`. It is intentionally small and dependency-free for the portfolio demo: missing, tampered, and expired tokens are rejected before `/ask` can build a retrieval context. `/health`, Swagger docs, and Slack Events remain public entry points because Slack has its own request signature check. Production should still add a full identity provider, rate limits, secret rotation, encrypted credentials, and audit-role policy.
+
+## Authentication Smoke
+
+```bash
+pnpm authn:smoke
+```
+
+This smoke test enables `OPSPILOT_ACTOR_TOKEN_SECRET`, starts the API through Nest, and verifies four cases:
+
+- `/health` remains public.
+- `/ask` without a token returns 401.
+- `/ask` with a tampered or expired token returns 401.
+- `/ask` with a valid `ops_admin` token can retrieve the restricted production database policy and route the answer to human approval.
 
 ## Sensitive Operations
 

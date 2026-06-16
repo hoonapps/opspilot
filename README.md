@@ -98,6 +98,12 @@ Verify that inaccessible RAG candidates are denied before they become prompt sou
 pnpm permission:smoke
 ```
 
+Verify that signed actor tokens are required when `OPSPILOT_ACTOR_TOKEN_SECRET` is enabled:
+
+```bash
+pnpm authn:smoke
+```
+
 Verify that a runbook question triggers structured checklist tool calling:
 
 ```bash
@@ -142,6 +148,7 @@ pnpm build
 pnpm eval
 pnpm eval:gate-smoke
 pnpm permission:smoke
+pnpm authn:smoke
 pnpm checklist:smoke
 pnpm github:smoke
 pnpm indexing:smoke
@@ -218,6 +225,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Runtime Markdown document upsert API
 - GitHub Markdown sync API
 - BullMQ queued Markdown indexing API and worker
+- Optional signed actor token authentication boundary
 - Permission-aware retrieval filtering
 - Permission boundary audit counts for denied retrieval candidates
 - Sensitive action detection
@@ -247,8 +255,10 @@ Done:
 - Optional Elasticsearch BM25 indexing
 - Hybrid retrieval with vector + lexical rank fusion
 - `/ask` API with source citations
+- Optional signed actor token authentication boundary
 - Permission-aware retrieval filtering
 - Permission boundary smoke test and web audit summary
+- Signed actor token smoke test for missing, tampered, expired, and valid tokens
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
 - Structured `reviewReasons` in `/ask`, answer metadata, Slack replies, and the web console
@@ -265,7 +275,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Next.js web console and Playwright smoke test with evaluation metrics, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, eval, permission boundary, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- GitHub Actions CI for build, eval, permission boundary, signed actor token auth, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 
 ## Slack Bot
@@ -325,7 +335,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, permission boundary smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
@@ -343,6 +353,5 @@ Documents include `public`, `team`, and `restricted` visibility so permission bo
 
 ## Roadmap
 
-- Production-grade user authentication and audit roles
 - Additional eval cases for larger document sets
 - Deployment profile for a hosted demo environment
