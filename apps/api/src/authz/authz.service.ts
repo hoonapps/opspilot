@@ -25,8 +25,8 @@ export class AuthzService {
     const clauses = ["d.visibility = 'public'"];
 
     if (context.teamSlugs.length > 0) {
-      clauses.push("d.visibility = 'team' and d.team_slug = any(?::text[])");
-      params.push(context.teamSlugs);
+      clauses.push(`d.visibility = 'team' and d.team_slug in (${context.teamSlugs.map(() => "?").join(", ")})`);
+      params.push(...context.teamSlugs);
     }
 
     if (context.roles.includes("ops_admin") || context.roles.includes("security_admin")) {

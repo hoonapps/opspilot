@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: opspilot
       POSTGRES_PASSWORD: opspilot
     ports:
-      - "5432:5432"
+      - "25432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro

@@ -13,6 +13,7 @@ CS should ask the merchant to rotate the API key from the developer console.
 
 ## E102 Payment Approval Timeout
 
+Korean aliases: E102 에러, 결제 승인 타임아웃, 결제 API 타임아웃, 승인 지연 대응.
 E102 means the payment gateway did not return an approval result within 10 seconds.
 First check the gateway status page and the `payment.approval.timeout` metric.
 If timeout count is above 30 per minute for 5 minutes, escalate to the payment on-call engineer.

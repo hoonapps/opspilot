@@ -14,6 +14,7 @@ export type EvalReport = {
   suiteName: string;
   total: number;
   sourceHitRate: number;
+  topSourceAccuracy: number;
   humanReviewAccuracy: number;
   rows: Array<{
     id: string;
@@ -49,6 +50,10 @@ export class EvaluationService {
     }
 
     const sourceHitRate = ratio(rows.filter((row) => row.hit).length, rows.length);
+    const topSourceAccuracy = ratio(
+      rows.filter((row) => itemMatchesTopSource(row.expectedSources, row.actualSources)).length,
+      rows.length
+    );
     const humanReviewAccuracy = ratio(
       rows.filter((row) => {
         const restrictedExpected = row.expectedSources.some((source) => source.includes("restricted/"));
@@ -61,6 +66,7 @@ export class EvaluationService {
       suiteName,
       total: rows.length,
       sourceHitRate,
+      topSourceAccuracy,
       humanReviewAccuracy,
       rows
     };
@@ -70,11 +76,15 @@ export class EvaluationService {
         insert into evaluation_results (suite_name, metric_name, score, details)
         values
           (?, 'source_hit_rate', ?, ?::jsonb),
+          (?, 'top_source_accuracy', ?, ?::jsonb),
           (?, 'human_review_accuracy', ?, ?::jsonb);
       `,
       [
         suiteName,
         sourceHitRate,
+        JSON.stringify({ total: rows.length, rows }),
+        suiteName,
+        topSourceAccuracy,
         JSON.stringify({ total: rows.length, rows }),
         suiteName,
         humanReviewAccuracy,
@@ -88,4 +98,9 @@ export class EvaluationService {
 
 function ratio(value: number, total: number): number {
   return total === 0 ? 0 : Number((value / total).toFixed(3));
+}
+
+function itemMatchesTopSource(expectedSources: string[], actualSources: string[]): boolean {
+  const topSource = actualSources[0];
+  return Boolean(topSource && expectedSources.includes(topSource));
 }

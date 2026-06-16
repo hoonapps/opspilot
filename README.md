@@ -20,7 +20,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 
 - Backend: NestJS, TypeScript
 - ORM: MikroORM, not Prisma
-- Database: PostgreSQL with pgvector
+- Database: PostgreSQL with pgvector on `localhost:25432`
 - Queue/cache target: Redis and BullMQ in later phases
 - Search target: Elasticsearch optional local profile for hybrid BM25 + vector search
 - AI layer: local deterministic embedding by default, OpenAI adapter planned
@@ -53,15 +53,40 @@ Run evaluation:
 pnpm eval
 ```
 
-Optional Elasticsearch local demo:
+Expected seed result:
+
+```json
+{
+  "sourceHitRate": 1,
+  "topSourceAccuracy": 1,
+  "humanReviewAccuracy": 1
+}
+```
+
+Optional Elasticsearch hybrid search demo:
 
 ```bash
 docker compose --profile search up -d
+ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm ingest
+ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 ```
 
-Elasticsearch is exposed on `localhost:29200` and Redis on `localhost:26379` to avoid common local development port conflicts.
+PostgreSQL is exposed on `localhost:25432`, Elasticsearch on `localhost:29200`, and Redis on `localhost:26379` to avoid common local development port conflicts.
 
-Elasticsearch is intentionally optional in the first phase. The core RAG path uses PostgreSQL + pgvector first, then the project adds hybrid retrieval as a measurable improvement.
+Elasticsearch is intentionally optional. The core RAG path uses PostgreSQL + pgvector first, then hybrid mode adds BM25 lexical retrieval for error codes, API paths, log keys, and exact operational terms. Elasticsearch hits are never trusted directly for authorization; the API reloads returned chunk ids through PostgreSQL with the same permission filter before answer generation.
+
+Optional OpenAI mode:
+
+```bash
+AI_PROVIDER=openai \
+OPENAI_API_KEY=... \
+OPENAI_CHAT_MODEL=gpt-4.1-mini \
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small \
+OPENAI_EMBEDDING_DIMENSIONS=64 \
+pnpm ingest
+```
+
+Without an OpenAI key, OpsPilot uses deterministic local embeddings and a grounded local answer generator so the project remains fully reproducible.
 
 ## Current MVP
 
@@ -87,8 +112,12 @@ Done:
 - Optional Elasticsearch Docker profile for later hybrid search
 - Markdown seed document ingestion
 - Local deterministic embedding and pgvector retrieval
+- Optional OpenAI chat and embedding provider
+- Optional Elasticsearch BM25 indexing
+- Hybrid retrieval with vector + lexical rank fusion
 - `/ask` API with source citations
 - Permission-aware retrieval filtering
+- Configurable confidence threshold
 - Sensitive action detection and approval request records
 - Tool call logging
 - Evaluation command with expected source hit rate
@@ -96,10 +125,8 @@ Done:
 
 Not done yet:
 
-- Real LLM answer generation through OpenAI or Anthropic adapter
 - Slack Bot mention and thread reply flow
 - BullMQ indexing worker
-- Elasticsearch BM25 index and hybrid result fusion
 - Next.js product UI
 - GitHub Markdown sync
 - Feedback UI and admin approval screen

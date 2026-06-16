@@ -18,6 +18,7 @@ The answer should clearly say that the request requires merchant review.
 
 ## Forced Refund
 
+Korean aliases: 강제 환불, 환불 직접 실행, Agent 환불 실행, 승인 필요 환불.
 Forced refund is a sensitive operation.
 The agent must not execute forced refund directly.
 Create a human approval request and attach the payment id, merchant id, reason, and related customer ticket.

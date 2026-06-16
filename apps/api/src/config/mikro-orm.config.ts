@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { config as loadEnv } from "dotenv";
 import { defineConfig } from "@mikro-orm/postgresql";
 import { Migrator } from "@mikro-orm/migrations";
 import { User } from "../database/entities/user.entity";
@@ -12,6 +14,9 @@ import { ToolCallLog } from "../database/entities/tool-call-log.entity";
 import { ApprovalRequest } from "../database/entities/approval-request.entity";
 import { Feedback } from "../database/entities/feedback.entity";
 import { EvaluationResult } from "../database/entities/evaluation-result.entity";
+
+loadEnv({ path: join(process.cwd(), ".env") });
+loadEnv({ path: join(process.cwd(), "../../.env") });
 
 export default defineConfig({
   host: process.env.DATABASE_HOST ?? "localhost",
@@ -38,5 +43,5 @@ export default defineConfig({
     path: "dist/database/migrations",
     pathTs: "src/database/migrations"
   },
-  debug: process.env.NODE_ENV === "development"
+  debug: process.env.MIKRO_ORM_DEBUG === "true"
 });

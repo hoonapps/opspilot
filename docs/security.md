@@ -19,3 +19,7 @@ These actions create approval requests and tool call logs.
 ## Data Handling
 
 Document visibility is stored on the document and enforced during retrieval. Restricted chunks should not be sent to the LLM layer for unauthorized users.
+
+## Search Security
+
+Elasticsearch is used only as a recall booster. In hybrid mode, Elasticsearch returns chunk ids, and OpsPilot reloads those chunks from PostgreSQL with the actor's permission filter before answer generation. PostgreSQL remains the authorization boundary.

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { ElasticsearchService } from "../agent/elasticsearch.service";
 import { EmbeddingService } from "../agent/embedding.service";
 import { sha256 } from "../shared/hash";
 import { ChunkerService } from "./chunker.service";
@@ -19,7 +20,8 @@ export class DocumentsService {
   constructor(
     private readonly orm: MikroORM,
     private readonly chunker: ChunkerService,
-    private readonly embeddings: EmbeddingService
+    private readonly embeddings: EmbeddingService,
+    private readonly elasticsearch: ElasticsearchService
   ) {}
 
   async ingestSeedDocuments(): Promise<{ documents: IngestedDocument[] }> {
@@ -85,14 +87,16 @@ export class DocumentsService {
     }
 
     await connection.execute("delete from document_chunks where document_id = ?::uuid", [document.id]);
+    await this.elasticsearch.deleteDocumentChunks(document.id);
 
     const chunks = this.chunker.chunk(parsed.body);
     for (const chunk of chunks) {
-      const embedding = this.embeddings.toSqlVector(this.embeddings.embed(`${parsed.metadata.title}\n${chunk.content}`));
-      await connection.execute(
+      const embedding = this.embeddings.toSqlVector(await this.embeddings.embed(`${parsed.metadata.title}\n${chunk.content}`));
+      const [chunkRow] = await connection.execute<{ id: string }[]>(
         `
           insert into document_chunks (document_id, chunk_index, content, embedding, metadata)
-          values (?::uuid, ?, ?, ?::vector, ?::jsonb);
+          values (?::uuid, ?, ?, ?::vector, ?::jsonb)
+          returning id;
         `,
         [
           document.id,
@@ -102,6 +106,17 @@ export class DocumentsService {
           JSON.stringify({ heading: chunk.heading, title: parsed.metadata.title, path })
         ]
       );
+      await this.elasticsearch.indexChunk({
+        chunkId: chunkRow.id,
+        documentId: document.id,
+        chunkIndex: chunk.index,
+        title: parsed.metadata.title,
+        path,
+        content: chunk.content,
+        visibility: parsed.metadata.visibility,
+        teamSlug: parsed.metadata.teamSlug,
+        metadata: { heading: chunk.heading, tags: parsed.metadata.tags ?? [] }
+      });
     }
 
     return {

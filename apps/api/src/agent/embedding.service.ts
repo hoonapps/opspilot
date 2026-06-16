@@ -8,7 +8,15 @@ export class EmbeddingService {
     return DIMENSIONS;
   }
 
-  embed(text: string): number[] {
+  async embed(text: string): Promise<number[]> {
+    if (process.env.AI_PROVIDER === "openai" && process.env.OPENAI_API_KEY) {
+      return this.embedWithOpenAI(text);
+    }
+
+    return this.embedLocal(text);
+  }
+
+  embedLocal(text: string): number[] {
     const vector = Array.from({ length: DIMENSIONS }, () => 0);
     const tokens = text
       .toLowerCase()
@@ -26,6 +34,34 @@ export class EmbeddingService {
 
   toSqlVector(vector: number[]): string {
     return `[${vector.map((value) => Number(value.toFixed(6))).join(",")}]`;
+  }
+
+  private async embedWithOpenAI(text: string): Promise<number[]> {
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+        input: text,
+        dimensions: Number(process.env.OPENAI_EMBEDDING_DIMENSIONS ?? DIMENSIONS)
+      })
+    });
+
+    if (!response.ok) {
+      return this.embedLocal(text);
+    }
+
+    const json = (await response.json()) as { data?: Array<{ embedding?: number[] }> };
+    const embedding = json.data?.[0]?.embedding;
+
+    if (!embedding || embedding.length !== DIMENSIONS) {
+      return this.embedLocal(text);
+    }
+
+    return normalize(embedding);
   }
 }
 

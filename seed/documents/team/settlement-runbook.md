@@ -14,6 +14,7 @@ The usual customer impact is delayed merchant payout visibility.
 
 ## Checklist
 
+Korean aliases: 정산 배치 지연, 정산 30분 지연, 정산 체크리스트, 배치 지연 대응.
 1. Check `settlement-worker` queue depth.
 2. Check `settlement.dlq.count`.
 3. Verify that the latest bank file was downloaded.

@@ -7,7 +7,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 - API: NestJS HTTP API for document ingestion, asking questions, feedback, and approvals
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, approvals, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
-- Search Extension: Elasticsearch is planned for BM25 keyword retrieval and hybrid fusion
+- Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
 - Worker: indexing and Slack event processing move to BullMQ workers in later phases
 - Slack Bot: receives mentions and replies in threads with answer, sources, and review status
 
@@ -24,3 +24,16 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 ## Permission Boundary
 
 The key design rule is that inaccessible chunks are filtered at retrieval time. The LLM layer never receives restricted text for users who cannot access it.
+
+## Retrieval Modes
+
+`vector` mode uses pgvector plus a lightweight PostgreSQL lexical overlap score so local demos handle exact operational terms without Elasticsearch.
+
+`hybrid` mode combines:
+
+- pgvector semantic search
+- Elasticsearch BM25 lexical search
+- reciprocal-rank fusion
+- PostgreSQL permission re-check for Elasticsearch chunk ids
+
+The last step is intentional. Elasticsearch improves recall, but PostgreSQL remains the source of truth for access control.
