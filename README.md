@@ -2,6 +2,8 @@
 
 Permission-aware RAG agent for operational knowledge, runbooks, and Slack support workflows.
 
+![OpsPilot dashboard preview](docs/assets/opspilot-dashboard.svg)
+
 OpsPilot is a portfolio-grade AI agent project focused on operational support. It answers questions from Markdown wiki documents, returns grounded sources, applies document-level permission boundaries before retrieval results reach the LLM layer, logs tool calls, and marks sensitive work for human approval.
 
 ## Why This Project Exists
@@ -73,6 +75,34 @@ Elasticsearch is intentionally optional in the first phase. The core RAG path us
 - Tool call logs
 - Human approval request creation for sensitive work
 - Evaluation script with expected source hit rate
+
+## Implementation Status
+
+Done:
+
+- NestJS API monorepo scaffold
+- MikroORM PostgreSQL entities and initial migration
+- PostgreSQL + pgvector Docker setup
+- Redis Docker setup for later queue work
+- Optional Elasticsearch Docker profile for later hybrid search
+- Markdown seed document ingestion
+- Local deterministic embedding and pgvector retrieval
+- `/ask` API with source citations
+- Permission-aware retrieval filtering
+- Sensitive action detection and approval request records
+- Tool call logging
+- Evaluation command with expected source hit rate
+- README product preview image
+
+Not done yet:
+
+- Real LLM answer generation through OpenAI or Anthropic adapter
+- Slack Bot mention and thread reply flow
+- BullMQ indexing worker
+- Elasticsearch BM25 index and hybrid result fusion
+- Next.js product UI
+- GitHub Markdown sync
+- Feedback UI and admin approval screen
 
 ## Demo Knowledge Base
 
