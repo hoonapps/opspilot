@@ -82,6 +82,12 @@ Verify that a runbook question triggers structured checklist tool calling:
 pnpm checklist:smoke
 ```
 
+Verify GitHub Markdown sync indexing with an offline fixture:
+
+```bash
+pnpm github:smoke
+```
+
 With the API and web console running, verify the browser flow and refresh the README screenshot:
 
 ```bash
@@ -101,6 +107,7 @@ pnpm typecheck
 pnpm build
 pnpm eval
 pnpm checklist:smoke
+pnpm github:smoke
 pnpm indexing:smoke
 pnpm review:smoke
 pnpm web:smoke
@@ -149,6 +156,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - `/ask` API
 - Source citation response
 - Runtime Markdown document upsert API
+- GitHub Markdown sync API
 - Permission-aware retrieval filtering
 - Sensitive action detection
 - Tool call logs
@@ -183,15 +191,15 @@ Done:
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
 - Runtime Markdown document upsert API and indexing smoke test
+- GitHub Markdown sync API and offline sync smoke test
 - Review workflow smoke test
 - Next.js web console and Playwright smoke test with feedback and approval queue coverage
-- GitHub Actions CI for build, eval, checklist, indexing, review, and browser smoke gates
+- GitHub Actions CI for build, eval, checklist, GitHub sync, indexing, review, and browser smoke gates
 - README product preview image
 
 Not done yet:
 
 - BullMQ indexing worker
-- GitHub Markdown sync
 
 ## Slack Bot
 
@@ -239,7 +247,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, review smoke, and browser smoke tests.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests.
 
 Details: [docs/ci.md](docs/ci.md)
 
@@ -262,4 +270,3 @@ Documents include `public`, `team`, and `restricted` visibility so permission bo
 - BullMQ indexing worker
 - Elasticsearch BM25 index and hybrid fusion
 - Feedback UI and admin review screen
-- GitHub Markdown sync

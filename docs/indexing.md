@@ -1,9 +1,10 @@
 # Document Indexing
 
-OpsPilot supports two ingestion paths:
+OpsPilot supports three ingestion paths:
 
 - Seed folder ingestion for local demos and repeatable evaluations
 - Runtime Markdown upsert for proving that new documents become searchable
+- GitHub Markdown sync for importing repository docs into the same RAG index
 
 ## Seed Folder
 
@@ -26,6 +27,24 @@ curl -X POST http://localhost:3000/documents/markdown \
 
 If the document path already exists, OpsPilot updates the document metadata, records a new document version when the content hash changed, replaces old chunks, and indexes fresh chunks.
 
+## GitHub Markdown Sync
+
+```bash
+curl -X POST http://localhost:3000/documents/github/sync \
+  -H "content-type: application/json" \
+  -d '{
+    "owner": "hoonapps",
+    "repo": "opspilot",
+    "branch": "main",
+    "rootPath": "docs",
+    "sourcePrefix": "github/hoonapps/opspilot"
+  }'
+```
+
+The sync endpoint reads a repository tree, downloads Markdown files under `rootPath`, and ingests each file as a normal OpsPilot document. Synced paths are stored under `sourcePrefix`, for example `github/hoonapps/opspilot/system-design.md`.
+
+Set `GITHUB_TOKEN` for higher GitHub API limits or private repository access.
+
 ## Smoke Test
 
 ```bash
@@ -47,3 +66,11 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm indexing:smoke
 ```
 
 Elasticsearch results are treated as candidate chunk ids only. OpsPilot reloads those chunks through PostgreSQL with the same permission filter before using them as answer context.
+
+## GitHub Sync Smoke Test
+
+```bash
+pnpm github:smoke
+```
+
+The GitHub sync smoke test uses `seed/github-docs` as an offline fixture, syncs it through the same ingestion path, asks about `OPS-GH-42`, and fails unless the synced GitHub document is the top source.

@@ -14,6 +14,7 @@
     "ingest": "ts-node src/cli/ingest.ts",
     "eval": "ts-node src/cli/evaluate.ts",
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
+    "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "slack:simulate": "ts-node src/cli/simulate-slack.ts"

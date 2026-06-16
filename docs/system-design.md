@@ -4,7 +4,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for document ingestion, asking questions, feedback, and approvals
+- API: NestJS HTTP API for document ingestion, GitHub Markdown sync, asking questions, feedback, and approvals
 - Web Console: Next.js UI for asking questions, viewing sources/tool calls, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, approvals, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
@@ -24,6 +24,14 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 8. Question, answer, sources, tool calls, and approval state are logged.
 9. Web requests render the grounded answer, sources, confidence, and tool calls in the console.
 10. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+
+## Ingestion Flow
+
+1. Seed ingestion reads local Markdown fixtures for reproducible demos and evaluation.
+2. Runtime upsert accepts one Markdown document through `POST /documents/markdown`.
+3. GitHub sync reads repository Markdown through `POST /documents/github/sync`.
+4. Every ingestion path normalizes metadata, chunks content, stores embeddings in PostgreSQL, and optionally mirrors chunks into Elasticsearch.
+5. Re-indexing the same path preserves chunk identity where possible and deletes obsolete chunks after the fresh version is written.
 
 ## Web Console Flow
 
