@@ -4,7 +4,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, tool call audit, evaluation reports with document agreement scoring, feedback, and approvals
+- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
 - Web Console: Next.js UI for asking questions, viewing sources/tool calls, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
@@ -44,7 +44,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 5. The answer panel renders the generated response, confidence, review state, permission audit, and tool calls.
 6. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
 7. Operators can save answer feedback through `POST /feedback`.
-8. Operators can load the latest source hit, top source, human review, and document agreement metrics through `GET /evaluations/latest`.
+8. Operators can load the latest source hit, top source, human review, document agreement, and citation metrics through `GET /evaluations/latest`.
 9. Operators can inspect recent Agent tool calls through `GET /tool-calls/recent`.
 10. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
 

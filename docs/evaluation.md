@@ -8,6 +8,7 @@ OpsPilot evaluates RAG behavior with a seed question set.
 - Top source accuracy: whether the first returned source is the expected document
 - Human review accuracy: whether restricted or sensitive questions are routed to human review
 - Document agreement score: how much of the answer's content-bearing tokens are supported by returned source chunks
+- Citation accuracy: whether the answer cites at least one returned source title or path
 - Confidence: retrieval-derived score stored with each answer
 
 ## Run
@@ -29,6 +30,7 @@ EVAL_MIN_SOURCE_HIT_RATE=1
 EVAL_MIN_TOP_SOURCE_ACCURACY=1
 EVAL_MIN_HUMAN_REVIEW_ACCURACY=1
 EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
+EVAL_MIN_CITATION_ACCURACY=1
 ```
 
 The JSON report includes `passed`, `thresholds`, and per-metric `gates` so CI logs and the web console can show exactly which metric failed.
@@ -42,11 +44,10 @@ GET /evaluations/latest
 GET /evaluations/latest?suiteName=seed-ops-wiki
 ```
 
-The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
+The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, citation accuracy, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
 
 ## Planned Additions
 
-- citation accuracy review
 - larger regression set for newly added documents
 
 ## New Document Regression

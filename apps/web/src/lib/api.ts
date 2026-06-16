@@ -70,9 +70,10 @@ export type EvaluationReport = {
     topSourceAccuracy: number;
     humanReviewAccuracy: number;
     documentAgreementScore: number;
+    citationAccuracy: number;
   };
   gates: Array<{
-    metric: "sourceHitRate" | "topSourceAccuracy" | "humanReviewAccuracy" | "documentAgreementScore";
+    metric: "sourceHitRate" | "topSourceAccuracy" | "humanReviewAccuracy" | "documentAgreementScore" | "citationAccuracy";
     score: number;
     threshold: number;
     passed: boolean;
@@ -82,6 +83,7 @@ export type EvaluationReport = {
     topSourceAccuracy: number;
     humanReviewAccuracy: number;
     documentAgreementScore: number;
+    citationAccuracy: number;
   };
   rows: Array<{
     id: string;
@@ -91,6 +93,7 @@ export type EvaluationReport = {
     actualSources: string[];
     confidence: number;
     documentAgreement: number;
+    citationPresent: boolean;
   }>;
 };
 

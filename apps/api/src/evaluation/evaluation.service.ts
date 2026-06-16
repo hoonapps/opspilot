@@ -17,6 +17,7 @@ export type EvalReport = {
   topSourceAccuracy: number;
   humanReviewAccuracy: number;
   documentAgreementScore: number;
+  citationAccuracy: number;
   passed: boolean;
   thresholds: EvaluationThresholds;
   gates: EvaluationGate[];
@@ -28,6 +29,7 @@ export type EvalReport = {
     actualSources: string[];
     confidence: number;
     documentAgreement: number;
+    citationPresent: boolean;
   }>;
 };
 
@@ -36,6 +38,7 @@ export type EvaluationThresholds = {
   topSourceAccuracy: number;
   humanReviewAccuracy: number;
   documentAgreementScore: number;
+  citationAccuracy: number;
 };
 
 export type EvaluationGate = {
@@ -57,6 +60,7 @@ export type LatestEvalReport = {
     topSourceAccuracy: number;
     humanReviewAccuracy: number;
     documentAgreementScore: number;
+    citationAccuracy: number;
   };
   rows: EvalReport["rows"];
 } | null;
@@ -82,6 +86,10 @@ export class EvaluationService {
       const actualSources = response.sources.map((source) => source.path);
       const sourceContents = await this.loadSourceContents(response.sources.map((source) => source.chunkId));
       const hit = item.expectedSources.some((expected) => actualSources.includes(expected));
+      const citationPresent = answerCitesReturnedSource(
+        response.answer,
+        response.sources.map((source) => ({ title: source.title, path: source.path }))
+      );
       rows.push({
         id: item.id,
         hit,
@@ -89,7 +97,8 @@ export class EvaluationService {
         expectedSources: item.expectedSources,
         actualSources,
         confidence: response.confidence,
-        documentAgreement: calculateDocumentAgreement(response.answer, sourceContents)
+        documentAgreement: calculateDocumentAgreement(response.answer, sourceContents),
+        citationPresent
       });
     }
 
@@ -106,13 +115,15 @@ export class EvaluationService {
       rows.length
     );
     const documentAgreementScore = average(rows.map((row) => row.documentAgreement));
+    const citationAccuracy = ratio(rows.filter((row) => row.citationPresent).length, rows.length);
     const thresholds = evaluationThresholdsFromEnv();
     const gates = buildEvaluationGates(
       {
         sourceHitRate,
         topSourceAccuracy,
         humanReviewAccuracy,
-        documentAgreementScore
+        documentAgreementScore,
+        citationAccuracy
       },
       thresholds
     );
@@ -125,6 +136,7 @@ export class EvaluationService {
       topSourceAccuracy,
       humanReviewAccuracy,
       documentAgreementScore,
+      citationAccuracy,
       passed,
       thresholds,
       gates,
@@ -139,7 +151,8 @@ export class EvaluationService {
           (?, 'source_hit_rate', ?, ?::jsonb),
           (?, 'top_source_accuracy', ?, ?::jsonb),
           (?, 'human_review_accuracy', ?, ?::jsonb),
-          (?, 'document_agreement_score', ?, ?::jsonb);
+          (?, 'document_agreement_score', ?, ?::jsonb),
+          (?, 'citation_accuracy', ?, ?::jsonb);
       `,
       [
         suiteName,
@@ -153,6 +166,9 @@ export class EvaluationService {
         details,
         suiteName,
         documentAgreementScore,
+        details,
+        suiteName,
+        citationAccuracy,
         details
       ]
     );
@@ -188,7 +204,8 @@ export class EvaluationService {
       sourceHitRate: byMetric.get("source_hit_rate")?.score ?? 0,
       topSourceAccuracy: byMetric.get("top_source_accuracy")?.score ?? 0,
       humanReviewAccuracy: byMetric.get("human_review_accuracy")?.score ?? 0,
-      documentAgreementScore: byMetric.get("document_agreement_score")?.score ?? 0
+      documentAgreementScore: byMetric.get("document_agreement_score")?.score ?? 0,
+      citationAccuracy: byMetric.get("citation_accuracy")?.score ?? 0
     };
     const thresholds = details.thresholds ?? evaluationThresholdsFromEnv();
     const gates = details.gates ?? buildEvaluationGates(metrics, thresholds);
@@ -239,7 +256,8 @@ function evaluationThresholdsFromEnv(): EvaluationThresholds {
     sourceHitRate: readThreshold("EVAL_MIN_SOURCE_HIT_RATE", 1),
     topSourceAccuracy: readThreshold("EVAL_MIN_TOP_SOURCE_ACCURACY", 1),
     humanReviewAccuracy: readThreshold("EVAL_MIN_HUMAN_REVIEW_ACCURACY", 1),
-    documentAgreementScore: readThreshold("EVAL_MIN_DOCUMENT_AGREEMENT_SCORE", 0.8)
+    documentAgreementScore: readThreshold("EVAL_MIN_DOCUMENT_AGREEMENT_SCORE", 0.8),
+    citationAccuracy: readThreshold("EVAL_MIN_CITATION_ACCURACY", 1)
   };
 }
 
@@ -283,6 +301,19 @@ function calculateDocumentAgreement(answer: string, sourceContents: string[]): n
   const sourceTokens = new Set(sourceContents.flatMap((content) => tokenizeForAgreement(content)));
   const matched = [...answerTokens].filter((token) => sourceTokens.has(token)).length;
   return Number((matched / answerTokens.size).toFixed(3));
+}
+
+function answerCitesReturnedSource(answer: string, sources: Array<{ title: string; path: string }>): boolean {
+  const normalizedAnswer = normalizeCitationText(answer);
+  return sources.some((source) => {
+    const title = normalizeCitationText(source.title);
+    const path = normalizeCitationText(source.path);
+    return (title.length > 0 && normalizedAnswer.includes(title)) || (path.length > 0 && normalizedAnswer.includes(path));
+  });
+}
+
+function normalizeCitationText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function removeEvaluationBoilerplate(answer: string): string {

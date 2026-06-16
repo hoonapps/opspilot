@@ -18,10 +18,12 @@ async function main() {
     await page.getByRole("button", { name: "Load eval" }).click();
     await page.getByText("Source hit", { exact: false }).waitFor({ timeout: 10000 });
     await page.getByText("Document match", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByText("Citation", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalPanel").getByText("Passed", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByText("seed-ops-wiki", { exact: false }).waitFor({ timeout: 10000 });
     const evaluationVisible = await page.getByText("Human review", { exact: true }).first().isVisible();
     const documentMatchVisible = await page.getByText("Document match", { exact: true }).first().isVisible();
+    const citationVisible = await page.getByText("Citation", { exact: true }).first().isVisible();
     const qualityGatePassed = await page.locator(".evalPanel").getByText("Passed", { exact: true }).isVisible();
 
     await page.getByRole("button", { name: "Sync GitHub docs" }).click();
@@ -78,6 +80,7 @@ async function main() {
         githubSyncVisible &&
         evaluationVisible &&
         documentMatchVisible &&
+        citationVisible &&
         qualityGatePassed &&
         boundaryAuditVisible &&
         auditVisible,
@@ -92,6 +95,7 @@ async function main() {
         githubSyncVisible,
         evaluationVisible,
         documentMatchVisible,
+        citationVisible,
         qualityGatePassed,
         boundaryAuditVisible,
         auditVisible

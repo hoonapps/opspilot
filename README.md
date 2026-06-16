@@ -151,6 +151,7 @@ Expected seed result:
   "topSourceAccuracy": 1,
   "humanReviewAccuracy": 1,
   "documentAgreementScore": 1,
+  "citationAccuracy": 1,
   "passed": true
 }
 ```
@@ -162,6 +163,7 @@ EVAL_MIN_SOURCE_HIT_RATE=1
 EVAL_MIN_TOP_SOURCE_ACCURACY=1
 EVAL_MIN_HUMAN_REVIEW_ACCURACY=1
 EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
+EVAL_MIN_CITATION_ACCURACY=1
 ```
 
 Optional Elasticsearch hybrid search demo:
@@ -206,7 +208,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
-- Evaluation script with quality thresholds, expected source hit rate, document agreement score, and negative gate smoke
+- Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
 - Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
@@ -234,7 +236,7 @@ Done:
 - Tool call logging and recent audit API
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
-- Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, and negative gate smoke
+- Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web console quality gate panel
 - Runtime Markdown document upsert API and indexing smoke test
 - GitHub Markdown sync API and offline sync smoke test
