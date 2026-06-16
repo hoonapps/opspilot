@@ -14,7 +14,7 @@ OpsPilot is a portfolio-grade AI agent project focused on operational support. I
 
 The screenshot above is generated from the working Next.js console by `pnpm web:smoke`. It exercises the core portfolio flow end to end:
 
-- render an Open Design-inspired operations dashboard shell with workspace rail, KPI strip, evidence panel, quality gates, approval queue, audit feed, and indexing controls
+- render an Open Design-inspired operations dashboard shell with workspace rail, screen list navigation, KPI strip, evidence panel, quality gates, approval queue, audit feed, and a dedicated document management screen
 - load evaluation metrics and document match gates
 - load operational telemetry for questions, human review rate, document match, tool calls, approvals, feedback, and indexed knowledge
 - upsert a new Markdown document and retrieve it as a cited source
@@ -328,7 +328,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
-- Next.js web console for asking questions, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
+- Next.js web console with separate Ask, Documents, Quality, Review, and Audit screens for asking questions, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
 - Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
@@ -376,7 +376,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, document management, evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow

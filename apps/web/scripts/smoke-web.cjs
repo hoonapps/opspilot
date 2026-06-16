@@ -15,6 +15,7 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
 
+    await page.getByRole("button", { name: /Quality/ }).click();
     await page.getByRole("button", { name: "Load eval" }).click();
     await page.getByText("Source hit", { exact: false }).waitFor({ timeout: 10000 });
     await page.getByText("Document match", { exact: true }).waitFor({ timeout: 10000 });
@@ -26,11 +27,13 @@ async function main() {
     const citationVisible = await page.getByText("Citation", { exact: true }).first().isVisible();
     const qualityGatePassed = await page.locator(".evalPanel").getByText("Passed", { exact: true }).isVisible();
 
+    await page.getByRole("button", { name: /Documents/ }).click();
     const githubSyncFormVisible = await page.getByRole("button", { name: "Sync GitHub docs" }).isVisible();
 
     await page.getByRole("button", { name: "Upsert document" }).click();
     await page.getByText("Status Page Incident Communication indexed as", { exact: false }).waitFor({ timeout: 10000 });
 
+    await page.getByRole("button", { name: /Ask/ }).click();
     await page
       .getByLabel("Question")
       .fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
@@ -55,16 +58,25 @@ async function main() {
     await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("Trace", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("Approvals", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".approvalList").getByText("sensitive_operation", { exact: false }).first().waitFor({ timeout: 10000 });
     const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("pre_ranking_sql_filter", { exact: false }).isVisible();
     const reviewReasonVisible = await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).isVisible();
     const traceVisible = await page.locator(".tracePanel").getByText("Refresh trace", { exact: true }).isVisible();
+    const answerText = await answerPanel.innerText();
+    const sourceText = await page.locator(".sourceList").innerText();
+    const metaText = await page.locator(".answerMeta").innerText();
 
+    await page.getByRole("button", { name: /Review/ }).click();
+    await page.locator(".approvalList").getByText("sensitive_operation", { exact: false }).first().waitFor({ timeout: 10000 });
+    const approvalText = await page.locator(".approvalList").innerText();
+    await page.locator(".approvalList").getByRole("button", { name: "Reject" }).first().click();
+
+    await page.getByRole("button", { name: /Audit/ }).click();
     await page.getByRole("button", { name: "Load tools" }).click();
     await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".auditList").getByText("needs_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     const auditVisible = await page.locator(".auditList").getByText("search_documents", { exact: false }).first().isVisible();
 
+    await page.getByRole("button", { name: /Quality/ }).click();
     await page.getByRole("button", { name: "Load ops" }).click();
     await page.locator(".observabilityPanel").getByText("Human review rate", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("Avg match", { exact: true }).waitFor({ timeout: 10000 });
@@ -77,15 +89,9 @@ async function main() {
       observabilityText.includes("request_human_approval") &&
       observabilityText.includes("Feedback");
 
+    await page.getByRole("button", { name: /Documents/ }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: screenshotPath, fullPage: false });
-
-    const answerText = await answerPanel.innerText();
-    const sourceText = await page.locator(".sourceList").innerText();
-    const metaText = await page.locator(".answerMeta").innerText();
-    const approvalText = await page.locator(".approvalList").innerText();
-
-    await page.locator(".approvalList").getByRole("button", { name: "Reject" }).first().click();
 
     const report = {
       ok:

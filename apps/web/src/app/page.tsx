@@ -44,7 +44,43 @@ const quickQuestions = [
   "운영 DB에서 고객 정보를 바로 수정해도 돼?"
 ];
 
+type ConsoleScreen = "ask" | "documents" | "quality" | "review" | "audit";
+
+const screens: Array<{ id: ConsoleScreen; label: string; title: string; description: string }> = [
+  {
+    id: "ask",
+    label: "Ask",
+    title: "Ask operational docs",
+    description: "Ask questions, inspect grounded answers, sources, traces, review reasons, and feedback."
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    title: "Manage knowledge base",
+    description: "Upsert Markdown, sync GitHub docs, and verify how new knowledge enters the RAG index."
+  },
+  {
+    id: "quality",
+    label: "Quality",
+    title: "Quality and telemetry",
+    description: "Review eval gates, document match, indexed knowledge size, tool usage, approvals, and feedback."
+  },
+  {
+    id: "review",
+    label: "Review",
+    title: "Human approval queue",
+    description: "Resolve sensitive operations that the agent separated from automatic execution."
+  },
+  {
+    id: "audit",
+    label: "Audit",
+    title: "Tool call audit",
+    description: "Inspect persisted agent tool calls, permission audit summaries, and approval handoffs."
+  }
+];
+
 export default function Home() {
+  const [activeScreen, setActiveScreen] = useState<ConsoleScreen>("ask");
   const [question, setQuestion] = useState(quickQuestions[0]);
   const [teamSlugs, setTeamSlugs] = useState("payments");
   const [roles, setRoles] = useState("ops_admin");
@@ -73,6 +109,7 @@ export default function Home() {
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
   const documentAgreementPercent = useMemo(() => Math.round((answer?.documentAgreement.score ?? 0) * 100), [answer]);
   const visibleApprovals = useMemo(() => approvals.slice(0, 3), [approvals]);
+  const currentScreen = screens.find((screen) => screen.id === activeScreen) ?? screens[0];
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -225,12 +262,17 @@ export default function Home() {
           </div>
         </div>
         <nav className="railNav" aria-label="console sections">
-          <a className="active" href="#ask">Ask</a>
-          <a href="#sources">Sources</a>
-          <a href="#quality">Quality</a>
-          <a href="#review">Review</a>
-          <a href="#audit">Audit</a>
-          <a href="#index">Index</a>
+          {screens.map((screen) => (
+            <button
+              className={activeScreen === screen.id ? "active" : ""}
+              key={screen.id}
+              onClick={() => setActiveScreen(screen.id)}
+              type="button"
+            >
+              <span>{screen.label}</span>
+              <small>{screen.title}</small>
+            </button>
+          ))}
         </nav>
         <div className="railCard">
           <span>Boundary</span>
@@ -243,8 +285,8 @@ export default function Home() {
       <header className="topbar">
         <div>
           <p className="eyebrow">OpsPilot Console</p>
-          <h1>Operational RAG agent control surface</h1>
-          <p className="headerLead">Ask from operational docs, inspect evidence, and verify approval boundaries in one workflow.</p>
+          <h1>{currentScreen.title}</h1>
+          <p className="headerLead">{currentScreen.description}</p>
         </div>
         <div className="statusGroup" aria-label="system status">
           <span className="statusDot" />
@@ -261,7 +303,8 @@ export default function Home() {
 
       {error ? <div className="errorPanel">{error}</div> : null}
 
-      <div className="workspace">
+      <div className={`workspace ${activeScreen}`}>
+        {activeScreen === "ask" ? (
         <section className="queryPanel" id="ask">
           <div className="sectionHeader">
             <div>
@@ -376,8 +419,11 @@ export default function Home() {
             {feedbackStatus ? <p className="inlineStatus">{feedbackStatus}</p> : null}
           </div>
         </section>
+        ) : null}
 
         <aside className="sidePanel">
+          {activeScreen === "ask" ? (
+          <>
           <div className="sectionHeader compact">
             <div>
               <p className="eyebrow">Sources</p>
@@ -400,7 +446,11 @@ export default function Home() {
               <p className="empty">Sources appear here after a question.</p>
             )}
           </div>
+          </>
+          ) : null}
 
+          {activeScreen === "quality" ? (
+          <>
           <section className="observabilityPanel">
             <div className="sectionHeader compact">
               <div>
@@ -467,7 +517,10 @@ export default function Home() {
               <p className="empty">Run `pnpm eval`, then load the latest quality report.</p>
             )}
           </section>
+          </>
+          ) : null}
 
+          {activeScreen === "review" ? (
           <section className="approvalPanel" id="review">
             <div className="sectionHeader compact">
               <div>
@@ -497,7 +550,9 @@ export default function Home() {
               )}
             </div>
           </section>
+          ) : null}
 
+          {activeScreen === "audit" ? (
           <section className="auditPanel" id="audit">
             <div className="sectionHeader compact">
               <div>
@@ -525,7 +580,10 @@ export default function Home() {
               )}
             </div>
           </section>
+          ) : null}
 
+          {activeScreen === "documents" ? (
+          <>
           <form onSubmit={submitMarkdown} className="indexPanel" id="index">
             <div className="sectionHeader compact">
               <div>
@@ -595,6 +653,8 @@ export default function Home() {
               </p>
             ) : null}
           </form>
+          </>
+          ) : null}
         </aside>
       </div>
       </section>
