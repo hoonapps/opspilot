@@ -66,7 +66,8 @@ async function main() {
     await page.locator(".auditList").getByText("needs_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     const auditVisible = await page.locator(".auditList").getByText("search_documents", { exact: false }).first().isVisible();
 
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: screenshotPath, fullPage: false });
 
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();

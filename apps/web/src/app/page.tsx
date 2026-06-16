@@ -202,6 +202,7 @@ export default function Home() {
         <div>
           <p className="eyebrow">OpsPilot Console</p>
           <h1>Operational RAG agent control surface</h1>
+          <p className="headerLead">Ask from operational docs, inspect evidence, and verify approval boundaries in one workflow.</p>
         </div>
         <div className="statusGroup" aria-label="system status">
           <span className="statusDot" />
