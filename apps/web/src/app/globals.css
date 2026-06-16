@@ -349,6 +349,43 @@ pre {
   font-size: 12px;
 }
 
+.reviewReasons {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--warning-bg);
+}
+
+.reasonItem {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.reasonItem span {
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.reasonItem p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.reasonItem code {
+  border: 1px solid rgba(154, 75, 19, 0.22);
+  border-radius: 6px;
+  background: #fffaf3;
+  color: var(--warning);
+  padding: 4px 6px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+}
+
 .feedbackBar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -554,6 +591,7 @@ pre {
   .quickGrid,
   .evalGrid,
   .boundaryAudit,
+  .reasonItem,
   .feedbackBar {
     grid-template-columns: 1fr;
   }

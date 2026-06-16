@@ -250,6 +250,21 @@ export default function Home() {
                 <code>{formatDeniedVisibility(answer.permissionAudit.deniedByVisibility)}</code>
               </div>
             ) : null}
+            {answer?.reviewReasons.length ? (
+              <div className="reviewReasons">
+                {answer.reviewReasons.map((reason) => (
+                  <div className="reasonItem" key={reason.code}>
+                    <span>{formatReviewReasonCode(reason.code)}</span>
+                    <p>{reason.message}</p>
+                    {"confidence" in reason && typeof reason.confidence === "number" && typeof reason.threshold === "number" ? (
+                      <code>
+                        {Math.round(reason.confidence * 100)}% / {Math.round(reason.threshold * 100)}%
+                      </code>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="feedbackBar">
               <input
                 aria-label="feedback comment"
@@ -494,4 +509,8 @@ function formatDeniedVisibility(deniedByVisibility: Record<string, number>): str
   }
 
   return entries.map(([visibility, count]) => `${visibility}:${count}`).join(" ");
+}
+
+function formatReviewReasonCode(code: AskResponse["reviewReasons"][number]["code"]): string {
+  return code.replace(/_/g, " ");
 }

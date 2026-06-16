@@ -140,9 +140,10 @@ function buildReply(input: {
     .map((source, index) => `${index + 1}. ${source.title} - ${source.path} (${source.score.toFixed(3)})`)
     .join("\n");
   const reviewText = input.answer.needsHumanReview ? "Human review required" : "Auto answered";
+  const reasonText = formatReviewReasons(input.answer.reviewReasons);
   const toolText = input.answer.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join("\n");
 
-  const text = `${input.answer.answer}\n\nSources:\n${sourceLines || "No sources"}\n\n${reviewText}`;
+  const text = `${input.answer.answer}\n\nSources:\n${sourceLines || "No sources"}\n\n${reviewText}${reasonText ? `\nReasons: ${reasonText}` : ""}`;
 
   return {
     channel: input.channel,
@@ -172,7 +173,7 @@ function buildReply(input: {
           },
           {
             type: "mrkdwn",
-            text: `*Review*\n${reviewText}`
+            text: `*Review*\n${reviewText}${reasonText ? `\n${reasonText}` : ""}`
           }
         ]
       },
@@ -194,6 +195,10 @@ function buildReply(input: {
       }
     ]
   };
+}
+
+function formatReviewReasons(reasons: Awaited<ReturnType<AgentService["ask"]>>["reviewReasons"]): string {
+  return reasons.map((reason) => reason.code).join(", ");
 }
 
 function readHeader(headers: Record<string, string | string[] | undefined>, key: string): string | undefined {

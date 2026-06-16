@@ -16,6 +16,8 @@ The agent must not execute sensitive operations directly. Examples:
 
 These actions create approval requests and tool call logs. Human reviewers resolve them through `PATCH /approvals/:id`; the agent never runs the sensitive operation by itself.
 
+`/ask` also returns structured `reviewReasons`. A sensitive request includes `sensitive_action`, low retrieval confidence includes `low_confidence`, and missing permitted evidence includes `no_sources`. This makes the human approval decision auditable in the API response, answer metadata, Slack reply, and web console.
+
 ## Data Handling
 
 Document visibility is stored on the document and enforced during retrieval. Restricted chunks should not be sent to the LLM layer for unauthorized users.

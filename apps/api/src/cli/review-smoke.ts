@@ -19,6 +19,11 @@ async function main() {
       throw new Error("Expected sensitive question to require human review");
     }
 
+    const hasSensitiveReason = answer.reviewReasons.some((reason) => reason.code === "sensitive_action");
+    if (!hasSensitiveReason) {
+      throw new Error("Expected sensitive question to include a sensitive_action review reason");
+    }
+
     const feedback = await app.get(FeedbackService).create({
       answerId: answer.answerId,
       rating: 1,
@@ -43,6 +48,7 @@ async function main() {
       questionId: answer.questionId,
       answerId: answer.answerId,
       needsHumanReview: answer.needsHumanReview,
+      reviewReasons: answer.reviewReasons,
       toolCalls: answer.toolCalls,
       feedback: {
         id: feedback.id,

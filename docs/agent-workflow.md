@@ -30,17 +30,28 @@ For `search_documents`, the output includes an aggregated `permissionAudit` obje
 8. Generate a grounded answer with citations.
 9. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
 10. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
-11. If confidence is low or the action is sensitive, mark `needsHumanReview`.
-12. If sensitive, call `request_human_approval`.
-13. Persist every question, answer, source, and tool call.
-14. Store optional feedback against the persisted answer id.
-15. Expose recent tool calls through the audit API.
-16. Expose pending approval requests for human review.
-17. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
+11. Build structured `reviewReasons` for missing sources, low confidence, or sensitive actions.
+12. If any review reason exists, mark `needsHumanReview`.
+13. If sensitive, call `request_human_approval`.
+14. Persist every question, answer, source, review reason, and tool call.
+15. Store optional feedback against the persisted answer id.
+16. Expose recent tool calls through the audit API.
+17. Expose pending approval requests for human review.
+18. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 
 The agent can explain runbooks and policies. It cannot execute production-changing operations. Sensitive operations create approval records instead.
+
+## Review Reasons
+
+`/ask` returns `reviewReasons` alongside `needsHumanReview`:
+
+- `no_sources`: no permitted chunks were retrieved for the actor.
+- `low_confidence`: retrieval confidence is below `CONFIDENCE_THRESHOLD`.
+- `sensitive_action`: the question asks for a production-sensitive operation.
+
+The same array is stored in answer metadata and rendered in the web console so the demo can show why an answer was routed to human review.
 
 ## AI Provider Modes
 

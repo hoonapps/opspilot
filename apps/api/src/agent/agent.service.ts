@@ -13,6 +13,7 @@ export type AskResponse = {
   answer: string;
   confidence: number;
   needsHumanReview: boolean;
+  reviewReasons: ReviewReason[];
   sources: Array<{
     documentId: string;
     chunkId: string;
@@ -26,6 +27,23 @@ export type AskResponse = {
   }>;
   permissionAudit: PermissionBoundaryAudit;
 };
+
+export type ReviewReason =
+  | {
+      code: "no_sources";
+      message: string;
+    }
+  | {
+      code: "low_confidence";
+      message: string;
+      confidence: number;
+      threshold: number;
+    }
+  | {
+      code: "sensitive_action";
+      message: string;
+      policy: string;
+    };
 
 @Injectable()
 export class AgentService {
@@ -77,7 +95,13 @@ export class AgentService {
     }
     const confidence = calculateConfidence(sources);
     const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
-    const needsHumanReview = sources.length === 0 || confidence < confidenceThreshold || sensitiveAction;
+    const reviewReasons = buildReviewReasons({
+      sourceCount: sources.length,
+      confidence,
+      confidenceThreshold,
+      sensitiveAction
+    });
+    const needsHumanReview = reviewReasons.length > 0;
     const answer = await this.answerGenerator.generate({ question, sources, needsHumanReview, sensitiveAction, checklist });
 
     const [answerRow] = await connection.execute<{ id: string }[]>(
@@ -91,7 +115,12 @@ export class AgentService {
         answer,
         confidence,
         needsHumanReview,
-        JSON.stringify({ sensitiveAction, sourceCount: sources.length, checklist: checklist ? { path: checklist.path, itemCount: checklist.items.length } : null })
+        JSON.stringify({
+          sensitiveAction,
+          sourceCount: sources.length,
+          reviewReasons,
+          checklist: checklist ? { path: checklist.path, itemCount: checklist.items.length } : null
+        })
       ]
     );
 
@@ -137,6 +166,7 @@ export class AgentService {
       answer,
       confidence,
       needsHumanReview,
+      reviewReasons,
       sources: sources.map((source) => ({
         documentId: source.documentId,
         chunkId: source.chunkId,
@@ -153,6 +183,41 @@ export class AgentService {
     };
   }
 
+}
+
+function buildReviewReasons(input: {
+  sourceCount: number;
+  confidence: number;
+  confidenceThreshold: number;
+  sensitiveAction: boolean;
+}): ReviewReason[] {
+  const reasons: ReviewReason[] = [];
+
+  if (input.sourceCount === 0) {
+    reasons.push({
+      code: "no_sources",
+      message: "No permitted source chunks were retrieved for this actor."
+    });
+  }
+
+  if (input.confidence < input.confidenceThreshold) {
+    reasons.push({
+      code: "low_confidence",
+      message: "Retrieval confidence is below the configured review threshold.",
+      confidence: input.confidence,
+      threshold: input.confidenceThreshold
+    });
+  }
+
+  if (input.sensitiveAction) {
+    reasons.push({
+      code: "sensitive_action",
+      message: "The request asks for a production-sensitive operation.",
+      policy: "Sensitive operations require human approval before execution."
+    });
+  }
+
+  return reasons;
 }
 
 function calculateConfidence(sources: SearchResult[]): number {

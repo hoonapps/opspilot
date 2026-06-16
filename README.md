@@ -72,6 +72,7 @@ pnpm eval
 ```
 
 `pnpm eval` is a real quality gate. It exits non-zero when source hit, top source, human review, or document agreement drops below the configured threshold.
+Review workflow checks also assert that sensitive requests return structured `reviewReasons`, so the human approval boundary is explainable instead of being a bare boolean.
 
 Verify that the quality gate fails on a deliberately bad expected source:
 
@@ -204,6 +205,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Permission-aware retrieval filtering
 - Permission boundary audit counts for denied retrieval candidates
 - Sensitive action detection
+- Structured review reasons for low confidence, missing sources, and sensitive actions
 - Tool call logs and recent audit API
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
@@ -232,6 +234,7 @@ Done:
 - Permission boundary smoke test and web audit summary
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
+- Structured `reviewReasons` in `/ask`, answer metadata, Slack replies, and the web console
 - Approval list/update API and feedback create API
 - Tool call logging and recent audit API
 - `create_runbook_checklist` tool call for runbook questions

@@ -18,4 +18,5 @@ Expected behavior for a user without the `payments` team:
 
 1. Do not retrieve `team/settlement-runbook.md`.
 2. Return low confidence or ask for 담당자 확인.
-3. Do not expose restricted team content in the answer.
+3. Include a structured `reviewReasons` entry such as `no_sources` or `low_confidence`.
+4. Do not expose restricted team content in the answer.

@@ -53,8 +53,10 @@ async function main() {
     await page.getByRole("button", { name: "Ask OpsPilot" }).click();
     await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".boundaryAudit").getByText("denied candidates", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".approvalList").getByText("sensitive_operation", { exact: false }).first().waitFor({ timeout: 10000 });
     const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("pre_ranking_sql_filter", { exact: false }).isVisible();
+    const reviewReasonVisible = await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).isVisible();
 
     await page.getByRole("button", { name: "Load tools" }).click();
     await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -83,6 +85,7 @@ async function main() {
         citationVisible &&
         qualityGatePassed &&
         boundaryAuditVisible &&
+        reviewReasonVisible &&
         auditVisible,
       baseUrl,
       screenshotPath,
@@ -98,6 +101,7 @@ async function main() {
         citationVisible,
         qualityGatePassed,
         boundaryAuditVisible,
+        reviewReasonVisible,
         auditVisible
       }
     };

@@ -4,6 +4,13 @@ export type AskResponse = {
   answer: string;
   confidence: number;
   needsHumanReview: boolean;
+  reviewReasons: Array<{
+    code: "no_sources" | "low_confidence" | "sensitive_action";
+    message: string;
+    confidence?: number;
+    threshold?: number;
+    policy?: string;
+  }>;
   permissionAudit: {
     enforcement: "pre_ranking_sql_filter" | "postgres_recheck_after_elasticsearch";
     candidateWindow: number;
