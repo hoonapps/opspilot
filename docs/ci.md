@@ -9,6 +9,7 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - run database migrations
 - typecheck every workspace package
 - build the NestJS API, worker, packages, and Next.js console
+- build the production Docker image target
 - run Jest package tests
 - run seed RAG evaluation as a hard quality gate, including source hit, top source, human review, document agreement, and citation thresholds
 - verify the evaluation gate fails on a deliberate negative source case with `pnpm eval:gate-smoke`
@@ -23,4 +24,4 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - verify persisted answer reconstruction and unauthorized trace denial with `pnpm trace:smoke`
 - start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, answer-level document match, permission audit, review reasons, answer trace, tool call audit, GitHub sync, answer, feedback, and approval flows
 
-The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, citation accuracy, document agreement scoring, answer-level match visibility, evaluation hard gates, signed actor authentication, permission boundary enforcement, structured review reasons, permission-checked answer trace, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, and a working browser demo.
+The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, citation accuracy, document agreement scoring, answer-level match visibility, evaluation hard gates, signed actor authentication, permission boundary enforcement, structured review reasons, permission-checked answer trace, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, Docker-buildable deployment artifacts, and a working browser demo.

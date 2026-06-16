@@ -31,7 +31,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - AI layer: local deterministic mode by default, OpenAI and Anthropic chat adapters, OpenAI embedding adapter
 - Integration target: Slack Bot
 - Web console: Next.js
-- Infra: Docker Compose
+- Infra: Docker Compose for local services and production demo containers
 
 ## Local Quick Start
 
@@ -151,6 +151,7 @@ CI runs the same core gates on GitHub Actions:
 ```bash
 pnpm typecheck
 pnpm build
+pnpm docker:build
 pnpm eval
 pnpm eval:gate-smoke
 pnpm permission:smoke
@@ -199,6 +200,14 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 PostgreSQL is exposed on `localhost:25432`, Elasticsearch on `localhost:29200`, and Redis on `localhost:26379` to avoid common local development port conflicts.
 
 Elasticsearch is intentionally optional. The core RAG path uses PostgreSQL + pgvector first, then hybrid mode adds BM25 lexical retrieval for error codes, API paths, log keys, and exact operational terms. Elasticsearch hits are never trusted directly for authorization; the API reloads returned chunk ids through PostgreSQL with the same permission filter before answer generation.
+
+Production-style Docker demo:
+
+```bash
+pnpm docker:prod
+```
+
+This builds and runs API, web, worker, PostgreSQL, and Redis containers. Details: [docs/deployment.md](docs/deployment.md)
 
 Optional OpenAI mode:
 
@@ -256,6 +265,8 @@ Done:
 - MikroORM PostgreSQL entities and initial migration
 - PostgreSQL + pgvector Docker setup
 - Redis Docker setup for BullMQ queue work
+- Multi-target Dockerfile for API, web, and worker production demo containers
+- Production Docker Compose overlay for API, web, worker, PostgreSQL, and Redis
 - Optional Elasticsearch Docker profile for later hybrid search
 - Markdown seed document ingestion
 - Local deterministic embedding and pgvector retrieval
@@ -284,7 +295,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, eval, permission boundary, signed actor token auth, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- GitHub Actions CI for build, Docker image build, eval, permission boundary, signed actor token auth, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 
 ## Slack Bot
@@ -344,7 +355,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
@@ -363,4 +374,3 @@ Documents include `public`, `team`, and `restricted` visibility so permission bo
 ## Roadmap
 
 - Additional eval cases for larger document sets
-- Deployment profile for a hosted demo environment

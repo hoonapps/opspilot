@@ -1,0 +1,89 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-opspilot}
+      DATABASE_USER: ${DATABASE_USER:-opspilot}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-opspilot}
+      REDIS_URL: redis://redis:6379
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4.1-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-64}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_CHAT_MODEL: ${ANTHROPIC_CHAT_MODEL:-claude-3-5-haiku-latest}
+      RETRIEVAL_MODE: ${RETRIEVAL_MODE:-vector}
+      CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD:-0.3}
+      OPSPILOT_ACTOR_TOKEN_SECRET: ${OPSPILOT_ACTOR_TOKEN_SECRET:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_BOT_USER_ID: ${SLACK_BOT_USER_ID:-}
+      SLACK_POST_REPLIES: ${SLACK_POST_REPLIES:-false}
+      SLACK_DEFAULT_TEAM_SLUGS: ${SLACK_DEFAULT_TEAM_SLUGS:-payments}
+      SLACK_DEFAULT_ROLES: ${SLACK_DEFAULT_ROLES:-}
+      SEED_DOCUMENTS_DIR: ../../seed/documents
+      EVAL_SET_PATH: ../../seed/eval/questions.json
+      ENABLE_ELASTICSEARCH: ${ENABLE_ELASTICSEARCH:-false}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+    command: sh -c "pnpm --filter @opspilot/api db:migrate && pnpm ingest && pnpm start:api"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
+    ports:
+      - "3001:3001"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      target: worker
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-opspilot}
+      DATABASE_USER: ${DATABASE_USER:-opspilot}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-opspilot}
+      REDIS_URL: redis://redis:6379
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+      RETRIEVAL_MODE: ${RETRIEVAL_MODE:-vector}
+      ENABLE_ELASTICSEARCH: ${ENABLE_ELASTICSEARCH:-false}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      INDEXING_WORKER_CONCURRENCY: ${INDEXING_WORKER_CONCURRENCY:-2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

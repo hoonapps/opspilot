@@ -12,6 +12,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 - AI Adapter Package: `@opspilot/ai` provides local deterministic embedding, OpenAI chat/embedding, and Anthropic chat adapters
 - Worker: BullMQ indexing worker consumes Redis jobs and reuses the document ingestion service
 - Slack Bot: receives mentions and replies in threads with answer, sources, confidence, review reasons, tool calls, and review status
+- Deployment Profile: multi-target Dockerfile builds API, web, and worker containers; `docker-compose.prod.yml` wires them to PostgreSQL and Redis for a production-style demo
 
 ## Request Flow
 
