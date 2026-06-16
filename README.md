@@ -73,6 +73,12 @@ pnpm eval
 
 `pnpm eval` is a real quality gate. It exits non-zero when source hit, top source, human review, or document agreement drops below the configured threshold.
 
+Verify that the quality gate fails on a deliberately bad expected source:
+
+```bash
+pnpm eval:gate-smoke
+```
+
 Prove that a newly added Markdown document is indexed and becomes the top source:
 
 ```bash
@@ -127,6 +133,7 @@ CI runs the same core gates on GitHub Actions:
 pnpm typecheck
 pnpm build
 pnpm eval
+pnpm eval:gate-smoke
 pnpm permission:smoke
 pnpm checklist:smoke
 pnpm github:smoke
@@ -199,7 +206,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
-- Evaluation script with quality thresholds, expected source hit rate, and document agreement score
+- Evaluation script with quality thresholds, expected source hit rate, document agreement score, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
 - Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
@@ -227,7 +234,7 @@ Done:
 - Tool call logging and recent audit API
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
-- Evaluation command with CI-failing quality thresholds, expected source hit rate, and deterministic document agreement score
+- Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, and negative gate smoke
 - Latest evaluation API and web console quality gate panel
 - Runtime Markdown document upsert API and indexing smoke test
 - GitHub Markdown sync API and offline sync smoke test

@@ -33,6 +33,8 @@ EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
 
 The JSON report includes `passed`, `thresholds`, and per-metric `gates` so CI logs and the web console can show exactly which metric failed.
 
+`pnpm eval:gate-smoke` runs a deliberate negative case with an impossible expected source. The command succeeds only when the evaluation report fails the source hit and top source gates. This proves the gate itself is being tested, not only the happy-path eval set.
+
 ## Latest Report API
 
 ```txt

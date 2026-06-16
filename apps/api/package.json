@@ -13,6 +13,7 @@
     "db:create": "mikro-orm migration:create --config src/config/mikro-orm.config.ts",
     "ingest": "ts-node src/cli/ingest.ts",
     "eval": "ts-node src/cli/evaluate.ts",
+    "eval:gate-smoke": "ts-node src/cli/evaluation-gate-smoke.ts",
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",

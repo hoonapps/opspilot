@@ -91,6 +91,9 @@ jobs:
       - name: RAG evaluation
         run: pnpm eval
 
+      - name: Evaluation gate negative smoke
+        run: pnpm eval:gate-smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
