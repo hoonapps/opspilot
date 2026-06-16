@@ -169,6 +169,7 @@ CI runs the same core gates on GitHub Actions:
 pnpm typecheck
 pnpm build
 pnpm docker:build
+pnpm docker:prod:smoke
 pnpm eval
 pnpm eval:gate-smoke
 pnpm permission:smoke
@@ -226,6 +227,14 @@ pnpm docker:prod
 ```
 
 This builds and runs API, web, worker, PostgreSQL, and Redis containers. Details: [docs/deployment.md](docs/deployment.md)
+
+Verify the production compose profile on isolated demo ports:
+
+```bash
+pnpm docker:prod:smoke
+```
+
+The smoke script builds the production targets, starts API/web/worker/PostgreSQL/Redis on isolated default smoke ports, waits for `/health/ready`, checks the web console, sends a real `/ask` request, and then tears down containers and volumes.
 
 Optional OpenAI mode:
 
@@ -287,6 +296,7 @@ Done:
 - Redis Docker setup for BullMQ queue work
 - Multi-target Dockerfile for API, web, and worker production demo containers
 - Production Docker Compose overlay for API, web, worker, PostgreSQL, and Redis
+- Production compose smoke test covering API readiness, web availability, and a real grounded `/ask` request
 - Optional Elasticsearch Docker profile for later hybrid search
 - Markdown seed document ingestion
 - Local deterministic embedding and pgvector retrieval
@@ -317,7 +327,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, Docker image build, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with exported assets and runtime screenshot workflow
 
@@ -378,7 +388,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

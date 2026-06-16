@@ -28,6 +28,7 @@
     "worker:indexing": "pnpm --filter @opspilot/api worker:indexing",
     "docker:build": "docker build --target web --build-arg NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 -t opspilot-web:local .",
     "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build",
+    "docker:prod:smoke": "sh scripts/docker-prod-smoke.sh",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
   },

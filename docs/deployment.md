@@ -18,6 +18,20 @@ This starts:
 
 The API container runs migrations and seed ingestion before starting. Ingestion is idempotent, so restarting the stack keeps the demo usable.
 
+For a disposable smoke test on isolated host ports:
+
+```bash
+pnpm docker:prod:smoke
+```
+
+The smoke script starts the same production compose profile under a separate Compose project, checks API readiness on `http://localhost:3100/health/ready`, checks the web console on `http://localhost:3101`, sends a real `/ask` request, verifies the expected cited source, and then removes containers and volumes.
+
+Host ports can be overridden without editing Compose files:
+
+```bash
+API_PORT=3200 WEB_PORT=3201 POSTGRES_HOST_PORT=35432 REDIS_HOST_PORT=36379 pnpm docker:prod:smoke
+```
+
 The API exposes:
 
 - `GET /health`: liveness, used to confirm the process is running
@@ -67,4 +81,4 @@ ANTHROPIC_CHAT_MODEL=claude-3-5-haiku-latest
 
 ## CI Proof
 
-GitHub Actions builds the Docker image target after typecheck and package build, then runs tests, RAG evaluation, authentication smoke tests, readiness smoke tests, answer agreement smoke tests, permission boundary smoke tests, and browser smoke tests. This proves the checked-in deployment artifact can build from a clean environment and that the runtime behavior still passes the portfolio gates.
+GitHub Actions builds the Docker image target after typecheck and package build, runs the production compose smoke test, then runs tests, RAG evaluation, authentication smoke tests, readiness smoke tests, answer agreement smoke tests, permission boundary smoke tests, and browser smoke tests. This proves the checked-in deployment artifact can build and boot from a clean environment and that the runtime behavior still passes the portfolio gates.
