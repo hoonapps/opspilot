@@ -1,0 +1,38 @@
+[
+  {
+    "id": "error-e102",
+    "question": "E102 에러가 발생하면 어떻게 대응해야 해?",
+    "expectedSources": ["public/payment-error-codes.md"],
+    "actor": {
+      "roles": [],
+      "teamSlugs": []
+    }
+  },
+  {
+    "id": "settlement-delay-payments-team",
+    "question": "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?",
+    "expectedSources": ["team/settlement-runbook.md"],
+    "actor": {
+      "roles": [],
+      "teamSlugs": ["payments"]
+    }
+  },
+  {
+    "id": "restricted-prod-db",
+    "question": "운영 DB에서 user status를 직접 update 해도 돼?",
+    "expectedSources": ["restricted/production-db-policy.md"],
+    "actor": {
+      "roles": ["ops_admin"],
+      "teamSlugs": ["platform"]
+    }
+  },
+  {
+    "id": "refund-forced",
+    "question": "강제 환불은 Agent가 바로 실행해도 돼?",
+    "expectedSources": ["public/refund-policy.md"],
+    "actor": {
+      "roles": [],
+      "teamSlugs": []
+    }
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "name": "@opspilot/rag",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"rag package tests are planned\""
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

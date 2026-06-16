@@ -1,0 +1,20 @@
+{
+  "name": "opspilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Permission-aware RAG agent for operational knowledge, runbooks, and Slack support workflows.",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:api": "pnpm --filter @opspilot/api dev",
+    "start:api": "pnpm --filter @opspilot/api start",
+    "ingest": "pnpm --filter @opspilot/api ingest",
+    "eval": "pnpm --filter @opspilot/api eval",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
