@@ -131,6 +131,9 @@ jobs:
       - name: Answer trace smoke
         run: pnpm trace:smoke
 
+      - name: Portfolio demo
+        run: pnpm portfolio:demo
+
       - name: Start API
         run: |
           pnpm --filter @opspilot/api start > /tmp/opspilot-api.log 2>&1 &

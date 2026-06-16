@@ -85,6 +85,14 @@ pnpm eval
 `pnpm eval` is a real quality gate. It exits non-zero when source hit, top source, human review, or document agreement drops below the configured threshold.
 Review workflow checks also assert that sensitive requests return structured `reviewReasons`, so the human approval boundary is explainable instead of being a bare boolean.
 
+Run the compact portfolio demo report:
+
+```bash
+pnpm portfolio:demo
+```
+
+This single command proves grounded RAG, new document indexing, runbook tool calling, human approval separation, and answer trace reconstruction. Details: [docs/demo.md](docs/demo.md)
+
 Verify that a persisted answer can be reconstructed for audit from sources, tool calls, approvals, and feedback, while unauthorized trace reads are denied:
 
 ```bash
@@ -182,6 +190,7 @@ pnpm indexing:smoke
 pnpm queue:smoke
 pnpm review:smoke
 pnpm trace:smoke
+pnpm portfolio:demo
 pnpm web:smoke
 ```
 
@@ -326,6 +335,7 @@ Done:
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
 - Answer trace smoke test
+- Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
@@ -385,6 +395,12 @@ The queue path stores a BullMQ job in Redis. `pnpm worker:indexing` processes jo
 The web console also exposes a GitHub Markdown sync form for syncing repository docs into the same RAG index.
 
 Details: [docs/indexing.md](docs/indexing.md)
+
+## Portfolio Demo
+
+`pnpm portfolio:demo` runs a compact terminal demo report that covers the highest-signal interview path without a browser. It verifies a grounded incident answer, newly indexed Markdown retrieval, runbook checklist tool calling, sensitive-operation human approval, feedback logging, and answer trace reconstruction.
+
+Details: [docs/demo.md](docs/demo.md)
 
 ## CI
 
