@@ -17,6 +17,9 @@ export type EvalReport = {
   topSourceAccuracy: number;
   humanReviewAccuracy: number;
   documentAgreementScore: number;
+  passed: boolean;
+  thresholds: EvaluationThresholds;
+  gates: EvaluationGate[];
   rows: Array<{
     id: string;
     hit: boolean;
@@ -28,10 +31,27 @@ export type EvalReport = {
   }>;
 };
 
+export type EvaluationThresholds = {
+  sourceHitRate: number;
+  topSourceAccuracy: number;
+  humanReviewAccuracy: number;
+  documentAgreementScore: number;
+};
+
+export type EvaluationGate = {
+  metric: keyof EvaluationThresholds;
+  score: number;
+  threshold: number;
+  passed: boolean;
+};
+
 export type LatestEvalReport = {
   suiteName: string;
   createdAt: string;
   total: number;
+  passed: boolean;
+  thresholds: EvaluationThresholds;
+  gates: EvaluationGate[];
   metrics: {
     sourceHitRate: number;
     topSourceAccuracy: number;
@@ -44,7 +64,7 @@ export type LatestEvalReport = {
 type EvaluationMetricRow = {
   metric_name: string;
   score: number;
-  details: { total?: number; rows?: EvalReport["rows"] };
+  details: { total?: number; rows?: EvalReport["rows"]; thresholds?: EvaluationThresholds; gates?: EvaluationGate[]; passed?: boolean };
   created_at: Date | string;
 };
 
@@ -86,6 +106,17 @@ export class EvaluationService {
       rows.length
     );
     const documentAgreementScore = average(rows.map((row) => row.documentAgreement));
+    const thresholds = evaluationThresholdsFromEnv();
+    const gates = buildEvaluationGates(
+      {
+        sourceHitRate,
+        topSourceAccuracy,
+        humanReviewAccuracy,
+        documentAgreementScore
+      },
+      thresholds
+    );
+    const passed = gates.every((gate) => gate.passed);
 
     const report: EvalReport = {
       suiteName,
@@ -94,8 +125,12 @@ export class EvaluationService {
       topSourceAccuracy,
       humanReviewAccuracy,
       documentAgreementScore,
+      passed,
+      thresholds,
+      gates,
       rows
     };
+    const details = JSON.stringify({ total: rows.length, rows, thresholds, gates, passed });
 
     await this.orm.em.fork().getConnection().execute(
       `
@@ -109,16 +144,16 @@ export class EvaluationService {
       [
         suiteName,
         sourceHitRate,
-        JSON.stringify({ total: rows.length, rows }),
+        details,
         suiteName,
         topSourceAccuracy,
-        JSON.stringify({ total: rows.length, rows }),
+        details,
         suiteName,
         humanReviewAccuracy,
-        JSON.stringify({ total: rows.length, rows }),
+        details,
         suiteName,
         documentAgreementScore,
-        JSON.stringify({ total: rows.length, rows })
+        details
       ]
     );
 
@@ -149,18 +184,24 @@ export class EvaluationService {
     const createdAt = rows
       .map((row) => new Date(row.created_at))
       .reduce((latest, value) => (value > latest ? value : latest), new Date(rows[0].created_at));
+    const metrics = {
+      sourceHitRate: byMetric.get("source_hit_rate")?.score ?? 0,
+      topSourceAccuracy: byMetric.get("top_source_accuracy")?.score ?? 0,
+      humanReviewAccuracy: byMetric.get("human_review_accuracy")?.score ?? 0,
+      documentAgreementScore: byMetric.get("document_agreement_score")?.score ?? 0
+    };
+    const thresholds = details.thresholds ?? evaluationThresholdsFromEnv();
+    const gates = details.gates ?? buildEvaluationGates(metrics, thresholds);
 
     return {
       report: {
         suiteName,
         createdAt: createdAt.toISOString(),
         total: details.total ?? details.rows?.length ?? 0,
-        metrics: {
-          sourceHitRate: byMetric.get("source_hit_rate")?.score ?? 0,
-          topSourceAccuracy: byMetric.get("top_source_accuracy")?.score ?? 0,
-          humanReviewAccuracy: byMetric.get("human_review_accuracy")?.score ?? 0,
-          documentAgreementScore: byMetric.get("document_agreement_score")?.score ?? 0
-        },
+        passed: details.passed ?? gates.every((gate) => gate.passed),
+        thresholds,
+        gates,
+        metrics,
         rows: details.rows ?? []
       }
     };
@@ -191,6 +232,38 @@ function ratio(value: number, total: number): number {
 function itemMatchesTopSource(expectedSources: string[], actualSources: string[]): boolean {
   const topSource = actualSources[0];
   return Boolean(topSource && expectedSources.includes(topSource));
+}
+
+function evaluationThresholdsFromEnv(): EvaluationThresholds {
+  return {
+    sourceHitRate: readThreshold("EVAL_MIN_SOURCE_HIT_RATE", 1),
+    topSourceAccuracy: readThreshold("EVAL_MIN_TOP_SOURCE_ACCURACY", 1),
+    humanReviewAccuracy: readThreshold("EVAL_MIN_HUMAN_REVIEW_ACCURACY", 1),
+    documentAgreementScore: readThreshold("EVAL_MIN_DOCUMENT_AGREEMENT_SCORE", 0.8)
+  };
+}
+
+function buildEvaluationGates(metrics: EvaluationThresholds, thresholds: EvaluationThresholds): EvaluationGate[] {
+  return (Object.keys(thresholds) as Array<keyof EvaluationThresholds>).map((metric) => ({
+    metric,
+    score: metrics[metric],
+    threshold: thresholds[metric],
+    passed: metrics[metric] >= thresholds[metric]
+  }));
+}
+
+function readThreshold(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a number between 0 and 1`);
+  }
+
+  return value;
 }
 
 function average(values: number[]): number {

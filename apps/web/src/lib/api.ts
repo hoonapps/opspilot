@@ -64,6 +64,19 @@ export type EvaluationReport = {
   suiteName: string;
   createdAt: string;
   total: number;
+  passed: boolean;
+  thresholds: {
+    sourceHitRate: number;
+    topSourceAccuracy: number;
+    humanReviewAccuracy: number;
+    documentAgreementScore: number;
+  };
+  gates: Array<{
+    metric: "sourceHitRate" | "topSourceAccuracy" | "humanReviewAccuracy" | "documentAgreementScore";
+    score: number;
+    threshold: number;
+    passed: boolean;
+  }>;
   metrics: {
     sourceHitRate: number;
     topSourceAccuracy: number;

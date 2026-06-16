@@ -20,6 +20,19 @@ The evaluation command ingests seed documents, asks each question, stores metric
 
 Document agreement is deterministic and does not call an LLM judge. It removes citation/review boilerplate, tokenizes the answer and returned source chunks, then calculates the percentage of answer tokens that also appear in the cited source context. This is not a full factuality proof, but it is a stable regression signal for whether answers stay grounded in retrieved documents.
 
+## Quality Gates
+
+`pnpm eval` fails with a non-zero exit code when any metric falls below its threshold. Defaults:
+
+```txt
+EVAL_MIN_SOURCE_HIT_RATE=1
+EVAL_MIN_TOP_SOURCE_ACCURACY=1
+EVAL_MIN_HUMAN_REVIEW_ACCURACY=1
+EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
+```
+
+The JSON report includes `passed`, `thresholds`, and per-metric `gates` so CI logs and the web console can show exactly which metric failed.
+
 ## Latest Report API
 
 ```txt
@@ -27,7 +40,7 @@ GET /evaluations/latest
 GET /evaluations/latest?suiteName=seed-ops-wiki
 ```
 
-The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
+The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
 
 ## Planned Additions
 

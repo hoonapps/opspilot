@@ -299,6 +299,7 @@ export default function Home() {
                 <p className="eyebrow">Evaluation</p>
                 <h2>Quality gates</h2>
               </div>
+              {evaluation ? <span className={evaluation.passed ? "badge" : "badge review"}>{evaluation.passed ? "Passed" : "Failed"}</span> : null}
               <button className="smallButton" disabled={loading === "evaluation"} onClick={loadEvaluation} type="button">
                 {loading === "evaluation" ? "Loading..." : "Load eval"}
               </button>
