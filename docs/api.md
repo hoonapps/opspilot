@@ -27,6 +27,7 @@ GET /docs-json
 - `PATCH /approvals/{id}`
 - `POST /feedback`
 - `GET /evaluations/latest`
+- `GET /observability/summary`
 - `GET /health`
 - `GET /health/ready`
 - `POST /slack/events`

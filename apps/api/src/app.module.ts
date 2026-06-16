@@ -10,6 +10,7 @@ import { DocumentsModule } from "./documents/documents.module";
 import { EvaluationModule } from "./evaluation/evaluation.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { HealthModule } from "./health/health.module";
+import { ObservabilityModule } from "./observability/observability.module";
 import { SlackModule } from "./slack/slack.module";
 
 @Module({
@@ -23,6 +24,7 @@ import { SlackModule } from "./slack/slack.module";
     ApprovalsModule,
     FeedbackModule,
     EvaluationModule,
+    ObservabilityModule,
     SlackModule,
     HealthModule
   ]

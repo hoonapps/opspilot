@@ -134,6 +134,9 @@ jobs:
       - name: Portfolio demo
         run: pnpm portfolio:demo
 
+      - name: Observability smoke
+        run: pnpm observability:smoke
+
       - name: OpenAPI contract smoke
         run: pnpm openapi:smoke
 

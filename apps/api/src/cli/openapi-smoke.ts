@@ -22,6 +22,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/approvals/{id}", method: "patch" },
   { path: "/feedback", method: "post" },
   { path: "/evaluations/latest", method: "get" },
+  { path: "/observability/summary", method: "get" },
   { path: "/health", method: "get" },
   { path: "/health/ready", method: "get" },
   { path: "/slack/events", method: "post" }

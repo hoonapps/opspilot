@@ -100,6 +100,12 @@ Verify that a persisted answer can be reconstructed for audit from sources, tool
 pnpm trace:smoke
 ```
 
+Verify the operational telemetry summary for answers, document agreement, tool calls, approvals, feedback, and indexed knowledge:
+
+```bash
+pnpm observability:smoke
+```
+
 Verify the public OpenAPI contract:
 
 ```bash
@@ -200,6 +206,7 @@ pnpm queue:smoke
 pnpm review:smoke
 pnpm trace:smoke
 pnpm portfolio:demo
+pnpm observability:smoke
 pnpm openapi:smoke
 pnpm web:smoke
 ```
@@ -296,6 +303,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Structured review reasons for low confidence, missing sources, and sensitive actions
 - Tool call logs and recent audit API
 - Permission-checked answer trace API for reconstructing a persisted answer's sources, tool calls, approvals, and feedback
+- Operational observability summary API for questions, answers, document agreement, tool calls, approvals, feedback, and indexed knowledge size
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
@@ -346,6 +354,7 @@ Done:
 - Review workflow smoke test
 - Answer trace smoke test
 - Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
+- Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
@@ -413,6 +422,12 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 Details: [docs/demo.md](docs/demo.md)
 
+## Observability
+
+`GET /observability/summary` aggregates persisted operating evidence: question volume, answer count, human review rate, average confidence, average document agreement, tool calls by name/status, approvals by status, feedback, and indexed document/chunk counts. `pnpm observability:smoke` creates representative agent activity and fails unless those metrics reflect the RAG, runbook, approval, and feedback workflow.
+
+Details: [docs/observability.md](docs/observability.md)
+
 ## API Contract
 
 Swagger UI is available at `/docs`, and the generated OpenAPI JSON is available at `/docs-json`. `pnpm openapi:smoke` verifies that the portfolio-critical paths and request schemas are present.
@@ -421,7 +436,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, OpenAPI contract smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
