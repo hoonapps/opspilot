@@ -48,6 +48,11 @@ async function main() {
     await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".approvalList").getByText("sensitive_operation", { exact: false }).first().waitFor({ timeout: 10000 });
 
+    await page.getByRole("button", { name: "Load tools" }).click();
+    await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".auditList").getByText("needs_approval", { exact: false }).first().waitFor({ timeout: 10000 });
+    const auditVisible = await page.locator(".auditList").getByText("search_documents", { exact: false }).first().isVisible();
+
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
     const answerText = await answerPanel.innerText();
@@ -65,7 +70,8 @@ async function main() {
         approvalText.includes("sensitive_operation") &&
         feedbackSaved &&
         githubSyncVisible &&
-        evaluationVisible,
+        evaluationVisible &&
+        auditVisible,
       baseUrl,
       screenshotPath,
       checks: {
@@ -75,7 +81,8 @@ async function main() {
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
         feedbackSaved,
         githubSyncVisible,
-        evaluationVisible
+        evaluationVisible,
+        auditVisible
       }
     };
 

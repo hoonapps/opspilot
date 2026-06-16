@@ -16,6 +16,6 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - verify BullMQ queue indexing worker behavior with `pnpm queue:smoke`
 - verify GitHub Markdown sync indexing with `pnpm github:smoke`
 - verify sensitive-action review and feedback with `pnpm review:smoke`
-- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, GitHub sync, answer, feedback, and approval flows
+- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, tool call audit, GitHub sync, answer, feedback, and approval flows
 
-The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, evaluation metrics, permission boundaries, async queue indexing, GitHub document sync, runbook tool calling, human approval separation, feedback logging, and a working browser demo.
+The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, evaluation metrics, permission boundaries, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, and a working browser demo.

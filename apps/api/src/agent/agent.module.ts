@@ -7,18 +7,21 @@ import { ElasticsearchService } from "./elasticsearch.service";
 import { EmbeddingService } from "./embedding.service";
 import { RunbookChecklistService } from "./runbook-checklist.service";
 import { SearchService } from "./search.service";
+import { ToolCallAuditController } from "./tool-call-audit.controller";
+import { ToolCallAuditService } from "./tool-call-audit.service";
 
 @Module({
   imports: [AuthzModule],
-  controllers: [AgentController],
+  controllers: [AgentController, ToolCallAuditController],
   providers: [
     AgentService,
     AnswerGeneratorService,
     EmbeddingService,
     ElasticsearchService,
     SearchService,
-    RunbookChecklistService
+    RunbookChecklistService,
+    ToolCallAuditService
   ],
-  exports: [EmbeddingService, ElasticsearchService, SearchService, AgentService]
+  exports: [EmbeddingService, ElasticsearchService, SearchService, AgentService, ToolCallAuditService]
 })
 export class AgentModule {}

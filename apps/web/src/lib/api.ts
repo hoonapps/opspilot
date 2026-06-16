@@ -68,6 +68,17 @@ export type EvaluationReport = {
   }>;
 };
 
+export type ToolCallAuditItem = {
+  id: string;
+  questionId: string | null;
+  question: string | null;
+  toolName: string;
+  status: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  createdAt: string;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -175,4 +186,15 @@ export async function getLatestEvaluation(): Promise<EvaluationReport | null> {
 
   const data = (await response.json()) as { report: EvaluationReport | null };
   return data.report;
+}
+
+export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {
+  const response = await fetch(`${API_BASE_URL}/tool-calls/recent?limit=6`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { toolCalls: ToolCallAuditItem[] };
+  return data.toolCalls;
 }

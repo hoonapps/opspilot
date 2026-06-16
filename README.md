@@ -17,6 +17,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can the agent answer with traceable document sources?
 - Can restricted documents be excluded before prompt construction?
 - Can sensitive operations be separated into human approval?
+- Can tool calls be audited after the answer is generated?
 - Can new or changed documents be re-indexed and evaluated?
 - Can retrieval quality be measured against expected source documents?
 
@@ -173,7 +174,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - BullMQ queued Markdown indexing API and worker
 - Permission-aware retrieval filtering
 - Sensitive action detection
-- Tool call logs
+- Tool call logs and recent audit API
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
@@ -201,7 +202,7 @@ Done:
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
 - Approval list/update API and feedback create API
-- Tool call logging
+- Tool call logging and recent audit API
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
@@ -210,7 +211,7 @@ Done:
 - GitHub Markdown sync API and offline sync smoke test
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
-- Next.js web console and Playwright smoke test with evaluation metrics, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with evaluation metrics, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, eval, checklist, GitHub sync, direct indexing, queue indexing, review, and browser smoke gates
 - README product preview image
 
@@ -275,7 +276,7 @@ Details: [docs/indexing.md](docs/indexing.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the evaluation panel and GitHub sync UI.
+GitHub Actions runs typecheck, build, database migrations, RAG evaluation, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, and browser smoke tests that exercise the evaluation panel, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

@@ -7,6 +7,15 @@
 - `save_feedback`: records answer quality feedback
 - `create_runbook_checklist`: extracts numbered action items from retrieved runbooks
 
+## Tool Audit
+
+```txt
+GET /tool-calls/recent
+GET /tool-calls/recent?limit=20
+```
+
+Every tool call stores the linked question id, tool name, input, output, status, and timestamp in `tool_call_logs`. The web console reads the recent audit feed so demos can show which tools were allowed and which required approval.
+
 ## Decision Flow
 
 1. Receive the question through HTTP `/ask`, Slack `app_mention`, or evaluation script.
@@ -22,8 +31,9 @@
 11. If sensitive, call `request_human_approval`.
 12. Persist every question, answer, source, and tool call.
 13. Store optional feedback against the persisted answer id.
-14. Expose pending approval requests for human review.
-15. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
+14. Expose recent tool calls through the audit API.
+15. Expose pending approval requests for human review.
+16. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 

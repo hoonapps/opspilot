@@ -4,9 +4,9 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, evaluation reports, feedback, and approvals
-- Web Console: Next.js UI for asking questions, viewing sources/tool calls, evaluation metrics, and upserting Markdown documents
-- Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, approvals, feedback, and evaluation results
+- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, tool call audit, evaluation reports, feedback, and approvals
+- Web Console: Next.js UI for asking questions, viewing sources/tool calls, audit logs, evaluation metrics, and upserting Markdown documents
+- Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
 - Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
 - Worker: BullMQ indexing worker consumes Redis jobs and reuses the document ingestion service
@@ -45,7 +45,8 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 6. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
 7. Operators can save answer feedback through `POST /feedback`.
 8. Operators can load the latest source hit, top source, and human review metrics through `GET /evaluations/latest`.
-9. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
+9. Operators can inspect recent Agent tool calls through `GET /tool-calls/recent`.
+10. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
 
 ## Permission Boundary
 

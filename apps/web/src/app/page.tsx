@@ -10,8 +10,10 @@ import {
   getLatestEvaluation,
   GithubSyncResponse,
   IngestResponse,
+  listRecentToolCalls,
   listApprovals,
   syncGithubDocuments,
+  ToolCallAuditItem,
   updateApproval,
   upsertMarkdown
 } from "../lib/api";
@@ -52,11 +54,12 @@ export default function Home() {
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "evaluation" | "feedback" | null>(null);
+  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "audit" | "evaluation" | "feedback" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
@@ -155,6 +158,18 @@ export default function Home() {
       setEvaluation(await getLatestEvaluation());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Evaluation request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadToolCalls() {
+    setError(null);
+    setLoading("audit");
+    try {
+      setToolCalls(await listRecentToolCalls());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Tool call audit request failed");
     } finally {
       setLoading(null);
     }
@@ -327,6 +342,34 @@ export default function Home() {
             </div>
           </section>
 
+          <section className="auditPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Audit</p>
+                <h2>Tool calls</h2>
+              </div>
+              <button className="smallButton" disabled={loading === "audit"} onClick={loadToolCalls} type="button">
+                {loading === "audit" ? "Loading..." : "Load tools"}
+              </button>
+            </div>
+            <div className="auditList">
+              {toolCalls.length > 0 ? (
+                toolCalls.map((tool) => (
+                  <div className="auditItem" key={tool.id}>
+                    <div>
+                      <strong>{tool.toolName}</strong>
+                      <p>{tool.question ?? "No linked question"}</p>
+                    </div>
+                    <span className={tool.status === "needs_approval" ? "badge review" : "badge"}>{tool.status}</span>
+                    <code>{summarizeToolOutput(tool.output)}</code>
+                  </div>
+                ))
+              ) : (
+                <p className="empty">Recent Agent tool calls appear here after a question.</p>
+              )}
+            </div>
+          </section>
+
           <form onSubmit={submitMarkdown} className="indexPanel">
             <div className="sectionHeader compact">
               <div>
@@ -413,4 +456,17 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function summarizeToolOutput(output: Record<string, unknown>): string {
+  if (typeof output.sourceCount === "number") {
+    return `${output.sourceCount} sources`;
+  }
+  if (typeof output.approvalStatus === "string") {
+    return `approval ${output.approvalStatus}`;
+  }
+  if (typeof output.itemCount === "number") {
+    return `${output.itemCount} checklist items`;
+  }
+  return "logged";
 }

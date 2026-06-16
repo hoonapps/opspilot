@@ -401,6 +401,7 @@ pre {
 }
 
 .evalPanel,
+.auditPanel,
 .approvalPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -427,6 +428,42 @@ pre {
 .approvalList {
   display: grid;
   gap: 10px;
+}
+
+.auditList {
+  display: grid;
+  gap: 8px;
+}
+
+.auditItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.auditItem strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auditItem p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.auditItem code {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
 }
 
 .approvalItem {
