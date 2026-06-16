@@ -147,6 +147,12 @@ Verify that signed actor tokens are required when `OPSPILOT_ACTOR_TOKEN_SECRET` 
 pnpm authn:smoke
 ```
 
+Verify that Markdown ingestion redacts secrets before storage, indexing, answers, and trace previews:
+
+```bash
+pnpm redaction:smoke
+```
+
 Verify production readiness checks for PostgreSQL, Redis, and optional Elasticsearch:
 
 ```bash
@@ -206,6 +212,7 @@ pnpm eval
 pnpm eval:gate-smoke
 pnpm permission:smoke
 pnpm authn:smoke
+pnpm redaction:smoke
 pnpm readiness:smoke
 pnpm agreement:smoke
 pnpm checklist:smoke
@@ -305,6 +312,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - GitHub Markdown sync API
 - BullMQ queued Markdown indexing API and worker
 - Optional signed actor token authentication boundary
+- Markdown secret redaction before document version storage, chunk storage, embedding, and Elasticsearch indexing
 - Liveness and readiness endpoints for PostgreSQL, Redis, and optional Elasticsearch
 - Permission-aware retrieval filtering
 - Permission boundary audit counts for denied retrieval candidates
@@ -346,6 +354,7 @@ Done:
 - Permission-aware retrieval filtering
 - Permission boundary smoke test and web audit summary
 - Signed actor token smoke test for missing, tampered, expired, and valid tokens
+- Secret redaction smoke test proving raw tokens do not appear in stored chunks, document versions, answers, or answer trace previews
 - Readiness smoke test for PostgreSQL, Redis, and optional Elasticsearch state
 - Per-answer document agreement score in `/ask`, answer metadata, the web console, and CI smoke tests
 - Configurable confidence threshold
@@ -368,7 +377,7 @@ Done:
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
 - Next.js web console and Playwright smoke test with evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
 
@@ -447,7 +456,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

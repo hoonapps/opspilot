@@ -110,6 +110,9 @@ jobs:
       - name: Signed actor token smoke
         run: pnpm authn:smoke
 
+      - name: Secret redaction smoke
+        run: pnpm redaction:smoke
+
       - name: Readiness smoke
         run: pnpm readiness:smoke
 

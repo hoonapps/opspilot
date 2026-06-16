@@ -7,6 +7,7 @@ import { EmbeddingService } from "../agent/embedding.service";
 import { sha256 } from "../shared/hash";
 import { ChunkerService } from "./chunker.service";
 import { parseMarkdownDocument } from "./frontmatter";
+import { RedactionService } from "./redaction.service";
 
 type IngestedDocument = {
   path: string;
@@ -21,7 +22,8 @@ export class DocumentsService {
     private readonly orm: MikroORM,
     private readonly chunker: ChunkerService,
     private readonly embeddings: EmbeddingService,
-    private readonly elasticsearch: ElasticsearchService
+    private readonly elasticsearch: ElasticsearchService,
+    private readonly redaction: RedactionService
   ) {}
 
   async ingestSeedDocuments(): Promise<{ documents: IngestedDocument[] }> {
@@ -41,7 +43,8 @@ export class DocumentsService {
 
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {
     const parsed = parseMarkdownDocument(path, raw);
-    const contentHash = sha256(parsed.body);
+    const redacted = this.redaction.redactMarkdown(parsed.body);
+    const contentHash = sha256(redacted.content);
     const em = this.orm.em.fork();
     const connection = em.getConnection();
 
@@ -70,7 +73,13 @@ export class DocumentsService {
         parsed.metadata.title,
         parsed.metadata.visibility,
         parsed.metadata.teamSlug ?? null,
-        JSON.stringify(parsed.metadata),
+        JSON.stringify({
+          ...parsed.metadata,
+          security: {
+            redactionCount: redacted.redactionCount,
+            redactionPatterns: redacted.patterns
+          }
+        }),
         contentHash
       ]
     );
@@ -86,13 +95,13 @@ export class DocumentsService {
           values (?::uuid, ?, ?, ?)
           on conflict (document_id, version) do nothing;
         `,
-        [document.id, nextVersion, contentHash, parsed.body]
+        [document.id, nextVersion, contentHash, redacted.content]
       );
     }
 
     await this.elasticsearch.deleteDocumentChunks(document.id);
 
-    const chunks = this.chunker.chunk(parsed.body);
+    const chunks = this.chunker.chunk(redacted.content);
     for (const chunk of chunks) {
       const embedding = this.embeddings.toSqlVector(await this.embeddings.embed(`${parsed.metadata.title}\n${chunk.content}`));
       const [chunkRow] = await connection.execute<{ id: string }[]>(

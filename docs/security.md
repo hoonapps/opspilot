@@ -37,6 +37,14 @@ These actions create approval requests and tool call logs. Human reviewers resol
 
 Document visibility is stored on the document and enforced during retrieval. Restricted chunks should not be sent to the LLM layer for unauthorized users.
 
+Markdown ingestion also redacts common secret patterns before content is written to `document_versions`, `document_chunks`, embeddings, or Elasticsearch. The redaction pass covers AWS-style access keys, GitHub tokens, Slack tokens, bearer tokens, and common key-value secrets such as `api_key`, `password`, `token`, and `client_secret`. Document metadata stores the redaction count and matched pattern names, but not the original secret values.
+
+```bash
+pnpm redaction:smoke
+```
+
+The smoke test ingests a document containing fake secrets, asks a RAG question, reconstructs the answer trace, and fails if any raw secret appears in persisted chunks, persisted document versions, answer text, returned sources, or trace previews.
+
 ## Search Security
 
 Elasticsearch is used only as a recall booster. In hybrid mode, Elasticsearch returns chunk ids, and OpsPilot reloads those chunks from PostgreSQL with the actor's permission filter before answer generation. PostgreSQL remains the authorization boundary.

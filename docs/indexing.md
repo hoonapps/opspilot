@@ -13,7 +13,7 @@ OpsPilot supports four ingestion paths:
 pnpm ingest
 ```
 
-The seed command reads Markdown files from `seed/documents`, parses frontmatter, chunks content, stores embeddings in PostgreSQL `document_chunks`, and optionally writes lexical copies to Elasticsearch.
+The seed command reads Markdown files from `seed/documents`, parses frontmatter, redacts common secret patterns, chunks content, stores embeddings in PostgreSQL `document_chunks`, and optionally writes lexical copies to Elasticsearch.
 
 ## Runtime Markdown Upsert
 
@@ -26,7 +26,7 @@ curl -X POST http://localhost:3000/documents/markdown \
   }'
 ```
 
-If the document path already exists, OpsPilot updates the document metadata, records a new document version when the content hash changed, replaces old chunks, and indexes fresh chunks.
+If the document path already exists, OpsPilot updates the document metadata, records a new document version when the redacted content hash changed, replaces old chunks, and indexes fresh chunks. Raw secret values are not stored in document versions, chunk content, embeddings, or Elasticsearch mirrors.
 
 ## Queued Markdown Indexing
 
@@ -51,7 +51,7 @@ Run the long-lived worker:
 pnpm worker:indexing
 ```
 
-The queued path stores jobs in Redis through BullMQ. The worker processes `index-markdown` jobs and calls the same `DocumentsService.ingestMarkdown` path used by synchronous ingestion, so chunking, embeddings, pgvector writes, and optional Elasticsearch mirroring stay consistent.
+The queued path stores jobs in Redis through BullMQ. The worker processes `index-markdown` jobs and calls the same `DocumentsService.ingestMarkdown` path used by synchronous ingestion, so redaction, chunking, embeddings, pgvector writes, and optional Elasticsearch mirroring stay consistent.
 
 ## GitHub Markdown Sync
 

@@ -38,8 +38,9 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 3. Async indexing accepts one Markdown document through `POST /documents/indexing-jobs/markdown` and stores a BullMQ job in Redis.
 4. The indexing worker consumes `index-markdown` jobs and calls the same document ingestion service.
 5. GitHub sync reads repository Markdown through `POST /documents/github/sync`.
-6. Every ingestion path normalizes metadata, chunks content, stores embeddings in PostgreSQL, and optionally mirrors chunks into Elasticsearch.
-7. Re-indexing the same path preserves chunk identity where possible and deletes obsolete chunks after the fresh version is written.
+6. Every ingestion path redacts common secret patterns before writing document versions, chunk content, embeddings, or Elasticsearch mirrors.
+7. Every ingestion path normalizes metadata, chunks redacted content, stores embeddings in PostgreSQL, and optionally mirrors redacted chunks into Elasticsearch.
+8. Re-indexing the same path preserves chunk identity where possible and deletes obsolete chunks after the fresh version is written.
 
 ## Web Console Flow
 
@@ -58,6 +59,8 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 ## Permission Boundary
 
 The key design rule is that inaccessible chunks are filtered at retrieval time. The LLM layer never receives restricted text for users who cannot access it. Search logs keep only aggregate denied counts by visibility, not denied document titles or paths.
+
+Secret redaction happens before persistence and indexing, not only before answer generation. That means accidental credentials in Markdown documents are not stored in `document_versions`, `document_chunks`, embeddings, Elasticsearch mirrors, answer text, or trace previews.
 
 When `OPSPILOT_ACTOR_TOKEN_SECRET` is configured, protected HTTP routes require `x-opspilot-actor-token`. The token is HMAC-signed and contains the actor id, roles, team slugs, and expiration. Local demos can leave the secret empty to use role/team headers directly, but the CI smoke test proves the stricter signed-token path.
 

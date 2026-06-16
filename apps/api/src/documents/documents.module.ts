@@ -6,11 +6,19 @@ import { DocumentsService } from "./documents.service";
 import { GithubSyncService } from "./github-sync.service";
 import { IndexingQueueService } from "./indexing-queue.service";
 import { IndexingWorkerService } from "./indexing-worker.service";
+import { RedactionService } from "./redaction.service";
 
 @Module({
   imports: [AgentModule],
   controllers: [DocumentsController],
-  providers: [ChunkerService, DocumentsService, GithubSyncService, IndexingQueueService, IndexingWorkerService],
-  exports: [ChunkerService, DocumentsService, GithubSyncService, IndexingQueueService, IndexingWorkerService]
+  providers: [
+    ChunkerService,
+    DocumentsService,
+    GithubSyncService,
+    IndexingQueueService,
+    IndexingWorkerService,
+    RedactionService
+  ],
+  exports: [ChunkerService, DocumentsService, GithubSyncService, IndexingQueueService, IndexingWorkerService, RedactionService]
 })
 export class DocumentsModule {}
