@@ -80,6 +80,12 @@ With the API and web console running, verify the browser flow and refresh the RE
 pnpm web:smoke
 ```
 
+Verify the review workflow without a browser:
+
+```bash
+pnpm review:smoke
+```
+
 Expected seed result:
 
 ```json
@@ -127,9 +133,10 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Sensitive action detection
 - Tool call logs
 - Human approval request creation for sensitive work
+- Approval queue API and feedback logging API
 - Evaluation script with expected source hit rate
 - New document indexing smoke test
-- Next.js web console for asking questions and upserting Markdown documents
+- Next.js web console for asking questions, upserting Markdown documents, saving feedback, and resolving approval requests
 
 ## Implementation Status
 
@@ -149,18 +156,19 @@ Done:
 - Permission-aware retrieval filtering
 - Configurable confidence threshold
 - Sensitive action detection and approval request records
+- Approval list/update API and feedback create API
 - Tool call logging
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with expected source hit rate
 - Runtime Markdown document upsert API and indexing smoke test
-- Next.js web console and Playwright smoke test
+- Review workflow smoke test
+- Next.js web console and Playwright smoke test with feedback and approval queue coverage
 - README product preview image
 
 Not done yet:
 
 - BullMQ indexing worker
 - GitHub Markdown sync
-- Feedback UI and admin approval screen
 
 ## Slack Bot
 

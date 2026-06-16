@@ -27,19 +27,39 @@ async function main() {
       timeout: 10000
     });
 
+    await page.getByRole("button", { name: "Helpful" }).click();
+    await page.getByText("Feedback saved", { exact: false }).waitFor({ timeout: 10000 });
+    const feedbackSaved = await page.getByText("Feedback saved", { exact: false }).isVisible();
+
+    await page.getByRole("button", { name: "운영 DB에서 고객 정보를 바로 수정해도 돼?" }).click();
+    await page.getByRole("button", { name: "Ask OpsPilot" }).click();
+    await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".approvalList").getByText("sensitive_operation", { exact: false }).first().waitFor({ timeout: 10000 });
+
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
+    const approvalText = await page.locator(".approvalList").innerText();
+
+    await page.locator(".approvalList").getByRole("button", { name: "Reject" }).first().click();
+
     const report = {
-      ok: answerText.includes("15 minutes") && sourceText.includes("public/status-page-policy.md") && metaText.includes("search_documents"),
+      ok:
+        answerText.includes("담당자 확인") &&
+        sourceText.length > 0 &&
+        metaText.includes("request_human_approval") &&
+        approvalText.includes("sensitive_operation") &&
+        feedbackSaved,
       baseUrl,
       screenshotPath,
       checks: {
-        answerIncludesSla: answerText.includes("15 minutes"),
-        sourceIncludesNewDocument: sourceText.includes("public/status-page-policy.md"),
-        toolCallVisible: metaText.includes("search_documents")
+        sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
+        sourcesVisible: sourceText.length > 0,
+        approvalToolCallVisible: metaText.includes("request_human_approval"),
+        approvalQueueVisible: approvalText.includes("sensitive_operation"),
+        feedbackSaved
       }
     };
 

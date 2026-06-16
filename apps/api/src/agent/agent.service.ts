@@ -7,6 +7,8 @@ import { AnswerGeneratorService } from "./answer-generator.service";
 import { SearchResult, SearchService } from "./search.service";
 
 export type AskResponse = {
+  questionId: string;
+  answerId: string;
   answer: string;
   confidence: number;
   needsHumanReview: boolean;
@@ -112,6 +114,8 @@ export class AgentService {
     }
 
     return {
+      questionId: questionRow.id,
+      answerId: answerRow.id,
       answer,
       confidence,
       needsHumanReview,

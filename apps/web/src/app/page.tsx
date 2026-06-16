@@ -1,7 +1,16 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { askOpsPilot, AskResponse, IngestResponse, upsertMarkdown } from "../lib/api";
+import {
+  Approval,
+  askOpsPilot,
+  AskResponse,
+  createFeedback,
+  IngestResponse,
+  listApprovals,
+  updateApproval,
+  upsertMarkdown
+} from "../lib/api";
 
 const sampleMarkdown = `---
 title: "Status Page Incident Communication"
@@ -28,24 +37,66 @@ const quickQuestions = [
 export default function Home() {
   const [question, setQuestion] = useState(quickQuestions[0]);
   const [teamSlugs, setTeamSlugs] = useState("payments");
-  const [roles, setRoles] = useState("");
+  const [roles, setRoles] = useState("ops_admin");
   const [path, setPath] = useState("public/status-page-policy.md");
   const [markdown, setMarkdown] = useState(sampleMarkdown);
   const [answer, setAnswer] = useState<AskResponse | null>(null);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
-  const [loading, setLoading] = useState<"ask" | "ingest" | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState<"ask" | "ingest" | "approval" | "feedback" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
+  const visibleApprovals = useMemo(() => approvals.slice(0, 3), [approvals]);
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setFeedbackStatus(null);
     setLoading("ask");
     try {
-      setAnswer(await askOpsPilot({ question, teamSlugs, roles }));
+      const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
+      setAnswer(nextAnswer);
+      setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Ask request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function submitFeedback(rating: number) {
+    if (!answer) {
+      return;
+    }
+
+    setError(null);
+    setLoading("feedback");
+    try {
+      const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
+      setFeedbackStatus(`Feedback saved (${feedback.rating > 0 ? "helpful" : "needs work"})`);
+      setFeedbackComment("");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Feedback request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function resolveApproval(id: string, status: "approved" | "rejected") {
+    setError(null);
+    setLoading("approval");
+    try {
+      await updateApproval({
+        id,
+        status,
+        reviewerNote: status === "approved" ? "Approved from OpsPilot web console." : "Rejected from OpsPilot web console."
+      });
+      setApprovals(await listApprovals());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Approval request failed");
     } finally {
       setLoading(null);
     }
@@ -118,7 +169,7 @@ export default function Home() {
               </label>
               <label>
                 Roles
-                <input value={roles} onChange={(event) => setRoles(event.target.value)} placeholder="admin, oncall" />
+                <input value={roles} onChange={(event) => setRoles(event.target.value)} placeholder="ops_admin, oncall" />
               </label>
             </div>
 
@@ -133,6 +184,22 @@ export default function Home() {
               <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "No tool call yet"}</span>
             </div>
             <pre>{answer?.answer ?? "Run a question to see the grounded answer, confidence, tool calls, and sources."}</pre>
+            <div className="feedbackBar">
+              <input
+                aria-label="feedback comment"
+                disabled={!answer || loading === "feedback"}
+                onChange={(event) => setFeedbackComment(event.target.value)}
+                placeholder="Optional feedback comment"
+                value={feedbackComment}
+              />
+              <button disabled={!answer || loading === "feedback"} onClick={() => submitFeedback(1)} type="button">
+                Helpful
+              </button>
+              <button disabled={!answer || loading === "feedback"} onClick={() => submitFeedback(-1)} type="button">
+                Needs work
+              </button>
+            </div>
+            {feedbackStatus ? <p className="inlineStatus">{feedbackStatus}</p> : null}
           </div>
         </section>
 
@@ -159,6 +226,36 @@ export default function Home() {
               <p className="empty">Sources appear here after a question.</p>
             )}
           </div>
+
+          <section className="approvalPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Review</p>
+                <h2>Approval queue</h2>
+              </div>
+              <span className="badge review">Pending</span>
+            </div>
+            <div className="approvalList">
+              {visibleApprovals.length > 0 ? (
+                visibleApprovals.map((approval) => (
+                  <div className="approvalItem" key={approval.id}>
+                    <strong>{approval.action}</strong>
+                    <p>{approval.question ?? "No linked question"}</p>
+                    <div className="approvalActions">
+                      <button disabled={loading === "approval"} onClick={() => resolveApproval(approval.id, "approved")} type="button">
+                        Approve
+                      </button>
+                      <button disabled={loading === "approval"} onClick={() => resolveApproval(approval.id, "rejected")} type="button">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="empty">Sensitive requests appear here after human review is required.</p>
+              )}
+            </div>
+          </section>
 
           <form onSubmit={submitMarkdown} className="indexPanel">
             <div className="sectionHeader compact">

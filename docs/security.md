@@ -14,7 +14,7 @@ The agent must not execute sensitive operations directly. Examples:
 - destructive cache or queue operations
 - settlement result changes
 
-These actions create approval requests and tool call logs.
+These actions create approval requests and tool call logs. Human reviewers resolve them through `PATCH /approvals/:id`; the agent never runs the sensitive operation by itself.
 
 ## Data Handling
 

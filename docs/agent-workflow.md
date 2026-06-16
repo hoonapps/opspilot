@@ -4,7 +4,7 @@
 
 - `search_documents`: retrieves accessible document chunks
 - `request_human_approval`: records approval requests for sensitive actions
-- `save_feedback`: planned for answer feedback
+- `save_feedback`: records answer quality feedback
 - `create_runbook_checklist`: planned for incident checklist generation
 
 ## Decision Flow
@@ -20,7 +20,9 @@
 9. If confidence is low or the action is sensitive, mark `needsHumanReview`.
 10. If sensitive, call `request_human_approval`.
 11. Persist every question, answer, source, and tool call.
-12. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
+12. Store optional feedback against the persisted answer id.
+13. Expose pending approval requests for human review.
+14. For Slack, format the answer, confidence, review status, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 

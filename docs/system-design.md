@@ -31,6 +31,8 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 3. The console calls `POST /ask` with team and role headers.
 4. The answer panel renders the generated response, confidence, review state, and tool calls.
 5. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
+6. Operators can save answer feedback through `POST /feedback`.
+7. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
 
 ## Permission Boundary
 
