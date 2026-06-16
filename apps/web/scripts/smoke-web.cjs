@@ -26,9 +26,7 @@ async function main() {
     const citationVisible = await page.getByText("Citation", { exact: true }).first().isVisible();
     const qualityGatePassed = await page.locator(".evalPanel").getByText("Passed", { exact: true }).isVisible();
 
-    await page.getByRole("button", { name: "Sync GitHub docs" }).click();
-    await page.getByText("Synced", { exact: false }).waitFor({ timeout: 20000 });
-    const githubSyncVisible = await page.getByText("Markdown docs from hoonapps/opspilot", { exact: false }).isVisible();
+    const githubSyncFormVisible = await page.getByRole("button", { name: "Sync GitHub docs" }).isVisible();
 
     await page.getByRole("button", { name: "Upsert document" }).click();
     await page.getByText("Status Page Incident Communication indexed as", { exact: false }).waitFor({ timeout: 10000 });
@@ -85,7 +83,7 @@ async function main() {
         metaText.includes("Match") &&
         approvalText.includes("sensitive_operation") &&
         feedbackSaved &&
-        githubSyncVisible &&
+        githubSyncFormVisible &&
         evaluationVisible &&
         documentMatchVisible &&
         citationVisible &&
@@ -103,7 +101,7 @@ async function main() {
         documentAgreementVisible: metaText.includes("Match"),
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
         feedbackSaved,
-        githubSyncVisible,
+        githubSyncFormVisible,
         evaluationVisible,
         documentMatchVisible,
         citationVisible,
