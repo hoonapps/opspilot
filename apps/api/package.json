@@ -20,6 +20,7 @@
     "permission:smoke": "ts-node src/cli/permission-boundary-smoke.ts",
     "queue:smoke": "ts-node src/cli/queue-indexing-smoke.ts",
     "review:smoke": "ts-node src/cli/review-smoke.ts",
+    "trace:smoke": "ts-node src/cli/answer-trace-smoke.ts",
     "slack:simulate": "ts-node src/cli/simulate-slack.ts",
     "worker:indexing": "ts-node src/cli/indexing-worker.ts"
   },

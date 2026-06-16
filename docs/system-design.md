@@ -4,8 +4,8 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
-- Web Console: Next.js UI for asking questions, viewing sources/tool calls, review reasons, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
+- API: NestJS HTTP API for document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
+- Web Console: Next.js UI for asking questions, viewing answer trace, sources/tool calls, review reasons, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results
 - Vector Search: pgvector performs permission-aware semantic retrieval
 - Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
@@ -22,9 +22,10 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 6. Agent generates an answer from retrieved chunks.
 7. Missing evidence, low confidence, and sensitive actions are converted into structured review reasons.
 8. Sensitive actions are converted into approval requests.
-9. Question, answer, sources, review reasons, permission audit, tool calls, and approval state are logged.
-10. Web requests render the grounded answer, sources, confidence, review reasons, permission audit, and tool calls in the console.
-11. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+9. Question, answer, sources, review reasons, permission audit, tool calls, approval state, and feedback are logged.
+10. `GET /answers/:id/trace` reconstructs the answer audit artifact from persisted rows.
+11. Web requests render the grounded answer, sources, confidence, review reasons, permission audit, trace summary, and tool calls in the console.
+12. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
 
 ## Ingestion Flow
 
@@ -42,12 +43,13 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 2. The console calls `POST /documents/github/sync` to import repository Markdown docs.
 3. The console calls `POST /documents/markdown` to upsert ad hoc Markdown knowledge.
 4. The console calls `POST /ask` with team and role headers.
-5. The answer panel renders the generated response, confidence, review state, review reasons, permission audit, and tool calls.
+5. The answer panel renders the generated response, confidence, review state, review reasons, permission audit, trace summary, and tool calls.
 6. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
 7. Operators can save answer feedback through `POST /feedback`.
 8. Operators can load the latest source hit, top source, human review, document agreement, and citation metrics through `GET /evaluations/latest`.
-9. Operators can inspect recent Agent tool calls through `GET /tool-calls/recent`.
-10. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
+9. Operators can refresh the answer trace through `GET /answers/:id/trace`.
+10. Operators can inspect recent Agent tool calls through `GET /tool-calls/recent`.
+11. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
 
 ## Permission Boundary
 

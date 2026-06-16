@@ -113,6 +113,9 @@ jobs:
       - name: Review workflow smoke
         run: pnpm review:smoke
 
+      - name: Answer trace smoke
+        run: pnpm trace:smoke
+
       - name: Start API
         run: |
           pnpm --filter @opspilot/api start > /tmp/opspilot-api.log 2>&1 &

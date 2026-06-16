@@ -247,6 +247,7 @@ textarea:focus {
 .primaryButton,
 .secondaryButton,
 .smallButton,
+.tracePanel button,
 .feedbackBar button,
 .approvalActions button {
   min-height: 42px;
@@ -384,6 +385,44 @@ pre {
   padding: 4px 6px;
   font-family: var(--font-geist-mono), monospace;
   font-size: 12px;
+}
+
+.tracePanel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: stretch;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: #f8faf9;
+}
+
+.tracePanel div {
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.tracePanel span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tracePanel strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.tracePanel button {
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--ink);
+  padding: 0 12px;
 }
 
 .feedbackBar {
@@ -592,6 +631,7 @@ pre {
   .evalGrid,
   .boundaryAudit,
   .reasonItem,
+  .tracePanel,
   .feedbackBar {
     grid-template-columns: 1fr;
   }

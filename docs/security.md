@@ -28,6 +28,10 @@ Elasticsearch is used only as a recall booster. In hybrid mode, Elasticsearch re
 
 The `search_documents` tool log stores an aggregated permission audit with the candidate window, allowed count, denied count, denied visibility buckets, actor roles, and actor teams. It does not store denied document titles or paths, so the demo can prove access control behavior without leaking restricted knowledge.
 
+## Answer Trace
+
+`GET /answers/:id/trace` is an audit endpoint for the portfolio demo. It reconstructs the persisted answer with ranked source chunks, tool calls, approval requests, and feedback. Production should protect this endpoint with the same answer-level authorization used for the original actor or an operator audit role, because source previews can contain permitted operational content.
+
 ## Slack Security
 
 When `SLACK_SIGNING_SECRET` is configured, OpsPilot verifies Slack request signatures with the raw request body and rejects stale requests older than five minutes. Local demos can leave the secret empty to replay fixture payloads without Slack credentials.

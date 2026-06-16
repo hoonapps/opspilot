@@ -54,9 +54,12 @@ async function main() {
     await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".boundaryAudit").getByText("denied candidates", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".tracePanel").getByText("Trace", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".tracePanel").getByText("Approvals", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".approvalList").getByText("sensitive_operation", { exact: false }).first().waitFor({ timeout: 10000 });
     const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("pre_ranking_sql_filter", { exact: false }).isVisible();
     const reviewReasonVisible = await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).isVisible();
+    const traceVisible = await page.locator(".tracePanel").getByText("Refresh trace", { exact: true }).isVisible();
 
     await page.getByRole("button", { name: "Load tools" }).click();
     await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -86,6 +89,7 @@ async function main() {
         qualityGatePassed &&
         boundaryAuditVisible &&
         reviewReasonVisible &&
+        traceVisible &&
         auditVisible,
       baseUrl,
       screenshotPath,
@@ -102,6 +106,7 @@ async function main() {
         qualityGatePassed,
         boundaryAuditVisible,
         reviewReasonVisible,
+        traceVisible,
         auditVisible
       }
     };

@@ -3,10 +3,12 @@
 import { FormEvent, useMemo, useState } from "react";
 import {
   Approval,
+  AnswerTrace,
   askOpsPilot,
   AskResponse,
   createFeedback,
   EvaluationReport,
+  getAnswerTrace,
   getLatestEvaluation,
   GithubSyncResponse,
   IngestResponse,
@@ -52,6 +54,7 @@ export default function Home() {
   const [githubRootPath, setGithubRootPath] = useState("docs");
   const [githubSourcePrefix, setGithubSourcePrefix] = useState("github/hoonapps/opspilot");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
+  const [trace, setTrace] = useState<AnswerTrace | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
@@ -59,7 +62,7 @@ export default function Home() {
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "audit" | "evaluation" | "feedback" | null>(null);
+  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "audit" | "evaluation" | "feedback" | "trace" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
@@ -73,6 +76,7 @@ export default function Home() {
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
       setAnswer(nextAnswer);
+      setTrace(await getAnswerTrace(nextAnswer.answerId));
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Ask request failed");
@@ -92,6 +96,7 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`Feedback saved (${feedback.rating > 0 ? "helpful" : "needs work"})`);
       setFeedbackComment("");
+      setTrace(await getAnswerTrace(answer.answerId));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Feedback request failed");
     } finally {
@@ -170,6 +175,22 @@ export default function Home() {
       setToolCalls(await listRecentToolCalls());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Tool call audit request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadTrace(answerId = answer?.answerId) {
+    if (!answerId) {
+      return;
+    }
+
+    setError(null);
+    setLoading("trace");
+    try {
+      setTrace(await getAnswerTrace(answerId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Answer trace request failed");
     } finally {
       setLoading(null);
     }
@@ -263,6 +284,29 @@ export default function Home() {
                     ) : null}
                   </div>
                 ))}
+              </div>
+            ) : null}
+            {trace ? (
+              <div className="tracePanel">
+                <div>
+                  <span>Trace</span>
+                  <strong>{trace.sources.length} sources</strong>
+                </div>
+                <div>
+                  <span>Tools</span>
+                  <strong>{trace.toolCalls.length}</strong>
+                </div>
+                <div>
+                  <span>Approvals</span>
+                  <strong>{trace.approvals.length}</strong>
+                </div>
+                <div>
+                  <span>Feedback</span>
+                  <strong>{trace.feedback.length}</strong>
+                </div>
+                <button disabled={loading === "trace"} onClick={() => loadTrace()} type="button">
+                  {loading === "trace" ? "Refreshing..." : "Refresh trace"}
+                </button>
               </div>
             ) : null}
             <div className="feedbackBar">

@@ -115,6 +115,54 @@ export type ToolCallAuditItem = {
   createdAt: string;
 };
 
+export type AnswerTrace = {
+  answer: {
+    id: string;
+    questionId: string;
+    question: string;
+    channel?: string | null;
+    actor: Record<string, unknown>;
+    text: string;
+    confidence: number;
+    needsHumanReview: boolean;
+    metadata: Record<string, unknown>;
+    createdAt: string;
+  };
+  sources: Array<{
+    rank: number;
+    score: number;
+    documentId: string;
+    chunkId: string;
+    title: string;
+    path: string;
+    visibility: string;
+    teamSlug?: string | null;
+    chunkIndex: number;
+    contentPreview: string;
+  }>;
+  toolCalls: Array<{
+    id: string;
+    toolName: string;
+    status: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    createdAt: string;
+  }>;
+  approvals: Array<{
+    id: string;
+    action: string;
+    reason: Record<string, unknown>;
+    status: string;
+    createdAt: string;
+  }>;
+  feedback: Array<{
+    id: string;
+    rating: number;
+    comment?: string | null;
+    createdAt: string;
+  }>;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -233,4 +281,14 @@ export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {
 
   const data = (await response.json()) as { toolCalls: ToolCallAuditItem[] };
   return data.toolCalls;
+}
+
+export async function getAnswerTrace(answerId: string): Promise<AnswerTrace> {
+  const response = await fetch(`${API_BASE_URL}/answers/${answerId}/trace`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerTrace>;
 }

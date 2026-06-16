@@ -12,11 +12,14 @@
 ```txt
 GET /tool-calls/recent
 GET /tool-calls/recent?limit=20
+GET /answers/:id/trace
 ```
 
 Every tool call stores the linked question id, tool name, input, output, status, and timestamp in `tool_call_logs`. The web console reads the recent audit feed so demos can show which tools were allowed and which required approval.
 
 For `search_documents`, the output includes an aggregated `permissionAudit` object: candidate window size, allowed candidate count, denied candidate count, denied buckets by visibility, and the actor roles/teams used for filtering. Denied titles and paths are deliberately omitted.
+
+`GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns the question, answer metadata, ranked sources with chunk previews, tool calls, approval requests, and feedback for that answer. This gives the demo a single audit artifact for explaining how an answer was produced and reviewed.
 
 ## Decision Flow
 
@@ -35,9 +38,10 @@ For `search_documents`, the output includes an aggregated `permissionAudit` obje
 13. If sensitive, call `request_human_approval`.
 14. Persist every question, answer, source, review reason, and tool call.
 15. Store optional feedback against the persisted answer id.
-16. Expose recent tool calls through the audit API.
-17. Expose pending approval requests for human review.
-18. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
+16. Expose answer trace through `GET /answers/:id/trace`.
+17. Expose recent tool calls through the audit API.
+18. Expose pending approval requests for human review.
+19. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 
