@@ -14,6 +14,7 @@ OpsPilot is a portfolio-grade AI agent project focused on operational support. I
 
 The screenshot above is generated from the working Next.js console by `pnpm web:smoke`. It exercises the core portfolio flow end to end:
 
+- render an Open Design-inspired operations dashboard shell with workspace rail, KPI strip, evidence panel, quality gates, approval queue, audit feed, and indexing controls
 - load evaluation metrics and document match gates
 - upsert a new Markdown document and retrieve it as a cited source
 - ask a sensitive operations question and force human approval
@@ -302,7 +303,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
 - Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
-- Design artifact documentation tying the product board and real browser screenshot to the demo path
+- Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
 
@@ -349,7 +350,7 @@ Done:
 - Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
-- Design proof document with exported assets and runtime screenshot workflow
+- Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
 
 ## Slack Bot
 

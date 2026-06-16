@@ -198,7 +198,31 @@ export default function Home() {
   }
 
   return (
-    <main className="shell">
+    <main className="appShell">
+      <aside className="appRail" aria-label="OpsPilot workspace navigation">
+        <div className="railBrand">
+          <span className="brandMark">OP</span>
+          <div>
+            <strong>OpsPilot</strong>
+            <p>Agent Ops</p>
+          </div>
+        </div>
+        <nav className="railNav" aria-label="console sections">
+          <a className="active" href="#ask">Ask</a>
+          <a href="#sources">Sources</a>
+          <a href="#quality">Quality</a>
+          <a href="#review">Review</a>
+          <a href="#audit">Audit</a>
+          <a href="#index">Index</a>
+        </nav>
+        <div className="railCard">
+          <span>Boundary</span>
+          <strong>pre-ranking filter</strong>
+          <p>Restricted chunks are removed before prompt context is built.</p>
+        </div>
+      </aside>
+
+      <section className="shell">
       <header className="topbar">
         <div>
           <p className="eyebrow">OpsPilot Console</p>
@@ -221,7 +245,7 @@ export default function Home() {
       {error ? <div className="errorPanel">{error}</div> : null}
 
       <div className="workspace">
-        <section className="queryPanel">
+        <section className="queryPanel" id="ask">
           <div className="sectionHeader">
             <div>
               <p className="eyebrow">Ask</p>
@@ -340,7 +364,7 @@ export default function Home() {
           <div className="sectionHeader compact">
             <div>
               <p className="eyebrow">Sources</p>
-              <h2>Retrieved evidence</h2>
+              <h2 id="sources">Retrieved evidence</h2>
             </div>
           </div>
           <div className="sourceList">
@@ -360,7 +384,7 @@ export default function Home() {
             )}
           </div>
 
-          <section className="evalPanel">
+          <section className="evalPanel" id="quality">
             <div className="sectionHeader compact">
               <div>
                 <p className="eyebrow">Evaluation</p>
@@ -390,7 +414,7 @@ export default function Home() {
             )}
           </section>
 
-          <section className="approvalPanel">
+          <section className="approvalPanel" id="review">
             <div className="sectionHeader compact">
               <div>
                 <p className="eyebrow">Review</p>
@@ -420,7 +444,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="auditPanel">
+          <section className="auditPanel" id="audit">
             <div className="sectionHeader compact">
               <div>
                 <p className="eyebrow">Audit</p>
@@ -448,7 +472,7 @@ export default function Home() {
             </div>
           </section>
 
-          <form onSubmit={submitMarkdown} className="indexPanel">
+          <form onSubmit={submitMarkdown} className="indexPanel" id="index">
             <div className="sectionHeader compact">
               <div>
                 <p className="eyebrow">Index</p>
@@ -519,6 +543,7 @@ export default function Home() {
           </form>
         </aside>
       </div>
+      </section>
     </main>
   );
 }
