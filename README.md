@@ -16,6 +16,7 @@ The screenshot above is generated from the working Next.js console by `pnpm web:
 
 - render an Open Design-inspired operations dashboard shell with workspace rail, KPI strip, evidence panel, quality gates, approval queue, audit feed, and indexing controls
 - load evaluation metrics and document match gates
+- load operational telemetry for questions, human review rate, document match, tool calls, approvals, feedback, and indexed knowledge
 - upsert a new Markdown document and retrieve it as a cited source
 - ask a sensitive operations question and force human approval
 - show permission audit counts, review reasons, answer trace, tool calls, feedback, and approval queue state
@@ -310,7 +311,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
-- Next.js web console for asking questions, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
+- Next.js web console for asking questions, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, saving feedback, and resolving approval requests
 - Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
@@ -356,7 +357,7 @@ Done:
 - Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with evaluation metrics, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
@@ -424,7 +425,7 @@ Details: [docs/demo.md](docs/demo.md)
 
 ## Observability
 
-`GET /observability/summary` aggregates persisted operating evidence: question volume, answer count, human review rate, average confidence, average document agreement, tool calls by name/status, approvals by status, feedback, and indexed document/chunk counts. `pnpm observability:smoke` creates representative agent activity and fails unless those metrics reflect the RAG, runbook, approval, and feedback workflow.
+`GET /observability/summary` aggregates persisted operating evidence: question volume, answer count, human review rate, average confidence, average document agreement, tool calls by name/status, approvals by status, feedback, and indexed document/chunk counts. The web console renders the same summary in the Operations panel, and `pnpm observability:smoke` creates representative agent activity and fails unless those metrics reflect the RAG, runbook, approval, and feedback workflow.
 
 Details: [docs/observability.md](docs/observability.md)
 

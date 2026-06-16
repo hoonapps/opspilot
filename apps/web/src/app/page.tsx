@@ -10,10 +10,12 @@ import {
   EvaluationReport,
   getAnswerTrace,
   getLatestEvaluation,
+  getObservabilitySummary,
   GithubSyncResponse,
   IngestResponse,
   listRecentToolCalls,
   listApprovals,
+  ObservabilitySummary,
   syncGithubDocuments,
   ToolCallAuditItem,
   updateApproval,
@@ -57,12 +59,15 @@ export default function Home() {
   const [trace, setTrace] = useState<AnswerTrace | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
+  const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"ask" | "ingest" | "github" | "approval" | "audit" | "evaluation" | "feedback" | "trace" | null>(null);
+  const [loading, setLoading] = useState<
+    "ask" | "ingest" | "github" | "approval" | "audit" | "evaluation" | "observability" | "feedback" | "trace" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
@@ -176,6 +181,18 @@ export default function Home() {
       setToolCalls(await listRecentToolCalls());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Tool call audit request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadObservability() {
+    setError(null);
+    setLoading("observability");
+    try {
+      setObservability(await getObservabilitySummary());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Observability request failed");
     } finally {
       setLoading(null);
     }
@@ -384,6 +401,43 @@ export default function Home() {
             )}
           </div>
 
+          <section className="observabilityPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Operations</p>
+                <h2>Telemetry summary</h2>
+              </div>
+              {observability ? <span className="badge">{observability.toolCalls.total} tools</span> : null}
+              <button className="smallButton" disabled={loading === "observability"} onClick={loadObservability} type="button">
+                {loading === "observability" ? "Loading..." : "Load ops"}
+              </button>
+            </div>
+            {observability ? (
+              <>
+                <div className="opsGrid">
+                  <Metric label="Questions" value={String(observability.questions.total)} />
+                  <Metric label="Human review rate" value={formatPercent(observability.answers.humanReviewRate)} />
+                  <Metric label="Avg confidence" value={formatPercent(observability.answers.averageConfidence)} />
+                  <Metric label="Avg match" value={formatPercent(observability.answers.averageDocumentAgreement)} />
+                  <Metric label="Approvals" value={String(observability.approvals.total)} />
+                  <Metric label="Feedback" value={String(observability.feedback.total)} />
+                </div>
+                <div className="opsBreakdown">
+                  <span>Tools</span>
+                  <code>{formatCountMap(observability.toolCalls.byName)}</code>
+                  <span>Status</span>
+                  <code>{formatCountMap(observability.toolCalls.byStatus)}</code>
+                  <span>Index</span>
+                  <code>
+                    {observability.documents.total} docs / {observability.documents.chunks} chunks
+                  </code>
+                </div>
+              </>
+            ) : (
+              <p className="empty">Load persisted telemetry for answer quality, review boundaries, tool calls, approvals, and feedback.</p>
+            )}
+          </section>
+
           <section className="evalPanel" id="quality">
             <div className="sectionHeader compact">
               <div>
@@ -586,6 +640,14 @@ function formatDeniedVisibility(deniedByVisibility: Record<string, number>): str
   }
 
   return entries.map(([visibility, count]) => `${visibility}:${count}`).join(" ");
+}
+
+function formatCountMap(values: Record<string, number>): string {
+  const entries = Object.entries(values);
+  if (entries.length === 0) {
+    return "none";
+  }
+  return entries.map(([key, value]) => `${key}:${value}`).join(" ");
 }
 
 function formatReviewReasonCode(code: AskResponse["reviewReasons"][number]["code"]): string {

@@ -170,6 +170,40 @@ export type AnswerTrace = {
   }>;
 };
 
+export type ObservabilitySummary = {
+  generatedAt: string;
+  questions: {
+    total: number;
+    last24h: number;
+  };
+  answers: {
+    total: number;
+    needsHumanReview: number;
+    humanReviewRate: number;
+    averageConfidence: number;
+    averageDocumentAgreement: number;
+  };
+  toolCalls: {
+    total: number;
+    byName: Record<string, number>;
+    byStatus: Record<string, number>;
+  };
+  approvals: {
+    total: number;
+    byStatus: Record<string, number>;
+  };
+  feedback: {
+    total: number;
+    averageRating: number;
+    helpful: number;
+    needsWork: number;
+  };
+  documents: {
+    total: number;
+    chunks: number;
+  };
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -288,6 +322,16 @@ export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {
 
   const data = (await response.json()) as { toolCalls: ToolCallAuditItem[] };
   return data.toolCalls;
+}
+
+export async function getObservabilitySummary(): Promise<ObservabilitySummary> {
+  const response = await fetch(`${API_BASE_URL}/observability/summary`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<ObservabilitySummary>;
 }
 
 export async function getAnswerTrace(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerTrace> {

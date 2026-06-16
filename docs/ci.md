@@ -27,6 +27,6 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - run the compact portfolio demo report with `pnpm portfolio:demo`
 - verify operational telemetry aggregation with `pnpm observability:smoke`
 - verify the generated OpenAPI contract with `pnpm openapi:smoke`
-- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, answer-level document match, permission audit, review reasons, answer trace, tool call audit, GitHub sync, answer, feedback, and approval flows
+- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, operational telemetry, answer-level document match, permission audit, review reasons, answer trace, tool call audit, GitHub sync, answer, feedback, and approval flows
 
 The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, citation accuracy, document agreement scoring, answer-level match visibility, evaluation hard gates, signed actor authentication, dependency readiness, permission boundary enforcement, structured review reasons, permission-checked answer trace, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, operational telemetry aggregation, a compact portfolio demo report, OpenAPI contract stability, Docker-buildable and Docker-bootable deployment artifacts, and a working browser demo.

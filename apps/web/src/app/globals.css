@@ -659,6 +659,7 @@ pre {
 }
 
 .evalPanel,
+.observabilityPanel,
 .auditPanel,
 .approvalPanel {
   border: 1px solid var(--line);
@@ -675,24 +676,57 @@ pre {
   border-top: 3px solid #f59e0b;
 }
 
+.observabilityPanel {
+  border-top: 3px solid #0f766e;
+}
+
 .auditPanel {
   border-top: 3px solid var(--accent);
 }
 
-.evalGrid {
+.evalGrid,
+.opsGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.evalGrid .metric {
+.evalGrid .metric,
+.opsGrid .metric {
   min-height: 72px;
   padding: 12px;
   box-shadow: none;
 }
 
-.evalGrid .metric strong {
+.evalGrid .metric strong,
+.opsGrid .metric strong {
   font-size: 17px;
+}
+
+.opsBreakdown {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.opsBreakdown span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.opsBreakdown code {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .approvalList {
@@ -813,6 +847,8 @@ pre {
   .fieldGrid,
   .quickGrid,
   .evalGrid,
+  .opsGrid,
+  .opsBreakdown,
   .boundaryAudit,
   .reasonItem,
   .tracePanel,

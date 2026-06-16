@@ -5,7 +5,7 @@ OpsPilot keeps its product proof close to the code. The checked-in design artifa
 ## Assets
 
 - `docs/assets/opspilot-dashboard.svg`: editable SVG product board showing the target operating model for a permission-aware RAG agent console.
-- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, top status bar, KPI strip, evidence panel, quality gates, approval queue, audit feed, and indexing controls.
+- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, top status bar, KPI strip, evidence panel, operations telemetry, quality gates, approval queue, audit feed, and indexing controls.
 
 The PNG is refreshed by `pnpm web:smoke` after the API and web console are running. This makes the README image a runtime artifact, not a static marketing mockup.
 
@@ -17,6 +17,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 
 - Show the answer, confidence, document match, tool calls, and sources in one scan.
 - Keep primary workflows in a dashboard shell with stable navigation instead of a marketing-style page.
+- Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
 - Make permission boundaries visible through denied candidate counts and review reasons.
 - Keep sensitive actions separate from automatic answers through the approval queue.
 - Expose evaluation metrics in the same surface used for demos.

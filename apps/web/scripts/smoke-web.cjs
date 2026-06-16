@@ -65,6 +65,18 @@ async function main() {
     await page.locator(".auditList").getByText("needs_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     const auditVisible = await page.locator(".auditList").getByText("search_documents", { exact: false }).first().isVisible();
 
+    await page.getByRole("button", { name: "Load ops" }).click();
+    await page.locator(".observabilityPanel").getByText("Human review rate", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".observabilityPanel").getByText("Avg match", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".observabilityPanel").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".observabilityPanel").getByText("needs_approval", { exact: false }).waitFor({ timeout: 10000 });
+    const observabilityText = await page.locator(".observabilityPanel").innerText();
+    const observabilityVisible =
+      observabilityText.includes("Human review rate") &&
+      observabilityText.includes("Avg match") &&
+      observabilityText.includes("request_human_approval") &&
+      observabilityText.includes("Feedback");
+
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: screenshotPath, fullPage: false });
 
@@ -91,7 +103,8 @@ async function main() {
         boundaryAuditVisible &&
         reviewReasonVisible &&
         traceVisible &&
-        auditVisible,
+        auditVisible &&
+        observabilityVisible,
       baseUrl,
       screenshotPath,
       checks: {
@@ -109,7 +122,8 @@ async function main() {
         boundaryAuditVisible,
         reviewReasonVisible,
         traceVisible,
-        auditVisible
+        auditVisible,
+        observabilityVisible
       }
     };
 

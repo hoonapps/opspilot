@@ -23,6 +23,8 @@ Run the smoke test:
 pnpm observability:smoke
 ```
 
+The Next.js console renders the same data in the Operations panel. `pnpm web:smoke` loads this panel during the browser demo and fails unless the page shows human review rate, average document match, `request_human_approval`, and `needs_approval` telemetry.
+
 The smoke test ingests the seed wiki, asks a normal incident question, asks a runbook question, asks a sensitive production operation question, writes feedback, then fails unless the summary shows:
 
 - at least three questions and answers
