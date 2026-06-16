@@ -19,7 +19,7 @@ Every tool call stores the linked question id, tool name, input, output, status,
 
 For `search_documents`, the output includes an aggregated `permissionAudit` object: candidate window size, allowed candidate count, denied candidate count, denied buckets by visibility, and the actor roles/teams used for filtering. Denied titles and paths are deliberately omitted.
 
-`GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns the question, answer metadata, ranked sources with chunk previews, tool calls, approval requests, and feedback for that answer. This gives the demo a single audit artifact for explaining how an answer was produced and reviewed.
+`GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns the question, answer metadata, ranked sources with chunk previews, tool calls, approval requests, and feedback for that answer. The endpoint applies the same document access check to every traced source before returning the artifact.
 
 ## Decision Flow
 

@@ -30,7 +30,7 @@ The `search_documents` tool log stores an aggregated permission audit with the c
 
 ## Answer Trace
 
-`GET /answers/:id/trace` is an audit endpoint for the portfolio demo. It reconstructs the persisted answer with ranked source chunks, tool calls, approval requests, and feedback. Production should protect this endpoint with the same answer-level authorization used for the original actor or an operator audit role, because source previews can contain permitted operational content.
+`GET /answers/:id/trace` is an audit endpoint for the portfolio demo. It reconstructs the persisted answer with ranked source chunks, tool calls, approval requests, and feedback. The endpoint re-checks every traced source against the caller's roles and teams before returning the artifact, because source previews can contain permitted operational content. A production deployment should additionally require real user authentication and either original-answer access or an operator audit role.
 
 ## Slack Security
 

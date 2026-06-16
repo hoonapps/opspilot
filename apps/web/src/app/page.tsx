@@ -76,7 +76,7 @@ export default function Home() {
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
       setAnswer(nextAnswer);
-      setTrace(await getAnswerTrace(nextAnswer.answerId));
+      setTrace(await getAnswerTrace({ answerId: nextAnswer.answerId, teamSlugs, roles }));
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Ask request failed");
@@ -96,7 +96,7 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`Feedback saved (${feedback.rating > 0 ? "helpful" : "needs work"})`);
       setFeedbackComment("");
-      setTrace(await getAnswerTrace(answer.answerId));
+      setTrace(await getAnswerTrace({ answerId: answer.answerId, teamSlugs, roles }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Feedback request failed");
     } finally {
@@ -188,7 +188,7 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      setTrace(await getAnswerTrace(answerId));
+      setTrace(await getAnswerTrace({ answerId, teamSlugs, roles }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Answer trace request failed");
     } finally {

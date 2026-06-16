@@ -23,7 +23,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 7. Missing evidence, low confidence, and sensitive actions are converted into structured review reasons.
 8. Sensitive actions are converted into approval requests.
 9. Question, answer, sources, review reasons, permission audit, tool calls, approval state, and feedback are logged.
-10. `GET /answers/:id/trace` reconstructs the answer audit artifact from persisted rows.
+10. `GET /answers/:id/trace` re-checks traced source access and reconstructs the answer audit artifact from persisted rows.
 11. Web requests render the grounded answer, sources, confidence, review reasons, permission audit, trace summary, and tool calls in the console.
 12. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
 

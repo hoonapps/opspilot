@@ -74,7 +74,7 @@ pnpm eval
 `pnpm eval` is a real quality gate. It exits non-zero when source hit, top source, human review, or document agreement drops below the configured threshold.
 Review workflow checks also assert that sensitive requests return structured `reviewReasons`, so the human approval boundary is explainable instead of being a bare boolean.
 
-Verify that a persisted answer can be reconstructed for audit from sources, tool calls, approvals, and feedback:
+Verify that a persisted answer can be reconstructed for audit from sources, tool calls, approvals, and feedback, while unauthorized trace reads are denied:
 
 ```bash
 pnpm trace:smoke
@@ -214,7 +214,7 @@ Without an OpenAI key, OpsPilot uses deterministic local embeddings and a ground
 - Sensitive action detection
 - Structured review reasons for low confidence, missing sources, and sensitive actions
 - Tool call logs and recent audit API
-- Answer trace API for reconstructing a persisted answer's sources, tool calls, approvals, and feedback
+- Permission-checked answer trace API for reconstructing a persisted answer's sources, tool calls, approvals, and feedback
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
@@ -245,7 +245,7 @@ Done:
 - Structured `reviewReasons` in `/ask`, answer metadata, Slack replies, and the web console
 - Approval list/update API and feedback create API
 - Tool call logging and recent audit API
-- `GET /answers/:id/trace` answer trace API
+- `GET /answers/:id/trace` answer trace API with document access re-check
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, and negative gate smoke

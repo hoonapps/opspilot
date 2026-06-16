@@ -283,8 +283,14 @@ export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {
   return data.toolCalls;
 }
 
-export async function getAnswerTrace(answerId: string): Promise<AnswerTrace> {
-  const response = await fetch(`${API_BASE_URL}/answers/${answerId}/trace`);
+export async function getAnswerTrace(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerTrace> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/trace`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
 
   if (!response.ok) {
     throw new Error(await response.text());

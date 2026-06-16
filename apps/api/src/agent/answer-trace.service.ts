@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { AuthzService } from "../authz/authz.service";
+import { RequestContext } from "../shared/request-context";
 
 export type AnswerTrace = {
   answer: {
@@ -51,9 +53,12 @@ export type AnswerTrace = {
 
 @Injectable()
 export class AnswerTraceService {
-  constructor(private readonly orm: MikroORM) {}
+  constructor(
+    private readonly orm: MikroORM,
+    private readonly authz: AuthzService
+  ) {}
 
-  async getTrace(answerId: string): Promise<AnswerTrace> {
+  async getTrace(answerId: string, context: RequestContext): Promise<AnswerTrace> {
     const connection = this.orm.em.fork().getConnection();
     const [answer] = (await connection.execute(
       `
@@ -129,6 +134,11 @@ export class AnswerTraceService {
         [answerId]
       ) as Promise<FeedbackTraceRow[]>
     ]);
+
+    const deniedSources = sources.filter((source) => !this.authz.canAccessDocument(context, source.visibility, source.team_slug));
+    if (deniedSources.length > 0) {
+      throw new ForbiddenException("Answer trace contains sources that are not accessible to this actor");
+    }
 
     return {
       answer: {
