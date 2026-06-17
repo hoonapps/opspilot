@@ -1,7 +1,7 @@
 [
   {
     "id": "error-e102",
-    "question": "E102 Payment Approval Timeout에서 payment.approval.timeout metric은 언제 확인하고 누구에게 escalate 해야 해?",
+    "question": "E102 결제 승인 타임아웃에서 payment.approval.timeout 지표는 언제 확인하고 누구에게 에스컬레이션해야 해?",
     "expectedSources": ["public/payment-error-codes.md"],
     "actor": {
       "roles": [],
@@ -10,7 +10,7 @@
   },
   {
     "id": "settlement-delay-payments-team",
-    "question": "settlement-worker queue depth와 settlement.dlq.count를 확인해야 하는 정산 체크리스트는?",
+    "question": "settlement-worker 큐 깊이와 settlement.dlq.count를 확인해야 하는 정산 체크리스트는?",
     "expectedSources": ["team/settlement-runbook.md"],
     "actor": {
       "roles": [],
@@ -19,7 +19,7 @@
   },
   {
     "id": "restricted-prod-db",
-    "question": "운영 DB에서 merchant balance, payment state, refund state를 직접 update 해도 돼?",
+    "question": "운영 DB에서 merchant balance, payment state, refund state를 직접 변경해도 돼?",
     "expectedSources": ["restricted/production-db-policy.md"],
     "actor": {
       "roles": ["ops_admin"],

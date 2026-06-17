@@ -291,6 +291,7 @@ h2 {
 
 .workspace.documents,
 .workspace.retrieval,
+.workspace.incident,
 .workspace.quality,
 .workspace.review,
 .workspace.audit,
@@ -319,6 +320,10 @@ h2 {
   display: none;
 }
 
+.workspace.incident .sidePanel {
+  display: none;
+}
+
 .queryPanel,
 .sidePanel,
 .answerPanel,
@@ -326,6 +331,7 @@ h2 {
 .queuePanel,
 .knowledgePanel,
 .permissionMatrixPanel,
+.incidentPlanPanel,
 .retrievalPanel,
 .retrievalResults,
 .usagePanel,
@@ -1278,6 +1284,223 @@ pre {
   color: var(--muted);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+.incidentPlanPanel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  box-shadow: none;
+}
+
+.incidentPlanResult {
+  display: grid;
+  gap: 14px;
+}
+
+.incidentSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.incidentSummary div,
+.incidentAudit div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.incidentSummary span,
+.incidentAudit span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.incidentSummary strong,
+.incidentAudit strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incidentLead {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f2fbf8;
+  color: #17453f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.incidentPlanGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.incidentPhase {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.incidentPhaseHead {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.incidentPhaseHead span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #061b31;
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.incidentPhaseHead strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incidentPhaseHead p {
+  grid-column: 2;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.incidentStepList {
+  display: grid;
+  gap: 8px;
+}
+
+.incidentStep {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.incidentStep.approval {
+  border-color: rgba(155, 28, 43, 0.2);
+  background: var(--error-bg);
+}
+
+.incidentStep > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.incidentStep strong,
+.incidentGate strong,
+.incidentComms strong,
+.incidentVerify strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.incidentStep p,
+.incidentGate p,
+.incidentComms p,
+.incidentVerify p,
+.incidentAudit p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.incidentStep code,
+.incidentGate code,
+.incidentComms code,
+.incidentVerify code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.incidentOpsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.incidentOpsPanel {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.incidentGate,
+.incidentComms,
+.incidentVerify {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.incidentGate {
+  border-color: rgba(155, 28, 43, 0.18);
+  background: var(--error-bg);
+}
+
+.incidentAudit {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .indexPanel {
@@ -3117,6 +3340,11 @@ pre {
   .fieldGrid,
   .quickGrid,
   .inventoryStats,
+  .incidentSummary,
+  .incidentPlanGrid,
+  .incidentStep,
+  .incidentOpsGrid,
+  .incidentAudit,
   .qualityHead,
   .qualitySummary,
   .qualityGateList,

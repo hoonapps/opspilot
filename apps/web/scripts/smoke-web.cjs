@@ -23,6 +23,11 @@ const indexQualityScreenshotPath = process.env.INDEX_QUALITY_SCREENSHOT_PATH
     ? process.env.INDEX_QUALITY_SCREENSHOT_PATH
     : join(repoRoot, process.env.INDEX_QUALITY_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-index-quality.png");
+const incidentPlanScreenshotPath = process.env.INCIDENT_PLAN_SCREENSHOT_PATH
+  ? isAbsolute(process.env.INCIDENT_PLAN_SCREENSHOT_PATH)
+    ? process.env.INCIDENT_PLAN_SCREENSHOT_PATH
+    : join(repoRoot, process.env.INCIDENT_PLAN_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-incident-plan.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -108,7 +113,7 @@ async function main() {
     await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "매트릭스 불러오기" }).click();
     await page.locator(".permissionMatrixPanel").getByText("문서 접근 시뮬레이터", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".matrixTable").getByText("Production Database Access Policy", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".matrixTable").getByText("운영 데이터베이스 접근 정책", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".matrixTable").getByText("허용", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".matrixTable").getByText("차단", { exact: true }).first().waitFor({ timeout: 10000 });
     const inventoryVisible = await page.locator(".inventoryStats").getByText("문서", { exact: true }).isVisible();
@@ -168,6 +173,26 @@ async function main() {
       (await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).isVisible()) &&
       (await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).isVisible()) &&
       (await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().isVisible());
+
+    await page.getByRole("button", { name: "대응 장애 대응 플랜" }).click();
+    await page.getByRole("heading", { name: "장애 대응 플랜" }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "장애 대응 플랜 생성" }).click();
+    await page.locator(".incidentPlanPanel").getByText("런북 기반 장애 대응", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".incidentSummary").getByText("SEV1", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".incidentPlanGrid").getByText("상황 파악", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".incidentPlanGrid").getByText("완화 조치", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".incidentGate").getByText("사람 승인 필요", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".incidentComms").getByText("#payments-oncall", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".incidentVerify").getByText("settlement.dlq.count", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".incidentAudit").getByText("create_incident_response_plan", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".incidentPlanPanel").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: incidentPlanScreenshotPath, fullPage: false });
+    const incidentPlanVisible =
+      (await page.locator(".incidentSummary").getByText("SEV1", { exact: true }).isVisible()) &&
+      (await page.locator(".incidentPlanGrid").getByText("완화 조치", { exact: true }).isVisible()) &&
+      (await page.locator(".incidentGate").getByText("사람 승인 필요", { exact: true }).first().isVisible()) &&
+      (await page.locator(".incidentComms").getByText("#payments-oncall", { exact: true }).isVisible()) &&
+      (await page.locator(".incidentAudit").getByText("create_incident_response_plan", { exact: false }).isVisible());
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
     await page
@@ -260,6 +285,7 @@ async function main() {
     await page.getByRole("button", { name: "레지스트리 불러오기" }).click();
     await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".toolRegistry").getByText("create_incident_response_plan", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("사람 승인 필요", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "Slack 시뮬레이션" }).click();
     await page.locator(".slackProof").getByText("로컬 시뮬레이션", { exact: true }).waitFor({ timeout: 10000 });
@@ -271,6 +297,7 @@ async function main() {
     await page.locator(".auditList").getByText("승인 필요", { exact: false }).first().waitFor({ timeout: 10000 });
     const toolRegistryVisible = await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).isVisible();
     const toolRegistryApprovalVisible = await page.locator(".toolRegistry").getByText("사람 승인 필요", { exact: true }).isVisible();
+    const toolRegistryIncidentVisible = await page.locator(".toolRegistry").getByText("create_incident_response_plan", { exact: true }).isVisible();
     const slackProofVisible = await page.locator(".slackProof").getByText("로컬 시뮬레이션", { exact: true }).isVisible();
     const slackTraceVisible =
       (await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).isVisible()) &&
@@ -353,6 +380,7 @@ async function main() {
         rankingExplanationVisible &&
         retrievalBoundaryVisible &&
         retrievalDiagnosticsVisible &&
+        incidentPlanVisible &&
         evaluationVisible &&
         documentMatchVisible &&
         citationVisible &&
@@ -373,6 +401,7 @@ async function main() {
         evidenceBundleVisible &&
         toolRegistryVisible &&
         toolRegistryApprovalVisible &&
+        toolRegistryIncidentVisible &&
         slackProofVisible &&
         slackTraceVisible &&
         auditVisible &&
@@ -384,6 +413,7 @@ async function main() {
       retrievalScreenshotPath,
       groundingScreenshotPath,
       indexQualityScreenshotPath,
+      incidentPlanScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
@@ -411,6 +441,7 @@ async function main() {
         rankingExplanationVisible,
         retrievalBoundaryVisible,
         retrievalDiagnosticsVisible,
+        incidentPlanVisible,
         evaluationVisible,
         documentMatchVisible,
         citationVisible,
@@ -431,6 +462,7 @@ async function main() {
         evidenceBundleVisible,
         toolRegistryVisible,
         toolRegistryApprovalVisible,
+        toolRegistryIncidentVisible,
         slackProofVisible,
         slackTraceVisible,
         auditVisible,

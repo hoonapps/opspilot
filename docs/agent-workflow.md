@@ -6,6 +6,7 @@
 
 - `search_documents`: actor가 접근 가능한 문서 chunk를 검색합니다.
 - `create_runbook_checklist`: 검색된 runbook에서 번호형 체크리스트를 추출합니다.
+- `create_incident_response_plan`: 검색된 운영 문서와 런북을 근거로 장애 대응 플랜을 생성합니다.
 - `request_human_approval`: 민감 작업 요청을 approval queue에 저장합니다.
 - `save_feedback`: 답변 품질 피드백을 저장합니다.
 
@@ -46,6 +47,16 @@ POST /retrieval/preview
 ```
 
 검색 미리보기는 `/ask`와 같은 검색 경로를 타지만 질문 저장, 답변 생성, 도구 호출 저장, approval 생성을 하지 않습니다. 응답에는 후보 청크, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 신뢰도 추정, 최고 점수, 점수 격차, 출처 다양성, 컨텍스트 예산, 리뷰 권고가 포함됩니다. 검색 실행 계획은 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 컨텍스트 패키징, 리뷰 판단 단계를 pass/warn/fail 상태와 근거 문장으로 보여줍니다. 후보별 랭킹 설명은 매칭 검색어, 점수 기여도, 권한 통과 사유를 보여줍니다. 면접 데모에서는 이 화면으로 “어떤 chunk가 왜 선택됐는지”, “권한 때문에 어떤 후보가 차단됐는지”, “이 검색 결과로 바로 답변해도 되는지”를 먼저 보여주면 좋습니다.
+
+## 장애 대응 플랜
+
+```txt
+POST /incidents/plan
+```
+
+장애 대응 플랜은 `/ask` 답변과 별도로 운영자가 실행 순서를 확인하기 위한 구조화된 workflow입니다. 먼저 `search_documents`로 actor가 볼 수 있는 문서만 검색하고, incident/runbook 문서와 질문 직접 매칭을 반영해 운영 런북을 우선합니다. 런북 체크리스트가 있으면 `create_runbook_checklist`를 호출한 뒤 `create_incident_response_plan` 도구 호출을 감사 로그에 남깁니다.
+
+응답은 SEV 심각도, 상황 파악/완화/커뮤니케이션/복구 검증 단계, 사람 승인 게이트, 알림 채널, 복구 검증 조건, 권한 감사, 근거 문서, 도구 호출을 함께 반환합니다. 민감 작업이나 운영 영향 조치는 자동 실행하지 않고 `approvalGates`로 분리합니다.
 
 ## 답변 증거
 

@@ -1,24 +1,24 @@
 ---
-title: "Refund Policy"
+title: "환불 정책"
 visibility: public
 tags: refund,cs,policy
 ---
 
-# Refund Policy
+# 환불 정책
 
-## Standard Refund
+## 일반 환불
 
-Customers can request a refund within 7 days after payment if the merchant has not fulfilled the order.
-CS can approve a standard refund when the payment is captured and the merchant confirms cancellation.
+가맹점이 주문을 이행하지 않았다면 고객은 결제 후 7일 안에 환불을 요청할 수 있습니다.
+결제가 매입됐고 가맹점이 취소를 확인한 경우 CS는 일반 환불을 승인할 수 있습니다.
 
-## Late Refund
+## 지연 환불
 
-If the request is older than 7 days, CS must ask the merchant for confirmation before promising a refund.
-The answer should clearly say that the request requires merchant review.
+요청이 7일을 넘긴 경우 CS는 환불을 약속하기 전에 가맹점 확인을 받아야 합니다.
+답변에는 가맹점 검토가 필요하다는 점을 명확히 포함해야 합니다.
 
-## Forced Refund
+## 강제 환불
 
-Korean aliases: 강제 환불, 환불 직접 실행, Agent 환불 실행, 승인 필요 환불.
-Forced refund is a sensitive operation.
-The agent must not execute forced refund directly.
-Create a human approval request and attach the payment id, merchant id, reason, and related customer ticket.
+검색 별칭: 강제 환불, 환불 직접 실행, Agent 환불 실행, 승인 필요 환불.
+강제 환불은 민감 작업입니다.
+에이전트는 강제 환불을 직접 실행하면 안 됩니다.
+사람 승인 요청을 만들고 결제 ID, 가맹점 ID, 사유, 관련 고객 티켓을 첨부합니다.

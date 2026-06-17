@@ -14,7 +14,7 @@ export type ToolCallAuditItem = {
 
 export type AgentToolDefinition = {
   name: string;
-  category: "retrieval" | "runbook" | "approval";
+  category: "retrieval" | "runbook" | "approval" | "incident";
   description: string;
   sideEffect: "none" | "database_write";
   approvalPolicy: "auto_allowed" | "human_required";
@@ -82,6 +82,27 @@ export class ToolCallAuditService {
             approvalStatus: "pending"
           },
           auditFields: ["question_id", "tool_name", "input.action", "output.approvalStatus", "status", "created_at"]
+        },
+        {
+          name: "create_incident_response_plan",
+          category: "incident",
+          description: "검색된 운영 문서와 런북을 근거로 심각도, 단계별 대응, 승인 경계, 커뮤니케이션, 복구 검증을 묶은 장애 대응 플랜을 생성합니다.",
+          sideEffect: "none",
+          approvalPolicy: "auto_allowed",
+          statusWhenCalled: "allowed",
+          inputSchema: {
+            incident: "string",
+            severity: "string",
+            sourceCount: "number"
+          },
+          outputSchema: {
+            planId: "string",
+            status: "string",
+            phaseCount: "number",
+            approvalGateCount: "number",
+            verificationCount: "number"
+          },
+          auditFields: ["question_id", "tool_name", "input.incident", "output.planId", "output.approvalGateCount", "status", "created_at"]
         }
       ]
     };

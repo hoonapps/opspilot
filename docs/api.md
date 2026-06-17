@@ -16,6 +16,7 @@ GET /docs-json
 
 - `POST /ask`: RAG 답변 생성
 - `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
+- `POST /incidents/plan`: 런북 기반 장애 대응 플랜, 심각도, 승인 경계, 커뮤니케이션, 복구 검증 생성
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
@@ -80,6 +81,27 @@ GET /documents/index-quality
 
 ```bash
 pnpm index-quality:smoke
+```
+
+## 장애 대응 플랜
+
+```txt
+POST /incidents/plan
+```
+
+요청은 장애 상황 문장과 선택 limit을 받습니다. 응답은 검색된 운영 문서와 런북을 근거로 아래 구조를 반환합니다.
+
+- `severity`: SEV1/SEV2/SEV3 심각도
+- `phases`: 상황 파악, 완화 조치, 커뮤니케이션, 복구 검증 단계
+- `approvalGates`: 자동 실행하지 않을 민감 작업과 사람 승인 사유
+- `communications`: 알림 채널, 트리거, 메시지 초안
+- `verification`: 복구 확인 조건과 근거 문서
+- `audit`: 저장된 question id와 `search_documents`, `create_runbook_checklist`, `create_incident_response_plan` 도구 호출
+
+검증:
+
+```bash
+pnpm incident-plan:smoke
 ```
 
 ## `/ask` 멱등성

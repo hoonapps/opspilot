@@ -29,6 +29,11 @@ const usageSteps = [
     commands: ["문서 화면 > 품질 검사", "검색 화면 > 검색 미리보기", "권한 감사 허용/차단 후보 확인", "검색 품질 진단 확인"]
   },
   {
+    title: "장애 대응 플랜 생성",
+    body: "대응 화면에서 장애 상황을 입력하면 운영 런북을 근거로 심각도, 단계별 조치, 승인 경계, 커뮤니케이션, 복구 검증 조건을 생성합니다.",
+    commands: ["대응 화면 > 장애 대응 플랜 생성", "SEV / 승인 게이트 / 복구 검증 확인", "pnpm incident-plan:smoke"]
+  },
+  {
     title: "질문과 권한 경계 확인",
     body: "일반 질문은 출처와 함께 자동 답변하고, 운영 DB 수정 같은 민감 작업은 사람 승인 요청으로 분리합니다.",
     commands: ["질문 화면 > OpsPilot에 질문", "문서 일치율 / 출처 / 도구 호출 확인", "승인 화면 > 민감 작업 승인 또는 반려"]
@@ -39,6 +44,7 @@ const usageSteps = [
     commands: [
       "pnpm eval",
       "pnpm index-quality:smoke",
+      "pnpm incident-plan:smoke",
       "pnpm freshness:smoke",
       "pnpm release-gate:smoke",
       "pnpm evidence-bundle:smoke",
@@ -75,7 +81,7 @@ const checklist = [
   },
   {
     title: "도구 호출은 어떻게 증명하나?",
-    body: "감사 화면에서 search_documents, create_runbook_checklist, request_human_approval 호출 이력과 상태를 확인하고, 증거 번들에서 같은 내용을 다시 검증합니다."
+    body: "감사 화면에서 search_documents, create_runbook_checklist, create_incident_response_plan, request_human_approval 호출 이력과 상태를 확인하고, 증거 번들에서 같은 내용을 다시 검증합니다."
   }
 ];
 

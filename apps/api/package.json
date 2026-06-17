@@ -16,6 +16,7 @@
     "eval:gate-smoke": "ts-node src/cli/evaluation-gate-smoke.ts",
     "eval:history-smoke": "ts-node src/cli/evaluation-history-smoke.ts",
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
+    "incident-plan:smoke": "ts-node src/cli/incident-plan-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
     "index-quality:smoke": "ts-node src/cli/index-quality-smoke.ts",

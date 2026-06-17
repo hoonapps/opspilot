@@ -143,6 +143,9 @@ jobs:
       - name: Runbook checklist smoke
         run: pnpm checklist:smoke
 
+      - name: Incident response plan smoke
+        run: pnpm incident-plan:smoke
+
       - name: Review workflow smoke
         run: pnpm review:smoke
 

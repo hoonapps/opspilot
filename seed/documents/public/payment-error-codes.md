@@ -1,25 +1,25 @@
 ---
-title: "Payment API Error Codes"
+title: "결제 API 오류 코드"
 visibility: public
 tags: payment,error-code,api
 ---
 
-# Payment API Error Codes
+# 결제 API 오류 코드
 
-## E101 Authentication Failed
+## E101 인증 실패
 
-E101 means the API key is missing, expired, or not allowed for the requested merchant.
-CS should ask the merchant to rotate the API key from the developer console.
+E101은 API 키가 없거나 만료됐거나 요청한 가맹점에서 허용되지 않았다는 뜻입니다.
+CS는 가맹점에 개발자 콘솔에서 API 키를 교체하도록 안내합니다.
 
-## E102 Payment Approval Timeout
+## E102 결제 승인 타임아웃
 
-Korean aliases: E102 에러, 결제 승인 타임아웃, 결제 API 타임아웃, 승인 지연 대응.
-E102 means the payment gateway did not return an approval result within 10 seconds.
-First check the gateway status page and the `payment.approval.timeout` metric.
-If timeout count is above 30 per minute for 5 minutes, escalate to the payment on-call engineer.
-Do not retry card approval manually from the admin console.
+검색 별칭: E102 에러, 결제 승인 타임아웃, 결제 API 타임아웃, 승인 지연 대응.
+E102는 결제 게이트웨이가 10초 안에 승인 결과를 반환하지 않았다는 뜻입니다.
+먼저 게이트웨이 상태 페이지와 `payment.approval.timeout` 지표를 확인합니다.
+타임아웃이 5분 동안 분당 30건을 넘으면 결제 온콜 엔지니어에게 에스컬레이션합니다.
+관리자 콘솔에서 카드 승인을 수동 재시도하지 않습니다.
 
-## E103 Insufficient Balance
+## E103 잔액 부족
 
-E103 means the issuing bank rejected the payment because the balance was insufficient.
-CS can guide the customer to use another card or payment method.
+E103은 카드 발급사가 잔액 부족으로 결제를 거절했다는 뜻입니다.
+CS는 고객에게 다른 카드나 결제 수단 사용을 안내할 수 있습니다.

@@ -145,7 +145,33 @@ pnpm index-quality:smoke
 - 컨텍스트 예산 포함/제외
 - 리뷰 없이 답변 가능한지 또는 담당자 검토가 필요한지
 
-## 7. 권한 경계 확인
+## 7. 장애 대응 플랜 확인
+
+웹 콘솔에서 `대응` 화면을 엽니다.
+
+예시 상황:
+
+```txt
+정산 배치가 30분 이상 지연되고 settlement.dlq.count가 120이면 어떻게 대응해야 해?
+```
+
+`장애 대응 플랜 생성`을 누르면 다음을 확인할 수 있습니다.
+
+- SEV 심각도
+- 매칭된 팀 런북과 근거 문서
+- 상황 파악, 완화 조치, 커뮤니케이션, 복구 검증 단계
+- 사람 승인 필요 작업
+- `#payments-oncall` 같은 알림 채널
+- 복구 검증 조건
+- `search_documents`, `create_runbook_checklist`, `create_incident_response_plan` 도구 호출 감사
+
+CLI 검증:
+
+```bash
+pnpm incident-plan:smoke
+```
+
+## 8. 권한 경계 확인
 
 권한은 문서 단위로 적용됩니다.
 
@@ -163,7 +189,7 @@ pnpm permission:smoke
 
 중요한 점은 권한 필터가 답변 생성 후가 아니라 검색/프롬프트 구성 전에 적용된다는 것입니다. 접근 불가능한 청크는 LLM 컨텍스트에 들어가지 않습니다.
 
-## 8. 도구 호출 확인
+## 9. 도구 호출 확인
 
 OpsPilot의 에이전트 도구는 `감사` 화면에서 확인합니다.
 
@@ -171,6 +197,7 @@ OpsPilot의 에이전트 도구는 `감사` 화면에서 확인합니다.
 
 - `search_documents`: 접근 가능한 문서 청크 검색
 - `create_runbook_checklist`: 런북 체크리스트 추출
+- `create_incident_response_plan`: 런북 기반 장애 대응 플랜 생성
 - `request_human_approval`: 민감 작업 승인 요청 생성
 - `save_feedback`: 답변 피드백 저장
 
@@ -178,6 +205,7 @@ OpsPilot의 에이전트 도구는 `감사` 화면에서 확인합니다.
 
 ```bash
 pnpm checklist:smoke
+pnpm incident-plan:smoke
 pnpm review:smoke
 pnpm trace:smoke
 ```
@@ -190,7 +218,7 @@ pnpm trace:smoke
 
 이 질문은 자동 실행되지 않고 사람 승인으로 분리되어야 합니다.
 
-## 9. 문서 일치율과 답변 품질 확인
+## 10. 문서 일치율과 답변 품질 확인
 
 답변 화면은 다음 증거를 보여줍니다.
 
@@ -221,7 +249,7 @@ pnpm evidence-bundle:smoke
 
 웹 콘솔 `질문` 화면에서는 근거 커버리지에 출처별 근거 스니펫이 표시되고, 증명 패킷 아래에 `증거 번들`이 표시됩니다. 이 영역은 추적, 증명, 재실행 결과를 한 번에 묶은 감사용 결과이며, `opspilot.answer_evidence_bundle.v1` 스키마와 `sha256` 해시를 함께 보여줍니다. 민감 작업 질문을 실행하면 출처 수, 도구 호출 수, 승인 수, 피드백 수, 권한 경계 재검사 결과까지 같이 확인할 수 있습니다.
 
-## 10. Slack 봇 로컬 검증
+## 11. Slack 봇 로컬 검증
 
 실제 Slack 인증 정보 없이도 같은 에이전트 경로를 검증할 수 있습니다.
 
@@ -233,7 +261,7 @@ pnpm slack:simulate
 
 이 흐름은 Slack 멘션 요청을 질문으로 바꾸고, `/ask`와 같은 RAG/도구 호출 경로를 실행한 뒤 스레드 답변 요청을 생성합니다.
 
-## 11. Elasticsearch 하이브리드 검색
+## 12. Elasticsearch 하이브리드 검색
 
 기본은 PostgreSQL + pgvector입니다. Elasticsearch는 정확한 키워드, 에러 코드, API 경로, 로그 키워드 검색 품질을 보여주기 위한 선택형 확장입니다.
 
@@ -245,7 +273,7 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 
 하이브리드 모드에서도 Elasticsearch 결과는 권한의 기준이 아닙니다. 반환된 청크 ID를 PostgreSQL에서 다시 로드하면서 같은 권한 필터를 적용합니다.
 
-## 12. 포트폴리오 데모 리포트 생성
+## 13. 포트폴리오 데모 리포트 생성
 
 브라우저 없이 핵심 증거를 만들려면:
 

@@ -334,6 +334,66 @@ export type RetrievalPreviewResponse = {
   }>;
 };
 
+export type IncidentResponsePlan = {
+  planId: string;
+  generatedAt: string;
+  incident: string;
+  severity: "sev1" | "sev2" | "sev3";
+  confidence: number;
+  status: "ready" | "needs_review" | "blocked";
+  summary: string;
+  permissionAudit: AskResponse["permissionAudit"];
+  sources: Array<{
+    rank: number;
+    title: string;
+    path: string;
+    visibility: string;
+    teamSlug?: string | null;
+    score: number;
+  }>;
+  runbook: {
+    matched: boolean;
+    title?: string;
+    path?: string;
+    itemCount: number;
+  };
+  phases: Array<{
+    id: "triage" | "mitigation" | "communication" | "recovery";
+    title: string;
+    objective: string;
+    steps: Array<{
+      order: number;
+      action: string;
+      sourcePath?: string;
+      requiresApproval: boolean;
+      evidence: string;
+    }>;
+  }>;
+  approvalGates: Array<{
+    action: string;
+    reason: string;
+    policy: "human_required";
+  }>;
+  communications: Array<{
+    channel: string;
+    message: string;
+    trigger: string;
+  }>;
+  verification: Array<{
+    check: string;
+    expected: string;
+    sourcePath?: string;
+  }>;
+  audit: {
+    persistedQuestionId: string;
+    toolCalls: Array<{
+      toolName: "search_documents" | "create_runbook_checklist" | "create_incident_response_plan";
+      status: string;
+    }>;
+    guardrails: string[];
+  };
+};
+
 export type PermissionBoundaryMatrix = {
   generatedAt: string;
   policy: {
@@ -433,7 +493,7 @@ export type ToolCallAuditItem = {
 
 export type AgentToolDefinition = {
   name: string;
-  category: "retrieval" | "runbook" | "approval";
+  category: "retrieval" | "runbook" | "approval" | "incident";
   description: string;
   sideEffect: "none" | "database_write";
   approvalPolicy: "auto_allowed" | "human_required";
@@ -883,6 +943,30 @@ export async function previewRetrieval(input: {
   }
 
   return response.json() as Promise<RetrievalPreviewResponse>;
+}
+
+export async function createIncidentPlan(input: {
+  incident: string;
+  teamSlugs?: string;
+  roles?: string;
+  limit?: number;
+}): Promise<IncidentResponsePlan> {
+  const response = await fetch(`${API_BASE_URL}/incidents/plan`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-team-slugs": input.teamSlugs ?? "",
+      "x-user-roles": input.roles ?? "",
+      "x-roles": input.roles ?? ""
+    },
+    body: JSON.stringify({ incident: input.incident, limit: input.limit })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<IncidentResponsePlan>;
 }
 
 export async function listApprovals(): Promise<Approval[]> {

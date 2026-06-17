@@ -4,8 +4,10 @@ import { parseRequestContext } from "../shared/request-context";
 import { AgentService } from "./agent.service";
 import { AskIdempotencyService } from "./ask-idempotency.service";
 import { AskDto } from "./dto/ask.dto";
+import { IncidentPlanDto } from "./dto/incident-plan.dto";
 import { RateLimitService } from "./rate-limit.service";
 import { RetrievalPreviewDto } from "./dto/retrieval-preview.dto";
+import { IncidentResponsePlanService } from "./incident-response-plan.service";
 
 @ApiTags("agent")
 @Controller()
@@ -13,6 +15,7 @@ export class AgentController {
   constructor(
     private readonly agentService: AgentService,
     private readonly askIdempotencyService: AskIdempotencyService,
+    private readonly incidentResponsePlanService: IncidentResponsePlanService,
     private readonly rateLimitService: RateLimitService
   ) {}
 
@@ -48,6 +51,11 @@ export class AgentController {
   @Post("retrieval/preview")
   previewRetrieval(@Body() body: RetrievalPreviewDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.agentService.previewRetrieval(body.question, parseRequestContext(headers), body.limit);
+  }
+
+  @Post("incidents/plan")
+  createIncidentPlan(@Body() body: IncidentPlanDto, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.incidentResponsePlanService.create(body.incident, parseRequestContext(headers), body.limit);
   }
 }
 

@@ -10,6 +10,7 @@ import {
   AnswerTrace,
   askOpsPilot,
   AskResponse,
+  createIncidentPlan,
   createFeedback,
   DocumentInventoryItem,
   DocumentIndexQualityReport,
@@ -35,6 +36,7 @@ import {
   IngestResponse,
   IndexingJobStatus,
   IndexingQueueHealth,
+  IncidentResponsePlan,
   AgentToolDefinition,
   listDocuments,
   listAgentTools,
@@ -77,7 +79,7 @@ const quickQuestions = [
   "운영 DB에서 고객 정보를 바로 수정해도 돼?"
 ];
 
-type ConsoleScreen = "ask" | "retrieval" | "documents" | "quality" | "review" | "audit" | "help";
+type ConsoleScreen = "ask" | "retrieval" | "incident" | "documents" | "quality" | "review" | "audit" | "help";
 
 type IndexProof = {
   path: string;
@@ -104,6 +106,12 @@ const screens: Array<{ id: ConsoleScreen; label: string; title: string; descript
     label: "검색",
     title: "RAG 검색 실험실",
     description: "답변 생성 전에 후보 청크, 점수 분해, 권한 필터링 결과를 미리 확인합니다."
+  },
+  {
+    id: "incident",
+    label: "대응",
+    title: "장애 대응 플랜",
+    description: "운영 문서와 런북을 근거로 심각도, 단계별 조치, 승인 경계, 커뮤니케이션, 복구 검증을 생성합니다."
   },
   {
     id: "documents",
@@ -166,6 +174,10 @@ export default function Home() {
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
   const [retrievalLimit, setRetrievalLimit] = useState(5);
+  const [incidentDescription, setIncidentDescription] = useState(
+    "정산 배치가 30분 이상 지연되고 settlement.dlq.count가 120이면 어떻게 대응해야 해?"
+  );
+  const [incidentPlan, setIncidentPlan] = useState<IncidentResponsePlan | null>(null);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
@@ -181,6 +193,7 @@ export default function Home() {
   const [loading, setLoading] = useState<
     | "ask"
     | "retrieval"
+    | "incident"
     | "ingest"
     | "verify"
     | "quality-report"
@@ -250,6 +263,19 @@ export default function Home() {
       setRetrievalPreview(await previewRetrieval({ question, teamSlugs, roles, limit: retrievalLimit }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "검색 미리보기 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function submitIncidentPlan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading("incident");
+    try {
+      setIncidentPlan(await createIncidentPlan({ incident: incidentDescription, teamSlugs, roles, limit: 5 }));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "장애 대응 플랜 생성에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -932,6 +958,164 @@ export default function Home() {
             {feedbackStatus ? <p className="inlineStatus">{feedbackStatus}</p> : null}
           </div>
         </section>
+        ) : null}
+
+        {activeScreen === "incident" ? (
+          <section className="incidentPlanPanel" id="incident-plan">
+            <div className="sectionHeader">
+              <div>
+                <p className="eyebrow">대응 플랜</p>
+                <h2>런북 기반 장애 대응</h2>
+              </div>
+              {incidentPlan ? (
+                <span className={incidentPlan.status === "ready" ? "badge" : "badge review"}>
+                  {formatIncidentPlanStatus(incidentPlan.status)}
+                </span>
+              ) : null}
+            </div>
+
+            <form onSubmit={submitIncidentPlan} className="stack">
+              <label>
+                장애 상황
+                <textarea value={incidentDescription} onChange={(event) => setIncidentDescription(event.target.value)} rows={4} />
+              </label>
+              <div className="fieldGrid">
+                <label>
+                  팀
+                  <input value={teamSlugs} onChange={(event) => setTeamSlugs(event.target.value)} placeholder="payments" />
+                </label>
+                <label>
+                  역할
+                  <input value={roles} onChange={(event) => setRoles(event.target.value)} placeholder="ops_admin, oncall" />
+                </label>
+              </div>
+              <button className="primaryButton" disabled={loading === "incident"} type="submit">
+                {loading === "incident" ? "플랜 생성 중..." : "장애 대응 플랜 생성"}
+              </button>
+            </form>
+
+            {incidentPlan ? (
+              <div className="incidentPlanResult">
+                <div className="incidentSummary">
+                  <div>
+                    <span>심각도</span>
+                    <strong>{formatIncidentSeverity(incidentPlan.severity)}</strong>
+                  </div>
+                  <div>
+                    <span>신뢰도</span>
+                    <strong>{formatPercent(incidentPlan.confidence)}</strong>
+                  </div>
+                  <div>
+                    <span>런북</span>
+                    <strong>{incidentPlan.runbook.matched ? `${incidentPlan.runbook.itemCount}개 항목` : "미매칭"}</strong>
+                  </div>
+                  <div>
+                    <span>승인 경계</span>
+                    <strong>{incidentPlan.approvalGates.length}개</strong>
+                  </div>
+                </div>
+                <p className="incidentLead">{incidentPlan.summary}</p>
+
+                <div className="incidentPlanGrid">
+                  {incidentPlan.phases.map((phase) => (
+                    <article className="incidentPhase" key={phase.id}>
+                      <div className="incidentPhaseHead">
+                        <span>{formatIncidentPhase(phase.id)}</span>
+                        <strong>{phase.title}</strong>
+                        <p>{phase.objective}</p>
+                      </div>
+                      <div className="incidentStepList">
+                        {phase.steps.map((step) => (
+                          <div className={step.requiresApproval ? "incidentStep approval" : "incidentStep"} key={`${phase.id}-${step.order}`}>
+                            <span>{step.order}</span>
+                            <div>
+                              <strong>{step.action}</strong>
+                              <p>{step.evidence}</p>
+                            </div>
+                            {step.requiresApproval ? <code>승인 필요</code> : <code>자동 가능</code>}
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="incidentOpsGrid">
+                  <section className="incidentOpsPanel">
+                    <div className="sectionHeader compact">
+                      <div>
+                        <p className="eyebrow">승인</p>
+                        <h2>사람 승인 경계</h2>
+                      </div>
+                    </div>
+                    {incidentPlan.approvalGates.length > 0 ? (
+                      incidentPlan.approvalGates.map((gate) => (
+                        <article className="incidentGate" key={gate.action}>
+                          <strong>{gate.action}</strong>
+                          <p>{gate.reason}</p>
+                          <code>{formatApprovalPolicy(gate.policy)}</code>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="empty">읽기/검증 중심 플랜이라 별도 승인 게이트가 없습니다.</p>
+                    )}
+                  </section>
+
+                  <section className="incidentOpsPanel">
+                    <div className="sectionHeader compact">
+                      <div>
+                        <p className="eyebrow">공유</p>
+                        <h2>커뮤니케이션</h2>
+                      </div>
+                    </div>
+                    {incidentPlan.communications.map((item) => (
+                      <article className="incidentComms" key={`${item.channel}-${item.trigger}`}>
+                        <strong>{item.channel}</strong>
+                        <p>{item.message}</p>
+                        <code>{item.trigger}</code>
+                      </article>
+                    ))}
+                  </section>
+
+                  <section className="incidentOpsPanel">
+                    <div className="sectionHeader compact">
+                      <div>
+                        <p className="eyebrow">복구</p>
+                        <h2>검증 조건</h2>
+                      </div>
+                    </div>
+                    {incidentPlan.verification.slice(0, 4).map((item, index) => (
+                      <article className="incidentVerify" key={`${item.check}-${index}`}>
+                        <strong>{item.check}</strong>
+                        <p>{item.expected}</p>
+                        <code>{item.sourcePath ?? "출처 없음"}</code>
+                      </article>
+                    ))}
+                  </section>
+                </div>
+
+                <div className="incidentAudit">
+                  <div>
+                    <span>권한 경계</span>
+                    <strong>{formatPermissionEnforcement(incidentPlan.permissionAudit.enforcement)}</strong>
+                    <p>차단 후보 {incidentPlan.permissionAudit.deniedCandidateCount}개</p>
+                  </div>
+                  <div>
+                    <span>도구 호출</span>
+                    <strong>{incidentPlan.audit.toolCalls.map((tool) => tool.toolName).join(" → ")}</strong>
+                    <p>{incidentPlan.audit.persistedQuestionId}</p>
+                  </div>
+                  <div>
+                    <span>출처</span>
+                    <strong>{incidentPlan.sources[0]?.path ?? "없음"}</strong>
+                    <p>{incidentPlan.sources.length}개 근거</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="empty">장애 상황을 입력하면 근거 문서 기반 대응 단계, 승인 경계, 커뮤니케이션, 복구 검증 조건이 생성됩니다.</p>
+            )}
+          </section>
         ) : null}
 
         <aside className="sidePanel">
@@ -2174,6 +2358,41 @@ function formatIndexQualityStatus(status: string): string {
   return labels[status] ?? status;
 }
 
+function formatIncidentPlanStatus(status: string): string {
+  const labels: Record<string, string> = {
+    ready: "즉시 실행 가능",
+    needs_review: "검토 필요",
+    blocked: "근거 부족"
+  };
+  return labels[status] ?? status;
+}
+
+function formatIncidentSeverity(severity: string): string {
+  const labels: Record<string, string> = {
+    sev1: "SEV1",
+    sev2: "SEV2",
+    sev3: "SEV3"
+  };
+  return labels[severity] ?? severity;
+}
+
+function formatIncidentPhase(phase: string): string {
+  const labels: Record<string, string> = {
+    triage: "1",
+    mitigation: "2",
+    communication: "3",
+    recovery: "4"
+  };
+  return labels[phase] ?? phase;
+}
+
+function formatApprovalPolicy(policy: string): string {
+  const labels: Record<string, string> = {
+    human_required: "사람 승인 필요"
+  };
+  return labels[policy] ?? policy;
+}
+
 function formatSloStatus(status: string): string {
   const labels: Record<string, string> = {
     ok: "정상",
@@ -2363,7 +2582,8 @@ function formatToolCategory(category: string): string {
   const labels: Record<string, string> = {
     retrieval: "검색",
     runbook: "런북",
-    approval: "승인"
+    approval: "승인",
+    incident: "장애 대응"
   };
   return labels[category] ?? category;
 }

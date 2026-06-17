@@ -8,6 +8,7 @@ import { AnswerGeneratorService } from "./answer-generator.service";
 import { AskIdempotencyService } from "./ask-idempotency.service";
 import { ElasticsearchService } from "./elasticsearch.service";
 import { EmbeddingService } from "./embedding.service";
+import { IncidentResponsePlanService } from "./incident-response-plan.service";
 import { RateLimitService } from "./rate-limit.service";
 import { RunbookChecklistService } from "./runbook-checklist.service";
 import { SearchService } from "./search.service";
@@ -24,6 +25,7 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
     AskIdempotencyService,
     EmbeddingService,
     ElasticsearchService,
+    IncidentResponsePlanService,
     RateLimitService,
     SearchService,
     RunbookChecklistService,
@@ -32,6 +34,7 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
   exports: [
     EmbeddingService,
     ElasticsearchService,
+    IncidentResponsePlanService,
     RateLimitService,
     SearchService,
     AgentService,
