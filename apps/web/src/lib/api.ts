@@ -438,6 +438,24 @@ export type ObservabilitySummary = {
   };
 };
 
+export type ObservabilitySloReport = {
+  generatedAt: string;
+  status: "ok" | "warn" | "breach";
+  objectives: Array<{
+    id: string;
+    label: string;
+    description: string;
+    metric: string;
+    operator: "gte" | "lte";
+    target: number;
+    actual: number;
+    status: "ok" | "warn" | "breach";
+    errorBudgetRemaining: number;
+    source: "answers" | "tool_calls" | "evaluations";
+    window: "all_time" | "latest_eval";
+  }>;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -666,6 +684,16 @@ export async function getObservabilitySummary(): Promise<ObservabilitySummary> {
   }
 
   return response.json() as Promise<ObservabilitySummary>;
+}
+
+export async function getObservabilitySlo(): Promise<ObservabilitySloReport> {
+  const response = await fetch(`${API_BASE_URL}/observability/slo`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<ObservabilitySloReport>;
 }
 
 export async function getAnswerTrace(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerTrace> {

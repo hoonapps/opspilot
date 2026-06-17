@@ -15,6 +15,7 @@ import {
   getDocumentVersionHistory,
   getEvaluationHistory,
   getLatestEvaluation,
+  getObservabilitySlo,
   getObservabilitySummary,
   getPermissionBoundaryMatrix,
   GithubSyncResponse,
@@ -24,6 +25,7 @@ import {
   listAgentTools,
   listRecentToolCalls,
   listApprovals,
+  ObservabilitySloReport,
   ObservabilitySummary,
   PermissionBoundaryMatrix,
   previewRetrieval,
@@ -130,6 +132,7 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
+  const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
@@ -432,7 +435,9 @@ export default function Home() {
     setError(null);
     setLoading("observability");
     try {
-      setObservability(await getObservabilitySummary());
+      const [summary, slo] = await Promise.all([getObservabilitySummary(), getObservabilitySlo()]);
+      setObservability(summary);
+      setSloReport(slo);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Observability request failed");
     } finally {
@@ -873,6 +878,31 @@ export default function Home() {
                     {observability.documents.total} docs / {observability.documents.chunks} chunks
                   </code>
                 </div>
+                {sloReport ? (
+                  <section className="sloPanel" aria-label="SLO guardrails">
+                    <div className="evalHistoryHead">
+                      <span>SLO guardrails</span>
+                      <code>{sloReport.status}</code>
+                    </div>
+                    <div className="sloList">
+                      {sloReport.objectives.map((objective) => (
+                        <article className="sloItem" key={objective.id}>
+                          <div>
+                            <strong>{objective.label}</strong>
+                            <p>{objective.description}</p>
+                          </div>
+                          <span className={objective.status === "ok" ? "badge" : "badge review"}>{objective.status}</span>
+                          <div className="sloMeter">
+                            <span>
+                              {formatPercent(objective.actual)} {objective.operator} {formatPercent(objective.target)}
+                            </span>
+                            <strong>Budget {formatPercent(objective.errorBudgetRemaining)}</strong>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
               </>
             ) : (
               <p className="empty">Load persisted telemetry for answer quality, review boundaries, tool calls, approvals, and feedback.</p>

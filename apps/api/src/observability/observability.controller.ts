@@ -11,4 +11,9 @@ export class ObservabilityController {
   summary() {
     return this.observabilityService.summary();
   }
+
+  @Get("slo")
+  slo() {
+    return this.observabilityService.slo();
+  }
 }

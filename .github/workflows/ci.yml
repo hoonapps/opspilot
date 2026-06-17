@@ -146,6 +146,9 @@ jobs:
       - name: Observability smoke
         run: pnpm observability:smoke
 
+      - name: Observability SLO smoke
+        run: pnpm observability:slo-smoke
+
       - name: OpenAPI contract smoke
         run: pnpm openapi:smoke
 

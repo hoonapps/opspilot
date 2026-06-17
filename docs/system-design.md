@@ -4,7 +4,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 
 ## Components
 
-- API: NestJS HTTP API for signed actor authentication, liveness/readiness checks, operational telemetry, document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer-level document agreement, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
+- API: NestJS HTTP API for signed actor authentication, liveness/readiness checks, operational telemetry, SLO guardrails, document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer-level document agreement, answer trace, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
 - Web Console: Next.js UI for asking questions, viewing answer trace, sources/tool calls, review reasons, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
 - Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results; observability summaries are derived from these persisted operational rows
 - Vector Search: pgvector performs permission-aware semantic retrieval
@@ -28,8 +28,9 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 10. Question, answer, sources, document agreement, review reasons, permission audit, tool calls, approval state, and feedback are logged.
 11. `GET /answers/:id/trace` re-checks traced source access and reconstructs the answer audit artifact from persisted rows.
 12. `GET /observability/summary` aggregates the persisted rows into operating metrics for question volume, answer quality, review rate, tool calls, approvals, feedback, and indexed knowledge size.
-13. Web requests render the grounded answer, document match, sources, confidence, review reasons, permission audit, trace summary, and tool calls in the console.
-14. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+13. `GET /observability/slo` turns quality and audit metrics into SLO guardrails with status and error budget remaining.
+14. Web requests render the grounded answer, document match, sources, confidence, review reasons, permission audit, trace summary, and tool calls in the console.
+15. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
 
 ## Ingestion Flow
 

@@ -35,6 +35,28 @@ export type ObservabilitySummary = {
   };
 };
 
+export type ObservabilitySloReport = {
+  generatedAt: string;
+  status: SloStatus;
+  objectives: SloObjective[];
+};
+
+export type SloStatus = "ok" | "warn" | "breach";
+
+export type SloObjective = {
+  id: string;
+  label: string;
+  description: string;
+  metric: string;
+  operator: "gte" | "lte";
+  target: number;
+  actual: number;
+  status: SloStatus;
+  errorBudgetRemaining: number;
+  source: "answers" | "tool_calls" | "evaluations";
+  window: "all_time" | "latest_eval";
+};
+
 type CountRow = { total: number | string };
 type QuestionRow = { total: number | string; last24h: number | string };
 type AnswerRow = {
@@ -54,6 +76,8 @@ type DocumentsRow = {
   chunks: number | string;
 };
 type GroupRow = { key: string; total: number | string };
+type EvaluationPassRow = { passed: boolean | null };
+type ToolCoverageRow = { covered: number | string; total: number | string };
 
 @Injectable()
 export class ObservabilityService {
@@ -155,6 +179,148 @@ export class ObservabilityService {
       }
     };
   }
+
+  async slo(): Promise<ObservabilitySloReport> {
+    const connection = this.orm.em.fork().getConnection();
+    const [summary, latestEvalRows, toolCoverageRows] = await Promise.all([
+      this.summary(),
+      connection.execute<EvaluationPassRow[]>(`
+        select (details->>'passed')::boolean as passed
+        from evaluation_results
+        where suite_name = 'seed-ops-wiki'
+        order by created_at desc
+        limit 1;
+      `),
+      connection.execute<ToolCoverageRow[]>(`
+        select
+          count(distinct q.id) filter (where t.id is not null)::int as covered,
+          count(distinct q.id)::int as total
+        from questions q
+        left join tool_call_logs t on t.question_id = q.id and t.tool_name = 'search_documents';
+      `)
+    ]);
+    const toolCoverage = ratio(toNumber(toolCoverageRows[0]?.covered), toNumber(toolCoverageRows[0]?.total));
+    const latestEvalPassed = latestEvalRows[0]?.passed === true ? 1 : 0;
+    const objectives: SloObjective[] = [
+      buildObjective({
+        id: "answer_grounding",
+        label: "Answer grounding",
+        description: "Average answer/document agreement should stay above the grounding target.",
+        metric: "averageDocumentAgreement",
+        operator: "gte",
+        target: readSloThreshold("SLO_MIN_DOCUMENT_AGREEMENT", 0.8),
+        actual: summary.answers.averageDocumentAgreement,
+        source: "answers",
+        window: "all_time"
+      }),
+      buildObjective({
+        id: "review_load",
+        label: "Review load",
+        description: "Human review rate should stay within the configured operator capacity target.",
+        metric: "humanReviewRate",
+        operator: "lte",
+        target: readSloThreshold("SLO_MAX_HUMAN_REVIEW_RATE", 0.7),
+        actual: summary.answers.humanReviewRate,
+        source: "answers",
+        window: "all_time"
+      }),
+      buildObjective({
+        id: "tool_audit_coverage",
+        label: "Tool audit coverage",
+        description: "Questions should be covered by persisted search_documents tool calls.",
+        metric: "searchDocumentsCoverage",
+        operator: "gte",
+        target: readSloThreshold("SLO_MIN_TOOL_AUDIT_COVERAGE", 0.95),
+        actual: toolCoverage,
+        source: "tool_calls",
+        window: "all_time"
+      }),
+      buildObjective({
+        id: "eval_gate",
+        label: "Evaluation gate",
+        description: "The latest seed evaluation must pass its configured quality gates.",
+        metric: "latestEvaluationPassed",
+        operator: "gte",
+        target: 1,
+        actual: latestEvalPassed,
+        source: "evaluations",
+        window: "latest_eval"
+      })
+    ];
+
+    return {
+      generatedAt: new Date().toISOString(),
+      status: aggregateSloStatus(objectives),
+      objectives
+    };
+  }
+}
+
+function buildObjective(input: Omit<SloObjective, "status" | "errorBudgetRemaining">): SloObjective {
+  return {
+    ...input,
+    actual: roundMetric(input.actual),
+    status: objectiveStatus(input.actual, input.operator, input.target),
+    errorBudgetRemaining: errorBudgetRemaining(input.actual, input.operator, input.target)
+  };
+}
+
+function aggregateSloStatus(objectives: SloObjective[]): SloStatus {
+  if (objectives.some((objective) => objective.status === "breach")) {
+    return "breach";
+  }
+  if (objectives.some((objective) => objective.status === "warn")) {
+    return "warn";
+  }
+  return "ok";
+}
+
+function objectiveStatus(actual: number, operator: SloObjective["operator"], target: number): SloStatus {
+  if (operator === "gte") {
+    if (actual >= target) {
+      return "ok";
+    }
+    return actual >= target * 0.95 ? "warn" : "breach";
+  }
+
+  if (actual <= target) {
+    return "ok";
+  }
+  return actual <= target * 1.1 ? "warn" : "breach";
+}
+
+function errorBudgetRemaining(actual: number, operator: SloObjective["operator"], target: number): number {
+  if (operator === "gte") {
+    if (target >= 1) {
+      return actual >= target ? 1 : -1;
+    }
+    const denominator = Math.max(1 - target, 0.001);
+    return clampMetric((actual - target) / denominator);
+  }
+
+  if (target <= 0) {
+    return actual <= target ? 1 : -1;
+  }
+  const denominator = Math.max(target, 0.001);
+  return clampMetric((target - actual) / denominator);
+}
+
+function readSloThreshold(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a number between 0 and 1`);
+  }
+
+  return value;
+}
+
+function clampMetric(value: number): number {
+  return roundMetric(Math.max(-1, Math.min(value, 1)));
 }
 
 function toCountMap(rows: GroupRow[]): Record<string, number> {

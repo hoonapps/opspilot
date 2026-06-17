@@ -34,6 +34,7 @@ GET /docs-json
 - `GET /evaluations/latest`
 - `GET /evaluations/history`
 - `GET /observability/summary`
+- `GET /observability/slo`
 - `GET /health`
 - `GET /health/ready`
 - `POST /slack/events`
@@ -56,5 +57,7 @@ This keeps the public API contract from silently drifting while the RAG agent gr
 `GET /tool-calls/registry` is intentionally part of the public contract because the portfolio demo needs to prove tool-calling structure, not only log rows. It exposes tool side effects, approval policy, and compact input/output schemas.
 
 `GET /evaluations/history` is intentionally part of the public contract because RAG quality needs regression visibility across runs. It exposes recent evaluation snapshots, pass/fail state, metric gates, and previous-run deltas without requiring a reviewer to inspect database rows.
+
+`GET /observability/slo` is intentionally part of the public contract because AI operations quality should be inspectable as SLOs, not only raw counters. It exposes objective status, targets, actual values, error budget remaining, metric source, and evaluation gate health.
 
 `POST /slack/simulate` is intentionally part of the public contract because the portfolio demo needs a reproducible Slack flow without live Slack credentials. It runs the same app mention handling path as `POST /slack/events`, returns the thread reply payload, and exposes a trace with actor mapping, persisted question/answer ids, sources, tool calls, and reply post mode.

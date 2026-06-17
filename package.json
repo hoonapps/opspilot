@@ -29,6 +29,7 @@
     "portfolio:demo": "pnpm --filter @opspilot/api portfolio:demo",
     "portfolio:report": "pnpm --filter @opspilot/api portfolio:report",
     "observability:smoke": "pnpm --filter @opspilot/api observability:smoke",
+    "observability:slo-smoke": "pnpm --filter @opspilot/api observability:slo-smoke",
     "openapi:smoke": "pnpm --filter @opspilot/api openapi:smoke",
     "slack:simulate": "pnpm --filter @opspilot/api slack:simulate",
     "worker:indexing": "pnpm --filter @opspilot/api worker:indexing",

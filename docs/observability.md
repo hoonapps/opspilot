@@ -4,6 +4,7 @@ OpsPilot exposes an operational summary endpoint for portfolio demos and smoke t
 
 ```txt
 GET /observability/summary
+GET /observability/slo
 ```
 
 The endpoint aggregates persisted runtime data from PostgreSQL:
@@ -17,13 +18,23 @@ The endpoint aggregates persisted runtime data from PostgreSQL:
 
 This is intentionally separate from `/health/ready`. Readiness proves dependencies are reachable. Observability proves the agent workflow leaves enough operational evidence to inspect quality, approval boundaries, and tool usage after questions are answered.
 
+`GET /observability/slo` turns the same persisted evidence into operator-facing guardrails:
+
+- answer grounding: average document agreement must stay above the configured target
+- review load: human review rate must stay within the configured capacity target
+- tool audit coverage: questions should have persisted `search_documents` tool calls
+- evaluation gate: the latest seed evaluation must pass
+
+Each SLO objective returns actual value, target, operator, status, source table family, window, and remaining error budget. Defaults can be tuned with `SLO_MIN_DOCUMENT_AGREEMENT`, `SLO_MAX_HUMAN_REVIEW_RATE`, and `SLO_MIN_TOOL_AUDIT_COVERAGE`.
+
 Run the smoke test:
 
 ```bash
 pnpm observability:smoke
+pnpm observability:slo-smoke
 ```
 
-The Next.js console renders the same data in the Operations panel. `pnpm web:smoke` loads this panel during the browser demo and fails unless the page shows human review rate, average document match, `request_human_approval`, and `needs_approval` telemetry.
+The Next.js console renders the same data in the Operations panel. `pnpm web:smoke` loads this panel during the browser demo and fails unless the page shows human review rate, average document match, SLO guardrails, `request_human_approval`, and `needs_approval` telemetry.
 
 The smoke test ingests the seed wiki, asks a normal incident question, asks a runbook question, asks a sensitive production operation question, writes feedback, then fails unless the summary shows:
 
@@ -37,3 +48,5 @@ The smoke test ingests the seed wiki, asks a normal incident question, asks a ru
 - indexed documents and chunks
 
 This gives reviewers one compact proof that OpsPilot is not only returning answers, but also producing the operational telemetry needed to run an AI support agent safely.
+
+The SLO smoke test creates representative agent activity, runs the seed evaluation, then fails unless grounding, review load, tool audit coverage, and evaluation gate objectives are all `ok`. This turns RAG quality from a one-off report into a CI-protected operating contract.

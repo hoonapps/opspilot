@@ -1740,6 +1740,64 @@ pre {
   border-top: 3px solid #0f766e;
 }
 
+.sloPanel {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f2fbf8;
+}
+
+.sloList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sloItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.sloItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sloItem p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sloMeter {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sloMeter strong {
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
 .auditPanel {
   border-top: 3px solid var(--accent);
 }
@@ -2047,6 +2105,8 @@ pre {
   .evalHistoryHead,
   .evalHistoryItem,
   .opsGrid,
+  .sloList,
+  .sloItem,
   .toolRegistryItem,
   .toolSchemaGrid,
   .slackProofGrid,

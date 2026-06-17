@@ -170,14 +170,21 @@ async function main() {
     await page.getByRole("button", { name: "Load ops" }).click();
     await page.locator(".observabilityPanel").getByText("Human review rate", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("Avg match", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".sloPanel").getByText("SLO guardrails", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".sloPanel").getByText("Answer grounding", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".sloPanel").getByText("Tool audit coverage", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("needs_approval", { exact: false }).waitFor({ timeout: 10000 });
     const observabilityText = await page.locator(".observabilityPanel").innerText();
+    const normalizedObservabilityText = observabilityText.toLowerCase();
     const observabilityVisible =
-      observabilityText.includes("Human review rate") &&
-      observabilityText.includes("Avg match") &&
+      normalizedObservabilityText.includes("human review rate") &&
+      normalizedObservabilityText.includes("avg match") &&
+      normalizedObservabilityText.includes("slo guardrails") &&
+      normalizedObservabilityText.includes("answer grounding") &&
+      normalizedObservabilityText.includes("tool audit coverage") &&
       observabilityText.includes("request_human_approval") &&
-      observabilityText.includes("Feedback");
+      normalizedObservabilityText.includes("feedback");
 
     await page.getByRole("button", { name: /Retrieval/ }).click();
     await page.evaluate(() => window.scrollTo(0, 0));

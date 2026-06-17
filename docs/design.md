@@ -22,6 +22,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
 - Split the console into Ask, Retrieval, Documents, Quality, Review, and Audit screens so retrieval debugging and document management are first-class workflows.
 - Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
+- Render SLO guardrails in the Quality screen so answer grounding, review load, tool audit coverage, and eval gate state are visible as operating objectives.
 - Make permission boundaries visible through denied candidate counts and review reasons.
 - Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.
 - Keep sensitive actions separate from automatic answers through the approval queue.
@@ -31,7 +32,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 ## Portfolio Demo Path
 
 1. Run the local stack and ingest seed documents.
-2. Open the Quality screen and load the latest evaluation report, then inspect regression history and the case explorer for expected and actual sources.
+2. Open the Quality screen and load telemetry, SLO guardrails, and the latest evaluation report, then inspect regression history and the case explorer for expected and actual sources.
 3. Open the Documents screen and upsert the sample status-page Markdown document.
 4. Verify that the inventory count, selected document, content hash, version diff, redaction summary, and generated chunk previews update before asking a question.
 5. Update the Markdown sample again and verify the version diff shows the added line.
