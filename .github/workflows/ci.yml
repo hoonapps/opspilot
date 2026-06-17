@@ -185,6 +185,9 @@ jobs:
       - name: Portfolio markdown report
         run: pnpm portfolio:report
 
+      - name: Portfolio readiness smoke
+        run: pnpm portfolio-readiness:smoke
+
       - name: Observability smoke
         run: pnpm observability:smoke
 
@@ -232,8 +235,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: opspilot-web-console
-          path: docs/assets/opspilot-web-console.png
+          name: opspilot-product-screenshots
+          path: docs/assets/opspilot-*.png
           if-no-files-found: ignore
 
       - name: Print server logs
