@@ -37,6 +37,12 @@ async function main() {
       trace.summary.feedbackCount === trace.feedback.length &&
       trace.summary.needsHumanReview === true &&
       trace.summary.documentAgreementScore >= 0 &&
+      trace.summary.answerTokenCount === trace.grounding.answerTokenCount &&
+      trace.summary.coveredAnswerTokenCount === trace.grounding.coveredAnswerTokenCount &&
+      trace.grounding.method === "source_token_overlap_v1" &&
+      trace.grounding.sources.length === trace.sources.length &&
+      trace.grounding.coverageRatio >= 0 &&
+      trace.grounding.sources.some((source) => source.matchedTokenCount > 0 && source.matchedTokens.length > 0) &&
       trace.timeline.length >= 5 &&
       timelineTitles.includes("Question persisted") &&
       timelineTitles.includes("Sources attached") &&
@@ -63,6 +69,7 @@ async function main() {
         approvals: trace.approvals.map((approval) => approval.action),
         feedbackCount: trace.feedback.length,
         summary: trace.summary,
+        grounding: trace.grounding,
         timeline: timelineTitles,
         unauthorizedDenied,
         reviewReasons

@@ -595,7 +595,7 @@ pre {
 
 .traceSummary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
   gap: 8px;
   align-items: stretch;
 }
@@ -626,6 +626,99 @@ pre {
   background: var(--panel-soft);
   color: var(--ink);
   padding: 0 12px;
+}
+
+.groundingPanel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f2fbf8;
+}
+
+.groundingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.groundingHeader span {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.groundingHeader strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.groundingHeader code,
+.groundingItem code {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groundingList {
+  display: grid;
+  gap: 8px;
+}
+
+.groundingItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(160px, 0.7fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.groundingItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groundingItem p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groundingItem > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 30px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 6px;
+  background: #e6f6f2;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .traceTimeline {
@@ -1342,6 +1435,7 @@ pre {
   .boundaryAudit,
   .reasonItem,
   .traceSummary,
+  .groundingItem,
   .timelineItem,
   .feedbackBar {
     grid-template-columns: 1fr;

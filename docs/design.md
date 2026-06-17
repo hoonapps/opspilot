@@ -15,8 +15,8 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 
 ## Console Design Goals
 
-- Show the answer, confidence, document match, tool calls, and sources in one scan.
-- Render answer trace as a compact timeline so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
+- Show the answer, confidence, document match, grounding coverage, tool calls, and sources in one scan.
+- Render answer trace as a compact timeline with source-level grounding coverage so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
 - Split the console into Ask, Retrieval, Documents, Quality, Review, and Audit screens so retrieval debugging and document management are first-class workflows.
 - Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
@@ -38,7 +38,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 8. Ask the production DB write question and verify human approval is required.
 9. Open the Review screen and inspect the approval queue.
 10. Open the Audit screen and inspect the persisted tool-call trail.
-11. Save feedback and refresh the answer trace timeline.
+11. Save feedback and refresh the answer trace timeline and source grounding coverage.
 
 This is the same path covered by the Playwright web smoke test.
 

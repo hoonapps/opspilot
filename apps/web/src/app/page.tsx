@@ -514,6 +514,10 @@ export default function Home() {
                     <strong>{formatPercent(trace.summary.documentAgreementScore)}</strong>
                   </div>
                   <div>
+                    <span>Coverage</span>
+                    <strong>{formatPercent(trace.grounding.coverageRatio)}</strong>
+                  </div>
+                  <div>
                     <span>Tools</span>
                     <strong>{trace.summary.toolCallCount}</strong>
                   </div>
@@ -528,6 +532,29 @@ export default function Home() {
                   <button disabled={loading === "trace"} onClick={() => loadTrace()} type="button">
                     {loading === "trace" ? "Refreshing..." : "Refresh trace"}
                   </button>
+                </div>
+                <div className="groundingPanel" aria-label="source grounding coverage">
+                  <div className="groundingHeader">
+                    <div>
+                      <span>Grounding coverage</span>
+                      <strong>
+                        {trace.grounding.coveredAnswerTokenCount}/{trace.grounding.answerTokenCount} answer tokens
+                      </strong>
+                    </div>
+                    <code>{trace.grounding.method}</code>
+                  </div>
+                  <div className="groundingList">
+                    {trace.grounding.sources.slice(0, 3).map((source) => (
+                      <article className="groundingItem" key={`${source.rank}-${source.path}`}>
+                        <div>
+                          <strong>{source.title}</strong>
+                          <p>{source.path}</p>
+                        </div>
+                        <span>{formatPercent(source.coverageRatio)}</span>
+                        <code>{source.matchedTokens.length > 0 ? source.matchedTokens.join(" ") : "no overlap"}</code>
+                      </article>
+                    ))}
+                  </div>
                 </div>
                 <div className="traceTimeline" aria-label="answer trace timeline">
                   {trace.timeline.map((event) => (

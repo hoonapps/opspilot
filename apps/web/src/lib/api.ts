@@ -183,6 +183,23 @@ export type AnswerTrace = {
     confidence: number;
     documentAgreementScore: number;
     durationMs: number;
+    coveredAnswerTokenCount: number;
+    answerTokenCount: number;
+  };
+  grounding: {
+    method: "source_token_overlap_v1";
+    answerTokenCount: number;
+    coveredAnswerTokenCount: number;
+    coverageRatio: number;
+    sources: Array<{
+      rank: number;
+      path: string;
+      title: string;
+      coverageRatio: number;
+      matchedTokenCount: number;
+      answerTokenCount: number;
+      matchedTokens: string[];
+    }>;
   };
   timeline: Array<{
     order: number;

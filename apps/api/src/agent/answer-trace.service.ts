@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { MikroORM } from "@mikro-orm/core";
 import { AuthzService } from "../authz/authz.service";
 import { RequestContext } from "../shared/request-context";
+import { removeAgreementBoilerplate, tokenizeForAgreement } from "./document-agreement";
 
 export type AnswerTrace = {
   summary: {
@@ -13,6 +14,23 @@ export type AnswerTrace = {
     confidence: number;
     documentAgreementScore: number;
     durationMs: number;
+    coveredAnswerTokenCount: number;
+    answerTokenCount: number;
+  };
+  grounding: {
+    method: "source_token_overlap_v1";
+    answerTokenCount: number;
+    coveredAnswerTokenCount: number;
+    coverageRatio: number;
+    sources: Array<{
+      rank: number;
+      path: string;
+      title: string;
+      coverageRatio: number;
+      matchedTokenCount: number;
+      answerTokenCount: number;
+      matchedTokens: string[];
+    }>;
   };
   timeline: Array<{
     order: number;
@@ -116,6 +134,7 @@ export class AnswerTraceService {
             d.visibility,
             d.team_slug,
             c.chunk_index,
+            c.content,
             left(c.content, 360) as content_preview
           from answer_sources s
           join documents d on d.id = s.document_id
@@ -184,6 +203,7 @@ export class AnswerTraceService {
     }));
     const metadata = answer.metadata ?? {};
     const documentAgreement = metadata.documentAgreement as { score?: unknown } | undefined;
+    const grounding = buildGrounding(answer.text, sources);
     const summary = {
       sourceCount: sources.length,
       toolCallCount: mappedToolCalls.length,
@@ -197,11 +217,14 @@ export class AnswerTraceService {
         ...mappedToolCalls.map((event) => event.createdAt),
         ...mappedApprovals.map((event) => event.createdAt),
         ...mappedFeedback.map((event) => event.createdAt)
-      ])
+      ]),
+      coveredAnswerTokenCount: grounding.coveredAnswerTokenCount,
+      answerTokenCount: grounding.answerTokenCount
     };
 
     return {
       summary,
+      grounding,
       timeline: buildTimeline({
         answerId: answer.id,
         questionId: answer.question_id,
@@ -269,6 +292,7 @@ type SourceTraceRow = {
   visibility: string;
   team_slug?: string | null;
   chunk_index: number;
+  content: string;
   content_preview: string;
 };
 
@@ -304,6 +328,47 @@ function calculateDurationMs(start: string, eventTimes: string[]): number {
   const startMs = new Date(start).getTime();
   const endMs = Math.max(startMs, ...eventTimes.map((value) => new Date(value).getTime()));
   return Math.max(0, endMs - startMs);
+}
+
+function buildGrounding(answerText: string, sources: SourceTraceRow[]): AnswerTrace["grounding"] {
+  const answerTokens = [...new Set(tokenizeForAgreement(removeAgreementBoilerplate(answerText)))];
+  const sourceMatches = sources.map((source) => {
+    const sourceTokens = new Set(tokenizeForAgreement(source.content));
+    const matchedTokens = answerTokens.filter((token) => sourceTokens.has(token));
+    return {
+      matchedTokens,
+      rank: source.rank,
+      path: source.path,
+      title: source.title,
+      coverageRatio: ratio(matchedTokens.length, answerTokens.length),
+      matchedTokenCount: matchedTokens.length,
+      answerTokenCount: answerTokens.length
+    };
+  });
+  const coveredTokens = new Set(sourceMatches.flatMap((source) => source.matchedTokens));
+
+  return {
+    method: "source_token_overlap_v1",
+    answerTokenCount: answerTokens.length,
+    coveredAnswerTokenCount: coveredTokens.size,
+    coverageRatio: ratio(coveredTokens.size, answerTokens.length),
+    sources: sourceMatches.map((source) => ({
+      rank: source.rank,
+      path: source.path,
+      title: source.title,
+      coverageRatio: source.coverageRatio,
+      matchedTokenCount: source.matchedTokenCount,
+      answerTokenCount: source.answerTokenCount,
+      matchedTokens: source.matchedTokens.slice(0, 12)
+    }))
+  };
+}
+
+function ratio(numerator: number, denominator: number): number {
+  if (denominator === 0) {
+    return 0;
+  }
+  return Number((numerator / denominator).toFixed(3));
 }
 
 function buildTimeline(input: {
