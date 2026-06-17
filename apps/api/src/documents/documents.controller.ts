@@ -1,5 +1,7 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Headers, NotFoundException, Param, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import { parseRequestContext } from "../shared/request-context";
+import { RunDocumentRevalidationDto } from "./dto/run-document-revalidation.dto";
 import { SyncGithubDocumentsDto } from "./dto/sync-github-documents.dto";
 import { UpsertMarkdownDocumentDto } from "./dto/upsert-markdown-document.dto";
 import { DocumentsService } from "./documents.service";
@@ -36,6 +38,11 @@ export class DocumentsController {
   getRevalidationQueue(@Query("limit") limit?: string) {
     const parsedLimit = limit ? Number(limit) : undefined;
     return this.documentsService.getRevalidationQueue(parsedLimit !== undefined && Number.isFinite(parsedLimit) ? parsedLimit : undefined);
+  }
+
+  @Post("revalidation-runs")
+  runRevalidation(@Body() body: RunDocumentRevalidationDto, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.documentsService.runRevalidation(body, parseRequestContext(headers));
   }
 
   @Get(":id/versions")

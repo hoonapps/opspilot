@@ -128,6 +128,9 @@ jobs:
       - name: Document revalidation queue smoke
         run: pnpm revalidation-queue:smoke
 
+      - name: Document revalidation run smoke
+        run: pnpm revalidation-run:smoke
+
       - name: Permission boundary smoke
         run: pnpm permission:smoke
 

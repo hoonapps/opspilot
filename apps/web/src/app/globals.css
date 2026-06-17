@@ -2809,6 +2809,105 @@ pre {
   background: #f8fbff;
 }
 
+.revalidationRun {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #bfe6d6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.revalidationRun--needs_review {
+  border-color: #f3d7a3;
+  background: #fffaf0;
+}
+
+.revalidationRun--blocked {
+  border-color: #facaca;
+  background: #fff7f7;
+}
+
+.revalidationRunHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.revalidationRunHead h3,
+.revalidationRunHead p {
+  margin: 0;
+}
+
+.revalidationRunHead h3 {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.revalidationRunHead p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.revalidationRunSummary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.revalidationRunSummary .metric {
+  min-height: 62px;
+  box-shadow: none;
+}
+
+.revalidationRunChecks {
+  display: grid;
+  gap: 8px;
+}
+
+.revalidationRunCheck {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.revalidationRunCheck--warn {
+  border-color: #f3d7a3;
+}
+
+.revalidationRunCheck--fail {
+  border-color: #facaca;
+}
+
+.revalidationRunCheck strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.revalidationRunCheck span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.revalidationRunCheck p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .impactPanel {
   display: grid;
   gap: 10px;
@@ -5207,6 +5306,9 @@ pre {
   .indexExplainChunk div:first-child,
   .revalidationSummary,
   .revalidationItemHead,
+  .revalidationRunHead,
+  .revalidationRunSummary,
+  .revalidationRunCheck,
   .impactSummary,
   .impactMetrics,
   .impactAnswerItem,

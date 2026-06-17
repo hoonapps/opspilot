@@ -334,6 +334,49 @@ export type DocumentRevalidationQueueReport = {
   }>;
 };
 
+export type DocumentRevalidationRunReport = {
+  schemaVersion: "opspilot.document_revalidation_run.v1";
+  generatedAt: string;
+  status: "cleared" | "needs_review" | "blocked";
+  queueItem: DocumentRevalidationQueueReport["items"][number];
+  decision: {
+    label: string;
+    recommendedAction: "close_queue_item" | "assign_human_reviewer" | "block_answer_and_rewrite";
+    reasons: string[];
+  };
+  summary: {
+    replayStatus: AnswerReplay["status"];
+    qualityGateStatus: AnswerQualityGate["status"];
+    lineageStatus: AnswerLineageGraph["status"];
+    topSourceChanged: boolean;
+    sourceOverlapRatio: number;
+    currentDocumentAgreement: number;
+    permissionDeniedCandidates: number;
+    sourceAccessRechecked: true;
+    lineageIntegrityHash: string;
+  };
+  checks: Array<{
+    id: "queue_item_stale" | "replay_stable" | "quality_gate" | "lineage_integrity" | "source_access_rechecked";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  artifacts: {
+    replay: AnswerReplay;
+    qualityGate: AnswerQualityGate;
+    lineage: AnswerLineageGraph;
+  };
+  evidenceLinks: {
+    queue: string;
+    documentImpact: string;
+    replay: string;
+    lineage: string;
+    qualityGate: string;
+  };
+};
+
 export type DocumentIndexQualityReport = {
   generatedAt: string;
   status: "healthy" | "warning" | "critical";
@@ -1796,6 +1839,32 @@ export async function getDocumentRevalidationQueue(): Promise<DocumentRevalidati
   }
 
   return response.json() as Promise<DocumentRevalidationQueueReport>;
+}
+
+export async function runDocumentRevalidation(input: {
+  documentId: string;
+  answerId: string;
+  teamSlugs: string;
+  roles: string;
+}): Promise<DocumentRevalidationRunReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/revalidation-runs`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles
+    },
+    body: JSON.stringify({
+      documentId: input.documentId,
+      answerId: input.answerId
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentRevalidationRunReport>;
 }
 
 export async function getDocumentIndexQuality(): Promise<DocumentIndexQualityReport> {

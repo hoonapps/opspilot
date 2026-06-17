@@ -146,6 +146,10 @@ async function main() {
       timeout: 10000
     });
     await page.locator(".revalidationActions").getByText("lineage", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".revalidationItem").first().getByRole("button", { name: "재검증 실행" }).click();
+    await page.locator(".revalidationRun").getByText("실행 결과", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".revalidationRunSummary").getByText("품질 게이트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".revalidationRunChecks").getByText("현재 문서 기준 replay", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "색인 설명", exact: true }).click();
     await page.locator(".indexExplainPanel").getByText("색인 준비", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexExplainPanel").getByText("heading_paragraph_window_v1", { exact: true }).first().waitFor({ timeout: 10000 });
@@ -194,6 +198,10 @@ async function main() {
       (await page.locator(".revalidationQueuePanel").getByText("큐 항목", { exact: true }).isVisible()) &&
       (await page.locator(".revalidationList").getByText("public/status-page-policy.md", { exact: false }).first().isVisible()) &&
       (await page.locator(".revalidationActions").getByText("lineage", { exact: true }).first().isVisible());
+    const revalidationRunVisible =
+      (await page.locator(".revalidationRun").getByText("실행 결과", { exact: true }).isVisible()) &&
+      (await page.locator(".revalidationRunSummary").getByText("품질 게이트", { exact: true }).isVisible()) &&
+      (await page.locator(".revalidationRunChecks").getByText("현재 문서 기준 replay", { exact: true }).isVisible());
     const permissionMatrixVisible = await page.locator(".permissionMatrixPanel").getByText("문서 접근 시뮬레이터", { exact: true }).isVisible();
     const permissionMatrixDenyVisible = await page.locator(".matrixTable").getByText("차단", { exact: true }).first().isVisible();
 
@@ -554,6 +562,7 @@ async function main() {
         indexExplainVisible &&
         documentImpactVisible &&
         revalidationQueueVisible &&
+        revalidationRunVisible &&
         permissionMatrixVisible &&
         permissionMatrixDenyVisible &&
         retrievalPreviewVisible &&
@@ -631,6 +640,7 @@ async function main() {
         indexExplainVisible,
         documentImpactVisible,
         revalidationQueueVisible,
+        revalidationRunVisible,
         permissionMatrixVisible,
         permissionMatrixDenyVisible,
         retrievalPreviewVisible,

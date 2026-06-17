@@ -98,7 +98,7 @@ http://localhost:3001/usage
 
 문서 상세의 `영향 분석`을 누르면 이 문서를 근거로 사용한 과거 답변, 문서 변경 이후 오래된 답변, 1순위 근거 여부, 재실행 검증 권고를 확인할 수 있습니다.
 
-문서 화면의 `문서 재검증 큐`는 특정 문서 하나가 아니라 전체 문서 변경을 기준으로 오래된 답변을 모읍니다. 큐 항목은 `P0`~`P3` 우선순위, 위험도, 변경 문서, 과거 답변, `replay`, `lineage`, `quality-gate` 재검증 경로를 함께 보여줍니다.
+문서 화면의 `문서 재검증 큐`는 특정 문서 하나가 아니라 전체 문서 변경을 기준으로 오래된 답변을 모읍니다. 큐 항목은 `P0`~`P3` 우선순위, 위험도, 변경 문서, 과거 답변, `replay`, `lineage`, `quality-gate` 재검증 경로를 함께 보여줍니다. 각 항목의 `재검증 실행`을 누르면 현재 문서 기준 replay, 품질 게이트, 답변 계보 그래프를 한 번에 실행하고 `종료 가능`, `재검토 필요`, `차단 필요` 판정을 확인할 수 있습니다.
 
 화면의 `색인 검증` 영역에서 다음 값을 확인합니다.
 
@@ -123,6 +123,7 @@ CLI로 같은 검증을 하려면:
 pnpm index-explain:smoke
 pnpm index-quality:smoke
 pnpm revalidation-queue:smoke
+pnpm revalidation-run:smoke
 ```
 
 ## 6. 청킹과 검색 결과 확인
@@ -132,6 +133,7 @@ pnpm revalidation-queue:smoke
 - `색인 인벤토리`: 문서별 청크 수와 보안 메타데이터
 - `색인 품질 리포트`: 전체 문서/청크 커버리지와 문서별 개선 권고
 - `문서 재검증 큐`: 문서 변경 이후 오래된 답변의 우선순위와 재검증 액션
+- `재검증 실행`: 큐 항목을 replay, 품질 게이트, 계보 해시로 즉시 판정
 - `청크 미리보기`: 실제 검색에 들어가는 청크 미리보기
 - `문서 버전`: 마스킹 이후 저장된 버전과 변경 차이
 
@@ -374,6 +376,7 @@ pnpm error-budget:smoke
 pnpm evidence-bundle:smoke
 pnpm lineage:smoke
 pnpm revalidation-queue:smoke
+pnpm revalidation-run:smoke
 pnpm quality-gate:smoke
 pnpm web:smoke
 ```

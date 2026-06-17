@@ -26,6 +26,7 @@
     "index-quality:smoke": "pnpm --filter @opspilot/api index-quality:smoke",
     "document-impact:smoke": "pnpm --filter @opspilot/api document-impact:smoke",
     "revalidation-queue:smoke": "pnpm --filter @opspilot/api revalidation-queue:smoke",
+    "revalidation-run:smoke": "pnpm --filter @opspilot/api revalidation-run:smoke",
     "permission:smoke": "pnpm --filter @opspilot/api permission:smoke",
     "authn:smoke": "pnpm --filter @opspilot/api authn:smoke",
     "redaction:smoke": "pnpm --filter @opspilot/api redaction:smoke",

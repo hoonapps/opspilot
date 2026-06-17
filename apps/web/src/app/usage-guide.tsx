@@ -20,8 +20,15 @@ const usageSteps = [
   },
   {
     title: "새 문서 등록 검증",
-    body: "문서 화면에서 Markdown을 등록하면 저장, 청킹, 임베딩, 색인 품질 리포트, 검색 미리보기, 답변 일치율 검증을 한 번에 실행합니다.",
-    commands: ["문서 화면 > Markdown 등록", "등록하고 RAG 검증", "색인 품질 리포트 / 출처 적중 / 문서 일치율 확인", "문서 선택 > 색인 설명 / 영향 분석"]
+    body: "문서 화면에서 Markdown을 등록하면 저장, 청킹, 임베딩, 색인 품질 리포트, 검색 미리보기, 답변 일치율 검증을 한 번에 실행합니다. 문서 변경 후에는 재검증 큐와 실행 리포트로 과거 답변을 다시 판정합니다.",
+    commands: [
+      "문서 화면 > Markdown 등록",
+      "등록하고 RAG 검증",
+      "색인 품질 리포트 / 출처 적중 / 문서 일치율 확인",
+      "문서 선택 > 색인 설명 / 영향 분석",
+      "문서 재검증 큐 > 재검증 실행",
+      "pnpm revalidation-run:smoke"
+    ]
   },
   {
     title: "청킹과 검색 품질 확인",
@@ -58,6 +65,8 @@ const usageSteps = [
       "pnpm retrieval-permission-diff:smoke",
       "pnpm index-explain:smoke",
       "pnpm index-quality:smoke",
+      "pnpm revalidation-queue:smoke",
+      "pnpm revalidation-run:smoke",
       "pnpm incident-plan:smoke",
       "pnpm freshness:smoke",
       "pnpm release-gate:smoke",
@@ -99,7 +108,7 @@ const screenGuide = [
   },
   {
     screen: "문서",
-    point: "Markdown 등록, GitHub 동기화, 청킹 결과, 색인 품질, 색인 설명, 문서 변경 영향 분석을 확인합니다."
+    point: "Markdown 등록, GitHub 동기화, 청킹 결과, 색인 품질, 색인 설명, 문서 변경 영향 분석, 재검증 큐와 실행 리포트를 확인합니다."
   },
   {
     screen: "품질",
@@ -114,7 +123,7 @@ const screenGuide = [
 const checklist = [
   {
     title: "데모에서 보여줄 핵심 증거",
-    body: "문서 출처, 문서 일치율, 답변 신뢰 게이트, 답변 변경 감지, 증거 번들 해시, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트, API 성공률을 순서대로 보여주면 됩니다."
+    body: "문서 출처, 문서 일치율, 답변 신뢰 게이트, 답변 변경 감지, 문서 재검증 실행 판정, 증거 번들 해시, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트, API 성공률을 순서대로 보여주면 됩니다."
   },
   {
     title: "문서를 어디서 관리하나?",

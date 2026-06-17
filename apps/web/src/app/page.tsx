@@ -21,6 +21,7 @@ import {
   DocumentInventoryItem,
   DocumentIndexQualityReport,
   DocumentRevalidationQueueReport,
+  DocumentRevalidationRunReport,
   DocumentVersionHistory,
   ErrorBudgetReport,
   enqueueMarkdownIndexingJob,
@@ -74,6 +75,7 @@ import {
   RetrievalPreviewResponse,
   RetrievalPermissionDiffReport,
   RetrievalRobustnessReport,
+  runDocumentRevalidation,
   simulateSlackMention,
   SlackSimulationTrace,
   syncGithubDocuments,
@@ -243,6 +245,7 @@ export default function Home() {
   const [documentIndexExplain, setDocumentIndexExplain] = useState<DocumentIndexExplainReport | null>(null);
   const [documentImpact, setDocumentImpact] = useState<DocumentImpactReport | null>(null);
   const [documentRevalidationQueue, setDocumentRevalidationQueue] = useState<DocumentRevalidationQueueReport | null>(null);
+  const [documentRevalidationRun, setDocumentRevalidationRun] = useState<DocumentRevalidationRunReport | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
@@ -264,6 +267,7 @@ export default function Home() {
     | "index-explain"
     | "impact"
     | "revalidation"
+    | "revalidation-run"
     | "matrix"
     | "approval"
     | "audit"
@@ -684,6 +688,25 @@ export default function Home() {
       setDocumentRevalidationQueue(await getDocumentRevalidationQueue());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 재검증 큐 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function executeDocumentRevalidation(item: DocumentRevalidationQueueReport["items"][number]) {
+    setError(null);
+    setLoading("revalidation-run");
+    try {
+      setDocumentRevalidationRun(
+        await runDocumentRevalidation({
+          documentId: item.document.id,
+          answerId: item.answer.id,
+          teamSlugs,
+          roles
+        })
+      );
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 재검증 실행에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -2778,6 +2801,14 @@ export default function Home() {
                             <code>replay</code>
                             <code>lineage</code>
                             <code>quality-gate</code>
+                            <button
+                              className="smallButton"
+                              disabled={loading === "revalidation-run"}
+                              onClick={() => executeDocumentRevalidation(item)}
+                              type="button"
+                            >
+                              {loading === "revalidation-run" ? "실행 중..." : "재검증 실행"}
+                            </button>
                           </div>
                         </article>
                       ))
@@ -2785,6 +2816,37 @@ export default function Home() {
                       <p className="empty">문서 변경 이후 오래된 답변이 없습니다.</p>
                     )}
                   </div>
+                  {documentRevalidationRun ? (
+                    <div className={`revalidationRun revalidationRun--${documentRevalidationRun.status}`}>
+                      <div className="revalidationRunHead">
+                        <div>
+                          <p className="eyebrow">실행 결과</p>
+                          <h3>{documentRevalidationRun.decision.label}</h3>
+                          <p>{documentRevalidationRun.queueItem.answer.question}</p>
+                        </div>
+                        <span className={documentRevalidationRun.status === "cleared" ? "badge" : "badge review"}>
+                          {formatRevalidationRunStatus(documentRevalidationRun.status)}
+                        </span>
+                      </div>
+                      <div className="revalidationRunSummary">
+                        <Metric label="Replay" value={formatReplayStatus(documentRevalidationRun.summary.replayStatus)} />
+                        <Metric label="품질 게이트" value={formatQualityGateStatus(documentRevalidationRun.summary.qualityGateStatus)} />
+                        <Metric label="출처 겹침" value={`${Math.round(documentRevalidationRun.summary.sourceOverlapRatio * 100)}%`} />
+                        <Metric label="현재 일치율" value={`${Math.round(documentRevalidationRun.summary.currentDocumentAgreement * 100)}%`} />
+                        <Metric label="차단 후보" value={`${documentRevalidationRun.summary.permissionDeniedCandidates}개`} />
+                        <Metric label="계보 해시" value={shortHash(documentRevalidationRun.summary.lineageIntegrityHash)} />
+                      </div>
+                      <div className="revalidationRunChecks">
+                        {documentRevalidationRun.checks.map((check) => (
+                          <article className={`revalidationRunCheck revalidationRunCheck--${check.status}`} key={check.id}>
+                            <strong>{check.label}</strong>
+                            <span>{formatCheckStatus(check.status)}</span>
+                            <p>{check.evidence}</p>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <p className="empty">재검증 큐를 계산하면 문서 변경 이후 오래된 답변, 위험도, replay/lineage/quality gate 경로가 표시됩니다.</p>
@@ -3536,6 +3598,24 @@ function formatRevalidationRisk(riskLevel: DocumentRevalidationQueueReport["item
     critical: "긴급 위험"
   };
   return labels[riskLevel];
+}
+
+function formatRevalidationRunStatus(status: DocumentRevalidationRunReport["status"]): string {
+  const labels: Record<DocumentRevalidationRunReport["status"], string> = {
+    cleared: "종료 가능",
+    needs_review: "재검토 필요",
+    blocked: "차단 필요"
+  };
+  return labels[status];
+}
+
+function formatCheckStatus(status: "pass" | "warn" | "fail"): string {
+  const labels: Record<"pass" | "warn" | "fail", string> = {
+    pass: "통과",
+    warn: "주의",
+    fail: "실패"
+  };
+  return labels[status];
 }
 
 function formatEvaluationCheckLabel(id: string, fallback: string): string {

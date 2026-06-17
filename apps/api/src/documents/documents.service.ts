@@ -1,11 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { AnswerLineageGraph, AnswerQualityGate, AnswerReplay, AnswerTraceService } from "../agent/answer-trace.service";
 import { ElasticsearchService } from "../agent/elasticsearch.service";
 import { EmbeddingService } from "../agent/embedding.service";
 import { sha256 } from "../shared/hash";
+import { RequestContext } from "../shared/request-context";
 import { ChunkerService } from "./chunker.service";
+import { RunDocumentRevalidationDto } from "./dto/run-document-revalidation.dto";
 import { parseMarkdownDocument } from "./frontmatter";
 import { RedactionService } from "./redaction.service";
 
@@ -376,6 +379,49 @@ export type DocumentRevalidationQueueReport = {
   }>;
 };
 
+export type DocumentRevalidationRunReport = {
+  schemaVersion: "opspilot.document_revalidation_run.v1";
+  generatedAt: string;
+  status: "cleared" | "needs_review" | "blocked";
+  queueItem: DocumentRevalidationQueueReport["items"][number];
+  decision: {
+    label: string;
+    recommendedAction: "close_queue_item" | "assign_human_reviewer" | "block_answer_and_rewrite";
+    reasons: string[];
+  };
+  summary: {
+    replayStatus: AnswerReplay["status"];
+    qualityGateStatus: AnswerQualityGate["status"];
+    lineageStatus: AnswerLineageGraph["status"];
+    topSourceChanged: boolean;
+    sourceOverlapRatio: number;
+    currentDocumentAgreement: number;
+    permissionDeniedCandidates: number;
+    sourceAccessRechecked: true;
+    lineageIntegrityHash: string;
+  };
+  checks: Array<{
+    id: "queue_item_stale" | "replay_stable" | "quality_gate" | "lineage_integrity" | "source_access_rechecked";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  artifacts: {
+    replay: AnswerReplay;
+    qualityGate: AnswerQualityGate;
+    lineage: AnswerLineageGraph;
+  };
+  evidenceLinks: {
+    queue: string;
+    documentImpact: string;
+    replay: string;
+    lineage: string;
+    qualityGate: string;
+  };
+};
+
 @Injectable()
 export class DocumentsService {
   constructor(
@@ -383,7 +429,8 @@ export class DocumentsService {
     private readonly chunker: ChunkerService,
     private readonly embeddings: EmbeddingService,
     private readonly elasticsearch: ElasticsearchService,
-    private readonly redaction: RedactionService
+    private readonly redaction: RedactionService,
+    private readonly answerTraceService: AnswerTraceService
   ) {}
 
   async ingestSeedDocuments(): Promise<{ documents: IngestedDocument[] }> {
@@ -1174,6 +1221,54 @@ export class DocumentsService {
     };
   }
 
+  async runRevalidation(input: RunDocumentRevalidationDto, context: RequestContext): Promise<DocumentRevalidationRunReport> {
+    const queue = await this.getRevalidationQueue(5_000);
+    const queueItem = queue.items.find((item) => item.document.id === input.documentId && item.answer.id === input.answerId);
+    if (!queueItem) {
+      throw new NotFoundException(`Revalidation queue item not found for document ${input.documentId} and answer ${input.answerId}`);
+    }
+
+    const [replay, qualityGate, lineage] = await Promise.all([
+      this.answerTraceService.replay(input.answerId, context),
+      this.answerTraceService.getQualityGate(input.answerId, context),
+      this.answerTraceService.getLineageGraph(input.answerId, context)
+    ]);
+    const status = revalidationRunStatus({ replay, qualityGate });
+    const checks = buildRevalidationRunChecks({ queueItem, replay, qualityGate, lineage });
+
+    return {
+      schemaVersion: "opspilot.document_revalidation_run.v1",
+      generatedAt: new Date().toISOString(),
+      status,
+      queueItem,
+      decision: buildRevalidationRunDecision({ status, checks }),
+      summary: {
+        replayStatus: replay.status,
+        qualityGateStatus: qualityGate.status,
+        lineageStatus: lineage.status,
+        topSourceChanged: replay.summary.topSourceChanged,
+        sourceOverlapRatio: replay.summary.sourceOverlapRatio,
+        currentDocumentAgreement: replay.summary.currentDocumentAgreement,
+        permissionDeniedCandidates: replay.summary.permissionDeniedCandidates,
+        sourceAccessRechecked: qualityGate.summary.sourceAccessRechecked,
+        lineageIntegrityHash: lineage.integrity.hash
+      },
+      checks,
+      artifacts: {
+        replay,
+        qualityGate,
+        lineage
+      },
+      evidenceLinks: {
+        queue: "/documents/revalidation-queue",
+        documentImpact: queueItem.evidenceLinks.documentImpact,
+        replay: queueItem.evidenceLinks.replay,
+        lineage: queueItem.evidenceLinks.lineage,
+        qualityGate: queueItem.evidenceLinks.qualityGate
+      }
+    };
+  }
+
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {
     const parsed = parseMarkdownDocument(path, raw);
     const redacted = this.redaction.redactMarkdown(parsed.body);
@@ -1725,6 +1820,95 @@ function buildRevalidationQueueRecommendations(input: {
     recommendations.push("제한 문서 항목은 호출자 권한 재검사와 계보 그래프의 출처 노출 범위를 확인하세요.");
   }
   return [...new Set(recommendations)].slice(0, 5);
+}
+
+function revalidationRunStatus(input: {
+  replay: AnswerReplay;
+  qualityGate: AnswerQualityGate;
+}): DocumentRevalidationRunReport["status"] {
+  if (input.qualityGate.status === "block") {
+    return "blocked";
+  }
+  if (input.replay.status !== "stable" || input.qualityGate.status === "review") {
+    return "needs_review";
+  }
+  return "cleared";
+}
+
+function buildRevalidationRunChecks(input: {
+  queueItem: DocumentRevalidationQueueReport["items"][number];
+  replay: AnswerReplay;
+  qualityGate: AnswerQualityGate;
+  lineage: AnswerLineageGraph;
+}): DocumentRevalidationRunReport["checks"] {
+  return [
+    {
+      id: "queue_item_stale",
+      label: "오래된 답변 큐 항목",
+      status: "pass",
+      evidence: `${input.queueItem.document.path} 문서가 ${input.queueItem.answer.createdAt} 답변 이후 변경되었습니다.`,
+      metric: input.queueItem.staleAgeHours
+    },
+    {
+      id: "replay_stable",
+      label: "현재 문서 기준 replay",
+      status: input.replay.status === "stable" ? "pass" : input.replay.status === "needs_review" ? "warn" : "fail",
+      evidence: input.replay.summary.topSourceChanged
+        ? `1순위 출처가 ${input.replay.summary.originalTopSourcePath ?? "없음"}에서 ${input.replay.summary.currentTopSourcePath ?? "없음"}로 바뀌었습니다.`
+        : `1순위 출처가 ${input.replay.summary.currentTopSourcePath ?? "없음"}로 유지됩니다.`,
+      metric: input.replay.summary.sourceOverlapRatio,
+      threshold: 0.6
+    },
+    {
+      id: "quality_gate",
+      label: "답변 신뢰 게이트",
+      status: input.qualityGate.status === "pass" ? "pass" : input.qualityGate.status === "review" ? "warn" : "fail",
+      evidence:
+        input.qualityGate.decision.reasons.length > 0
+          ? input.qualityGate.decision.reasons[0]
+          : `${input.qualityGate.decision.label} 판정입니다.`,
+      metric: input.qualityGate.score
+    },
+    {
+      id: "lineage_integrity",
+      label: "계보 무결성",
+      status: input.lineage.integrity.hash && input.lineage.summary.sourceAccessRechecked ? "pass" : "fail",
+      evidence: `계보 그래프 ${input.lineage.summary.nodeCount}개 노드와 ${input.lineage.summary.edgeCount}개 엣지를 sha256:${input.lineage.integrity.hash.slice(0, 12)}로 검증했습니다.`
+    },
+    {
+      id: "source_access_rechecked",
+      label: "출처 권한 재검사",
+      status: input.qualityGate.summary.sourceAccessRechecked ? "pass" : "fail",
+      evidence: `현재 호출자 권한으로 출처 접근을 재검사했고 차단 후보 ${input.replay.summary.permissionDeniedCandidates}개를 기록했습니다.`,
+      metric: input.replay.summary.permissionDeniedCandidates
+    }
+  ];
+}
+
+function buildRevalidationRunDecision(input: {
+  status: DocumentRevalidationRunReport["status"];
+  checks: DocumentRevalidationRunReport["checks"];
+}): DocumentRevalidationRunReport["decision"] {
+  const failedOrWarned = input.checks.filter((check) => check.status !== "pass");
+  if (input.status === "blocked") {
+    return {
+      label: "답변 차단 및 재작성",
+      recommendedAction: "block_answer_and_rewrite",
+      reasons: failedOrWarned.map((check) => `${check.label}: ${check.evidence}`).slice(0, 5)
+    };
+  }
+  if (input.status === "needs_review") {
+    return {
+      label: "담당자 재검토 필요",
+      recommendedAction: "assign_human_reviewer",
+      reasons: failedOrWarned.map((check) => `${check.label}: ${check.evidence}`).slice(0, 5)
+    };
+  }
+  return {
+    label: "큐 항목 종료 가능",
+    recommendedAction: "close_queue_item",
+    reasons: ["Replay, 품질 게이트, 계보 무결성, 출처 권한 재검사가 모두 통과했습니다."]
+  };
 }
 
 function formatRevalidationRisk(riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"]): string {
