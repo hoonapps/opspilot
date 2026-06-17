@@ -629,19 +629,19 @@ function buildCaseRecommendations(row: EvalReport["rows"][number], checks: Evalu
       return [];
     }
     if (check.id === "source_hit") {
-      return ["기대 문서의 제목, 별칭, 운영 키워드를 보강하거나 chunking 결과를 확인하세요."];
+      return ["기대 문서의 제목, 별칭, 운영 키워드를 보강하거나 청킹 결과를 확인하세요."];
     }
     if (check.id === "top_source") {
       return ["검색 랭킹 가중치와 문서별 중복 청크를 점검해 기대 문서가 1순위로 오도록 조정하세요."];
     }
     if (check.id === "human_review") {
-      return ["restricted 문서 또는 민감 작업 질문의 review reason과 approval boundary 조건을 확인하세요."];
+      return ["제한 문서 또는 민감 작업 질문의 검토 사유와 승인 경계 조건을 확인하세요."];
     }
     if (check.id === "document_agreement") {
       return ["답변 템플릿이 근거 문서 밖 표현을 과하게 만들지 않는지 확인하고 근거 스니펫을 늘리세요."];
     }
     if (check.id === "citation") {
-      return ["답변 생성 템플릿에 출처 제목 또는 path를 명시적으로 포함시키세요."];
+      return ["답변 생성 템플릿에 출처 제목 또는 경로를 명시적으로 포함시키세요."];
     }
     return [];
   });

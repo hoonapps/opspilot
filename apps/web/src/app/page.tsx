@@ -1603,7 +1603,10 @@ export default function Home() {
                       <div>
                         <span>{persona.label}</span>
                         <strong>{persona.topSourcePath ?? "출처 없음"}</strong>
-                        <code>{persona.topSourceVisibility ?? "none"} · 차단 {persona.deniedCandidateCount}개</code>
+                        <code>
+                          {persona.topSourceVisibility ? formatVisibility(persona.topSourceVisibility) : "출처 없음"} · 차단{" "}
+                          {persona.deniedCandidateCount}개
+                        </code>
                       </div>
                       <p>
                         역할 {persona.roles.join("|") || "없음"} · 팀 {persona.teamSlugs.join("|") || "없음"}
@@ -1636,7 +1639,9 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              <p className="empty">같은 질문을 public, support, payments, ops_admin 페르소나로 실행해 권한별 출처 차이와 restricted 문서 격리를 확인합니다.</p>
+              <p className="empty">
+                같은 질문을 공개 사용자, 지원 담당자, 결제 온콜, 운영 관리자 권한으로 실행해 권한별 출처 차이와 제한 문서 격리를 확인합니다.
+              </p>
             )}
           </section>
 
@@ -2134,9 +2139,9 @@ export default function Home() {
                   </section>
                 ) : null}
                 {errorBudget ? (
-                  <section className={`errorBudgetPanel errorBudgetPanel--${errorBudget.status}`} aria-label="오류 예산 번레이트">
+                  <section className={`errorBudgetPanel errorBudgetPanel--${errorBudget.status}`} aria-label="오류 예산 소모율">
                     <div className="evalHistoryHead">
-                      <span>오류 예산 번레이트</span>
+                      <span>오류 예산 소모율</span>
                       <code>{formatErrorBudgetStatus(errorBudget.status)} · {errorBudget.summary.worstBurnRate}x</code>
                     </div>
                     <div className="errorBudgetHero">
@@ -2189,7 +2194,7 @@ export default function Home() {
                         ))}
                       </div>
                     ) : (
-                      <p className="empty">최근 24시간 5xx top offender가 없습니다.</p>
+                      <p className="empty">최근 24시간 동안 5xx가 집중된 엔드포인트가 없습니다.</p>
                     )}
                     {errorBudget.actions.length > 0 ? (
                       <div className="errorBudgetActions">
@@ -3855,9 +3860,9 @@ function formatReleaseGateEvidence(id: string, fallback: string): string {
     return match ? `SLO 목표 ${match[1]}개가 ${formatSloStatus(match[2])} 상태입니다.` : fallback;
   }
   if (id === "api_error_budget") {
-    const match = fallback.match(/24시간 가용성 (\d+)%, 최악 burn rate ([^,]+), 권고 ([^.]+)\./);
+    const match = fallback.match(/24시간 가용성 (\d+)%, 최악 (?:burn rate|소모율) ([^,]+), 권고 ([^.]+)\./);
     return match
-      ? `24시간 가용성 ${match[1]}%, 최악 번레이트 ${match[2]}, 권고 ${formatErrorBudgetRecommendation(match[3])}.`
+      ? `24시간 가용성 ${match[1]}%, 최악 소모율 ${match[2]}, 권고 ${formatErrorBudgetRecommendation(match[3])}.`
       : fallback;
   }
   if (id === "agent_audit_trail") {

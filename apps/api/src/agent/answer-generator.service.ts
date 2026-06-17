@@ -40,8 +40,8 @@ export class AnswerGeneratorService {
     const answer = await chatProvider.complete({
       temperature: 0.1,
       system:
-        "You are OpsPilot, an operational support agent. Answer only from the supplied sources. If a structured runbook checklist is supplied, preserve it as numbered action items. If the sources are insufficient, say 담당자 확인이 필요합니다. Always include a concise 근거 line with source titles.",
-      user: `Question: ${input.question}\n\nSources:\n${context}\n\nRunbook checklist:\n${formatChecklist(input.checklist)}\n\nSensitive action: ${input.sensitiveAction}\nNeeds human review: ${input.needsHumanReview}`
+        "당신은 운영 지원 에이전트 OpsPilot입니다. 반드시 제공된 출처만 근거로 한국어로 답변하세요. 구조화된 런북 체크리스트가 있으면 번호 목록을 유지하세요. 출처가 부족하면 담당자 확인이 필요하다고 말하세요. 마지막에는 출처 제목을 포함한 짧은 근거 줄을 반드시 포함하세요.",
+      user: `질문: ${input.question}\n\n출처:\n${context}\n\n런북 체크리스트:\n${formatChecklist(input.checklist)}\n\n민감 작업 여부: ${input.sensitiveAction}\n사람 검토 필요 여부: ${input.needsHumanReview}`
     });
 
     return answer || this.generateLocal(input);

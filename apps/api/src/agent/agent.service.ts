@@ -674,8 +674,8 @@ function buildPermissionDiffChecks(
       threshold: 0,
       message:
         summary.unprivilegedRestrictedCandidateCount === 0
-          ? "권한 없는 페르소나의 후보 목록에 restricted 문서가 노출되지 않았습니다."
-          : `권한 없는 페르소나에 restricted 후보 ${summary.unprivilegedRestrictedCandidateCount}개가 노출됐습니다.`
+          ? "권한 없는 페르소나의 후보 목록에 제한 문서가 노출되지 않았습니다."
+          : `권한 없는 페르소나에 제한 문서 후보 ${summary.unprivilegedRestrictedCandidateCount}개가 노출됐습니다.`
     },
     {
       id: "team_scope",
@@ -685,8 +685,8 @@ function buildPermissionDiffChecks(
       threshold: 0,
       message:
         teamScopedLeakCount === 0
-          ? "팀 권한이 없는 페르소나에는 team 문서가 노출되지 않았습니다."
-          : `팀 권한 없는 페르소나에 team 후보 ${teamScopedLeakCount}개가 노출됐습니다.`
+          ? "팀 권한이 없는 페르소나에는 팀 한정 문서가 노출되지 않았습니다."
+          : `팀 권한 없는 페르소나에 팀 한정 문서 후보 ${teamScopedLeakCount}개가 노출됐습니다.`
     },
     {
       id: "privileged_visibility",
@@ -696,8 +696,8 @@ function buildPermissionDiffChecks(
       threshold: 1,
       message:
         summary.privilegedRestrictedCandidateCount > 0
-          ? "관리자 페르소나가 질문 의도에 맞는 restricted 후보를 볼 수 있습니다."
-          : "이번 질문에서는 관리자 페르소나에도 restricted 후보가 상위권에 오르지 않았습니다."
+          ? "관리자 페르소나가 질문 의도에 맞는 제한 문서 후보를 볼 수 있습니다."
+          : "이번 질문에서는 관리자 페르소나에도 제한 문서 후보가 상위권에 오르지 않았습니다."
     },
     {
       id: "top_source_diff",
@@ -768,7 +768,7 @@ function buildScoreContributions(source: SearchResult): RankingExplanation["scor
       weight: 0.45,
       value: Number(vectorScore.toFixed(6)),
       contribution: Number((vectorScore * 0.45).toFixed(6)),
-      evidence: "질문 embedding과 문서 chunk embedding 간 pgvector cosine 유사도입니다."
+      evidence: "질문 임베딩과 문서 청크 임베딩 간 pgvector 코사인 유사도입니다."
     },
     {
       signal: "lexical",
@@ -783,13 +783,13 @@ function buildScoreContributions(source: SearchResult): RankingExplanation["scor
 
 function buildAccessReason(source: SearchResult): string {
   if (source.visibility === "public") {
-    return "public 문서는 모든 actor가 답변 컨텍스트로 사용할 수 있습니다.";
+    return "전체 공개 문서는 모든 호출자가 답변 컨텍스트로 사용할 수 있습니다.";
   }
   if (source.visibility === "team") {
-    return `${source.teamSlug ?? "team"} 팀 범위 문서이며 actor 팀 권한과 일치해 허용됐습니다.`;
+    return `${source.teamSlug ?? "팀"} 팀 범위 문서이며 호출자 팀 권한과 일치해 허용됐습니다.`;
   }
   if (source.visibility === "restricted") {
-    return "restricted 문서이지만 actor 역할/팀 정책이 허용해 답변 컨텍스트에 포함됐습니다.";
+    return "제한 문서이지만 호출자 역할/팀 정책이 허용해 답변 컨텍스트에 포함됐습니다.";
   }
   return `${source.visibility} 문서가 권한 정책을 통과했습니다.`;
 }

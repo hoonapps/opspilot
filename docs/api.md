@@ -45,7 +45,7 @@ GET /docs-json
 - `GET /evaluations/cases`: 최신 평가 실행의 케이스별 실패 원인, 위험도, 개선 권고
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
-- `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, burn rate, top offender endpoint, 배포 권고
+- `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, 오류 예산 소모율, 주요 실패 엔드포인트, 배포 권고
 - `GET /observability/slo`: SLO 가드레일
 - `GET /observability/release-gate`: 배포 가능성 게이트
 - `GET /observability/portfolio-readiness`: 포트폴리오 데모 준비도, 핵심 증거 pillar, 5분 데모 경로

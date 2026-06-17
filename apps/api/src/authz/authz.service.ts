@@ -133,11 +133,11 @@ export class AuthzService {
       generatedAt: new Date().toISOString(),
       policy: {
         visibilityLevels: [
-          { visibility: DocumentVisibility.Public, rule: "Visible to every actor before prompt construction." },
-          { visibility: DocumentVisibility.Team, rule: "Visible only when actor.teamSlugs contains the document team slug." },
+          { visibility: DocumentVisibility.Public, rule: "프롬프트 구성 전에 모든 호출자에게 허용됩니다." },
+          { visibility: DocumentVisibility.Team, rule: "호출자의 팀 목록에 문서 팀 slug가 있을 때만 허용됩니다." },
           {
             visibility: DocumentVisibility.Restricted,
-            rule: "Visible only to actors with ops_admin or security_admin role."
+            rule: "ops_admin 또는 security_admin 역할을 가진 호출자에게만 허용됩니다."
           }
         ],
         personas

@@ -43,6 +43,11 @@ const auditLedgerScreenshotPath = process.env.AUDIT_LEDGER_SCREENSHOT_PATH
     ? process.env.AUDIT_LEDGER_SCREENSHOT_PATH
     : join(repoRoot, process.env.AUDIT_LEDGER_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-audit-ledger.png");
+const usageScreenshotPath = process.env.USAGE_SCREENSHOT_PATH
+  ? isAbsolute(process.env.USAGE_SCREENSHOT_PATH)
+    ? process.env.USAGE_SCREENSHOT_PATH
+    : join(repoRoot, process.env.USAGE_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-usage-page.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -61,6 +66,7 @@ async function main() {
     await page.getByText("로컬 데모 실행과 검증 순서", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByText("빠른 실행 명령", { exact: true }).waitFor({ timeout: 10000 });
     const usagePageVisible = await page.getByText("문서 일치율은 어디서 보나?", { exact: true }).isVisible();
+    await page.screenshot({ path: usageScreenshotPath, fullPage: false });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
 
     await page.locator(".railNav").getByRole("button", { name: /^품질 / }).click();
@@ -437,7 +443,7 @@ async function main() {
     await page.locator(".apiRequestStats").getByText("성공률", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".endpointList .endpointItem").first().waitFor({ timeout: 10000 });
     await page.locator(".recentRequestList").getByText("GET", { exact: false }).first().waitFor({ timeout: 10000 });
-    await page.locator(".errorBudgetPanel").getByText("오류 예산 번레이트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".errorBudgetPanel").getByText("오류 예산 소모율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".errorBudgetPanel").getByText("배포 권고", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".errorBudgetWindows").getByText("최근 24시간", { exact: true }).waitFor({ timeout: 10000 });
     await page
@@ -463,7 +469,7 @@ async function main() {
       observabilityText.includes("5분 데모 경로") &&
       observabilityText.includes("pnpm portfolio:demo");
     const errorBudgetVisible =
-      observabilityText.includes("오류 예산 번레이트") &&
+      observabilityText.includes("오류 예산 소모율") &&
       observabilityText.includes("배포 권고") &&
       observabilityText.includes("최근 24시간") &&
       observabilityText.includes("API 오류 예산");
@@ -482,7 +488,7 @@ async function main() {
       observabilityText.includes("답변 근거성") &&
       observabilityText.includes("도구 감사 커버리지") &&
       observabilityText.includes("API 성공률") &&
-      observabilityText.includes("오류 예산 번레이트") &&
+      observabilityText.includes("오류 예산 소모율") &&
       observabilityText.includes("배포 권고") &&
       observabilityText.includes("API 요청 관측성") &&
       observabilityText.includes("request_human_approval") &&
@@ -567,6 +573,7 @@ async function main() {
       incidentPlanScreenshotPath,
       portfolioReadinessScreenshotPath,
       auditLedgerScreenshotPath,
+      usageScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,

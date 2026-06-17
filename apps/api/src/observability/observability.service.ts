@@ -1170,9 +1170,9 @@ function buildPortfolioPillars(input: {
       label: "권한 경계와 사람 승인",
       status: weakestStatus([approvalCalls > 0 ? "pass" : "fail", checks.approval_backlog?.status ?? "fail"]),
       score: roundMetric(average([approvalCalls > 0 ? 1 : 0, statusScore(checks.approval_backlog?.status)])),
-      evidence: `request_human_approval ${approvalCalls}회, 대기 승인 ${input.summary.approvals.byStatus.pending ?? 0}개, 승인 게이트 ${checks.approval_backlog?.status ?? "missing"}.`,
+      evidence: `request_human_approval ${approvalCalls}회, 대기 승인 ${input.summary.approvals.byStatus.pending ?? 0}개, 승인 게이트 ${formatPortfolioStatus(checks.approval_backlog?.status)}.`,
       whyItMatters: "민감 작업을 자동 실행하지 않고 사람 승인으로 분리하는 경계를 증명합니다.",
-      demoScript: "운영 DB 수정 질문을 던지고 승인 화면에서 pending 요청과 검토 사유를 보여줍니다.",
+      demoScript: "운영 DB 수정 질문을 던지고 승인 화면에서 대기 요청과 검토 사유를 보여줍니다.",
       verification: ["pnpm permission:smoke", "pnpm retrieval-permission-diff:smoke", "pnpm review:smoke"],
       links: [
         { label: "권한 비교", href: "/retrieval/permission-diff" },
@@ -1210,7 +1210,7 @@ function buildPortfolioPillars(input: {
           apiSuccessRate
         ])
       ),
-      evidence: `릴리즈 게이트 ${input.gate.status}, SLO ${input.slo.status}, 오류 예산 ${errorBudgetCheck?.status ?? "missing"}, API 성공률 ${Math.round(apiSuccessRate * 100)}%, p95 ${input.apiRequests.summary.p95DurationMs}ms.`,
+      evidence: `릴리즈 게이트 ${formatPortfolioStatus(input.gate.status)}, SLO ${formatPortfolioStatus(input.slo.status)}, 오류 예산 ${formatPortfolioStatus(errorBudgetCheck?.status)}, API 성공률 ${Math.round(apiSuccessRate * 100)}%, p95 ${input.apiRequests.summary.p95DurationMs}ms.`,
       whyItMatters: "데모 앱이 아니라 운영 서비스처럼 준비 상태, 요청 품질, 오류 예산, 회복 액션을 보여줍니다.",
       demoScript: "품질 화면에서 릴리즈 게이트, SLO 가드레일, 오류 예산, 운영 액션 플랜을 순서대로 엽니다.",
       verification: ["pnpm readiness:smoke", "pnpm observability:slo-smoke", "pnpm error-budget:smoke", "pnpm release-gate:smoke"],
@@ -1229,7 +1229,7 @@ function buildPortfolioPillars(input: {
         input.gate.status === "block" ? "fail" : input.gate.status === "review" ? "warn" : "pass"
       ]),
       score: roundMetric(average([input.summary.documents.total >= 5 ? 1 : 0, input.summary.feedback.total > 0 ? 1 : 0.75, statusScore(input.gate.status === "block" ? "fail" : input.gate.status === "review" ? "warn" : "pass")])),
-      evidence: `README 스크린샷, 사용법 페이지, 데모 리포트, 웹 smoke 경로가 준비됐고 서버 증거 ${input.summary.toolCalls.total}개를 집계했습니다.`,
+      evidence: `README 스크린샷, 사용법 페이지, 데모 리포트, 웹 스모크 경로가 준비됐고 서버 증거 ${input.summary.toolCalls.total}개를 집계했습니다.`,
       whyItMatters: "코드만 있는 프로젝트가 아니라 면접관이 같은 순서로 실행하고 검증할 수 있는 산출물이 됩니다.",
       demoScript: "사용법 화면에서 데모 순서를 열고, README 스크린샷과 `pnpm portfolio:report` 결과를 연결해 설명합니다.",
       verification: ["pnpm portfolio:demo", "pnpm portfolio:report", "pnpm web:smoke"],
@@ -1414,8 +1414,8 @@ function buildErrorBudgetActions(input: {
     {
       priority,
       owner: "platform",
-      title: input.status === "freeze" ? "배포 동결 및 5xx 원인 제거" : "오류 예산 번레이트 확인",
-      reason: `${worstWindow?.label ?? "최근 창"} burn rate ${worstWindow?.burnRate ?? 0}x, 오류 예산 ${Math.round((worstWindow?.errorBudgetRemaining ?? 0) * 100)}%.`,
+      title: input.status === "freeze" ? "배포 동결 및 5xx 원인 제거" : "오류 예산 소모율 확인",
+      reason: `${worstWindow?.label ?? "최근 창"} 소모율 ${worstWindow?.burnRate ?? 0}x, 오류 예산 ${Math.round((worstWindow?.errorBudgetRemaining ?? 0) * 100)}%.`,
       verification: ["pnpm error-budget:smoke", "pnpm observability:slo-smoke", "pnpm release-gate:smoke"]
     }
   ];
@@ -1424,7 +1424,7 @@ function buildErrorBudgetActions(input: {
     actions.push({
       priority,
       owner: "ops",
-      title: "최상위 실패 endpoint 점검",
+      title: "최상위 실패 엔드포인트 점검",
       reason: `${topOffender.method} ${topOffender.route}에서 5xx ${topOffender.errorCount}/${topOffender.requestCount}건, p95 ${topOffender.p95DurationMs}ms.`,
       verification: ["pnpm error-budget:smoke", "pnpm web:smoke"]
     });
@@ -1444,6 +1444,31 @@ function portfolioHeadline(score: number, fail: number, warn: number): string {
     return "RAG, 권한, 도구 호출, 운영성 증거가 모두 데모 가능한 상태입니다.";
   }
   return "주요 포트폴리오 증거가 준비됐습니다.";
+}
+
+function formatPortfolioStatus(status: string | null | undefined): string {
+  const labels: Record<string, string> = {
+    pass: "통과",
+    warn: "주의",
+    fail: "실패",
+    block: "차단",
+    review: "검토 필요",
+    ok: "정상",
+    breach: "위반",
+    skipped: "건너뜀",
+    unhealthy: "비정상",
+    missing: "없음"
+  };
+  return status ? (labels[status] ?? status) : "없음";
+}
+
+function formatReleaseRecommendation(recommendation: string): string {
+  const labels: Record<string, string> = {
+    ship: "배포 가능",
+    watch: "관찰 후 배포",
+    freeze: "배포 동결"
+  };
+  return labels[recommendation] ?? recommendation;
 }
 
 function actionFromReleaseGateCheck(check: ReleaseGateCheck, gateStatus: ReleaseGateStatus): OperationalAction {
@@ -1492,8 +1517,8 @@ function actionFromErrorBudgetAction(action: ErrorBudgetAction, index: number): 
     reason: action.reason,
     impact: "오류 예산이 빠르게 소진되면 Slack/Web 운영 채널에서 답변 자체보다 시스템 신뢰성이 먼저 무너집니다.",
     actionItems: [
-      "최근 창별 burn rate와 5xx endpoint를 확인합니다.",
-      "원인 endpoint를 롤백하거나 실패 응답을 줄인 뒤 오류 예산을 다시 계산합니다."
+      "최근 창별 오류 예산 소모율과 5xx 엔드포인트를 확인합니다.",
+      "원인 엔드포인트를 롤백하거나 실패 응답을 줄인 뒤 오류 예산을 다시 계산합니다."
     ],
     verification: action.verification,
     links: [{ label: "오류 예산 API", href: "/observability/error-budget" }]
@@ -1558,13 +1583,13 @@ function releaseActionItems(check: ReleaseGateCheck): string[] {
     indexed_knowledge_ready: ["`pnpm ingest`로 seed 문서를 다시 색인합니다.", "문서 화면에서 청크 수와 색인 품질 리포트를 확인합니다."],
     latest_eval_gate: ["`pnpm eval`을 실행해 최신 평가 결과를 생성합니다.", "실패 케이스는 `GET /evaluations/cases`에서 기대 출처와 일치율을 확인합니다."],
     knowledge_freshness: ["변경된 문서의 영향 분석을 확인합니다.", "`pnpm eval`과 `pnpm freshness:smoke`를 순서대로 실행합니다."],
-    slo_guardrails: ["`GET /observability/slo`에서 warn/breach objective를 확인합니다.", "문서 일치율, 검토 부하, 도구 감사 커버리지 중 실패한 지표를 먼저 복구합니다."],
-    api_error_budget: ["`GET /observability/error-budget`에서 5분/1시간/24시간 burn rate를 확인합니다.", "top offender endpoint의 5xx 원인을 제거하거나 배포를 동결합니다."],
-    agent_audit_trail: ["질문 실행 시 `search_documents` tool log가 저장되는지 확인합니다.", "민감 작업 질문으로 `request_human_approval` 경계를 검증합니다."],
-    approval_backlog: ["승인 화면에서 pending 요청을 승인 또는 반려합니다.", "민감 작업 정책이 과도하게 넓지 않은지 확인합니다."],
+    slo_guardrails: ["`GET /observability/slo`에서 주의/위반 목표를 확인합니다.", "문서 일치율, 검토 부하, 도구 감사 커버리지 중 실패한 지표를 먼저 복구합니다."],
+    api_error_budget: ["`GET /observability/error-budget`에서 5분/1시간/24시간 오류 예산 소모율을 확인합니다.", "주요 실패 엔드포인트의 5xx 원인을 제거하거나 배포를 동결합니다."],
+    agent_audit_trail: ["질문 실행 시 `search_documents` 도구 로그가 저장되는지 확인합니다.", "민감 작업 질문으로 `request_human_approval` 경계를 검증합니다."],
+    approval_backlog: ["승인 화면에서 대기 중인 요청을 승인 또는 반려합니다.", "민감 작업 정책이 과도하게 넓지 않은지 확인합니다."],
     feedback_signal: ["대표 질문에 대해 `도움됨/개선 필요` 피드백을 저장합니다.", "답변 신뢰 게이트가 feedback_signal 체크를 반영하는지 확인합니다."]
   };
-  return items[check.id] ?? [`${check.label} 항목의 evidence를 확인합니다.`, "수정 후 release gate를 다시 실행합니다."];
+  return items[check.id] ?? [`${check.label} 항목의 근거를 확인합니다.`, "수정 후 배포 게이트를 다시 실행합니다."];
 }
 
 function releaseVerificationCommands(id: string): string[] {
@@ -1627,19 +1652,19 @@ function sloImpact(id: string): string {
     api_success_rate: "최근 API 5xx가 늘면 Slack/Web 사용자가 운영 답변을 안정적으로 받을 수 없습니다.",
     api_error_budget: "오류 예산이 소진되면 성공률 평균이 아직 괜찮아 보여도 배포 위험이 급격히 커집니다."
   };
-  return impacts[id] ?? "SLO objective가 기준을 벗어나 release gate가 흔들릴 수 있습니다.";
+  return impacts[id] ?? "SLO 목표가 기준을 벗어나 배포 게이트가 흔들릴 수 있습니다.";
 }
 
 function sloActionItems(objective: SloObjective): string[] {
   const items: Record<string, string[]> = {
-    answer_grounding: ["근거성이 낮은 답변의 top source와 문서 일치율을 확인합니다.", "관련 문서의 제목, 별칭, 청크 크기를 보강합니다."],
-    review_load: ["low confidence와 sensitive_action review reason 분포를 확인합니다.", "민감 작업은 승인 경계로 유지하되 일반 질문의 검색 품질을 보강합니다."],
-    tool_audit_coverage: ["질문 저장 후 `search_documents` 로그가 누락되는 경로를 확인합니다.", "incident workflow는 질문 단위 audit bundle로 재검증합니다."],
+    answer_grounding: ["근거성이 낮은 답변의 1순위 출처와 문서 일치율을 확인합니다.", "관련 문서의 제목, 별칭, 청크 크기를 보강합니다."],
+    review_load: ["낮은 신뢰도와 민감 작업 검토 사유 분포를 확인합니다.", "민감 작업은 승인 경계로 유지하되 일반 질문의 검색 품질을 보강합니다."],
+    tool_audit_coverage: ["질문 저장 후 `search_documents` 로그가 누락되는 경로를 확인합니다.", "장애 대응 흐름은 질문 단위 감사 번들로 재검증합니다."],
     eval_gate: ["`pnpm eval`을 실행하고 실패 케이스의 기대 출처를 수정합니다.", "평가 케이스가 현재 문서 변경을 반영하는지 확인합니다."],
-    api_success_rate: ["최근 24시간 endpoint별 5xx와 p95를 확인합니다.", "실패 endpoint의 입력 검증, DB 연결, Redis 연결을 우선 점검합니다."],
-    api_error_budget: ["5분/1시간 burn rate가 24시간 평균보다 튀는지 확인합니다.", "`pnpm error-budget:smoke`로 회복 후 오류 예산이 정상인지 증명합니다."]
+    api_success_rate: ["최근 24시간 엔드포인트별 5xx와 p95를 확인합니다.", "실패 엔드포인트의 입력 검증, DB 연결, Redis 연결을 우선 점검합니다."],
+    api_error_budget: ["5분/1시간 오류 예산 소모율이 24시간 평균보다 튀는지 확인합니다.", "`pnpm error-budget:smoke`로 회복 후 오류 예산이 정상인지 증명합니다."]
   };
-  return items[objective.id] ?? ["SLO objective의 actual/target 차이를 확인합니다.", "수정 후 SLO smoke를 다시 실행합니다."];
+  return items[objective.id] ?? ["SLO 목표의 실제값/목표값 차이를 확인합니다.", "수정 후 SLO 스모크를 다시 실행합니다."];
 }
 
 function compareActions(left: OperationalAction, right: OperationalAction): number {
@@ -1667,7 +1692,7 @@ function buildReleaseGateChecks(input: {
       id: "dependencies_ready",
       label: "의존성 준비",
       status: input.readiness.ok ? "pass" : "fail",
-      evidence: `PostgreSQL=${input.readiness.dependencies.postgres.status}, Redis=${input.readiness.dependencies.redis.status}, Elasticsearch=${input.readiness.dependencies.elasticsearch.status}.`,
+      evidence: `PostgreSQL=${formatPortfolioStatus(input.readiness.dependencies.postgres.status)}, Redis=${formatPortfolioStatus(input.readiness.dependencies.redis.status)}, Elasticsearch=${formatPortfolioStatus(input.readiness.dependencies.elasticsearch.status)}.`,
       owner: "platform"
     },
     {
@@ -1708,7 +1733,7 @@ function buildReleaseGateChecks(input: {
       id: "slo_guardrails",
       label: "SLO 가드레일",
       status: input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
-      evidence: `SLO 목표 ${input.slo.objectives.length}개가 ${input.slo.status} 상태입니다.`,
+      evidence: `SLO 목표 ${input.slo.objectives.length}개가 ${formatPortfolioStatus(input.slo.status)} 상태입니다.`,
       owner: "quality"
     },
     {
@@ -1720,7 +1745,7 @@ function buildReleaseGateChecks(input: {
           : input.errorBudget.status === "watch"
             ? "warn"
             : "fail",
-      evidence: `24시간 가용성 ${Math.round(input.errorBudget.summary.availability * 100)}%, 최악 burn rate ${input.errorBudget.summary.worstBurnRate}x, 권고 ${input.errorBudget.summary.releaseRecommendation}.`,
+      evidence: `24시간 가용성 ${Math.round(input.errorBudget.summary.availability * 100)}%, 최악 소모율 ${input.errorBudget.summary.worstBurnRate}x, 권고 ${formatReleaseRecommendation(input.errorBudget.summary.releaseRecommendation)}.`,
       owner: "platform",
       metric: input.errorBudget.summary.errorBudgetRemaining,
       threshold: 0

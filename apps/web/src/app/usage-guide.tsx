@@ -51,7 +51,7 @@ const usageSteps = [
   },
   {
     title: "평가와 배포 게이트 확인",
-    body: "답변 단위 신뢰 게이트와 별도로, 평가, 문서 일치율, SLO, 배포 게이트, 운영 액션 플랜, API 요청 성공률을 확인해 현재 지식 베이스가 배포 가능한지 판단합니다.",
+    body: "답변 단위 신뢰 게이트와 별도로, 평가, 문서 일치율, SLO, 배포 게이트, 운영 액션 플랜, API 요청 성공률과 오류 예산 소모율을 확인해 현재 지식 베이스가 배포 가능한지 판단합니다.",
     commands: [
       "pnpm eval",
       "pnpm retrieval-robustness:smoke",
@@ -103,7 +103,7 @@ const screenGuide = [
   },
   {
     screen: "품질",
-    point: "평가 결과, 배포 게이트, SLO, 운영 액션 플랜, API 요청 관측성을 확인합니다."
+    point: "평가 결과, 배포 게이트, SLO, 오류 예산 소모율, 운영 액션 플랜, API 요청 관측성을 확인합니다."
   },
   {
     screen: "승인/감사",
