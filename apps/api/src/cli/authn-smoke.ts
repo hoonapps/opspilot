@@ -53,7 +53,7 @@ async function main() {
       expired.status === 401 &&
       allowed.status === 201 &&
       answerBody.sources?.some((source) => source.path === "restricted/production-db-policy.md") === true &&
-      answerBody.answer?.includes("approval") === true;
+      answerBody.answer?.includes("승인") === true;
 
     console.log(
       JSON.stringify(
