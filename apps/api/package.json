@@ -53,6 +53,8 @@
   },
   "dependencies": {
     "@opspilot/ai": "workspace:*",
+    "@opspilot/rag": "workspace:*",
+    "@opspilot/shared": "workspace:*",
     "@elastic/elasticsearch": "^8.17.0",
     "@mikro-orm/core": "^6.4.2",
     "@mikro-orm/migrations": "^6.4.2",

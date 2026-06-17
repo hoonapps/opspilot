@@ -312,6 +312,8 @@ EVAL_MIN_CITATION_ACCURACY=1
 GitHub Actions는 다음 범위를 검증합니다.
 
 - 타입체크/빌드/테스트
+- `@opspilot/rag` 청킹/문서 일치율 계약 테스트
+- `@opspilot/shared` 해시/공통 타입 계약 테스트
 - Docker 이미지 빌드
 - 프로덕션 compose 스모크 테스트
 - DB 마이그레이션

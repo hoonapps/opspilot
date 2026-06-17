@@ -53,6 +53,12 @@ importers:
       '@opspilot/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@opspilot/rag':
+        specifier: workspace:*
+        version: link:../../packages/rag
+      '@opspilot/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       bullmq:
         specifier: ^5.78.1
         version: 5.78.1
