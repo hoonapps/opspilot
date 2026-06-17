@@ -338,6 +338,10 @@ h2 {
   grid-column: 1 / -1;
 }
 
+.workspace.retrieval .sidePanel {
+  align-items: start;
+}
+
 .workspace.review .sidePanel,
 .workspace.audit .sidePanel {
   grid-template-columns: minmax(0, 1fr);
@@ -2790,6 +2794,7 @@ pre {
 .approvalPanel,
 .retrievalPanel,
 .retrievalDiagnostics,
+.retrievalVerificationPanel,
 .retrievalRobustnessPanel,
 .retrievalResults {
   border: 1px solid var(--line);
@@ -2817,6 +2822,14 @@ pre {
   box-shadow: none;
 }
 
+.retrievalVerificationPanel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  border-top: 3px solid var(--danger);
+  box-shadow: none;
+}
+
 .retrievalRobustnessPanel {
   display: grid;
   gap: 12px;
@@ -2831,16 +2844,19 @@ pre {
 }
 
 .retrievalStats .metric,
-.diagnosticStats .metric {
+.diagnosticStats .metric,
+.retrievalVerificationStats .metric {
   min-height: 72px;
   padding: 12px;
   box-shadow: none;
 }
 
-.diagnosticStats {
+.diagnosticStats,
+.retrievalVerificationStats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  align-items: start;
 }
 
 .diagnosticBanner {
@@ -3056,6 +3072,67 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #0f172a;
+}
+
+.retrievalVerificationRoute {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.retrievalVerificationRoute article {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff7f7;
+}
+
+.retrievalVerificationRoute span,
+.retrievalVerificationAudit span {
+  color: #991b1b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.retrievalVerificationRoute strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.retrievalVerificationRoute p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.retrievalVerificationAudit {
+  display: grid;
+  gap: 8px;
+}
+
+.retrievalVerificationAudit div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  background: #fffafa;
+}
+
+.retrievalVerificationAudit code {
+  overflow: hidden;
+  color: #7f1d1d;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .robustnessRuns {
@@ -4415,6 +4492,9 @@ pre {
   .permissionPersonaGrid,
   .permissionComparisonList article,
   .diagnosticStats,
+  .retrievalVerificationStats,
+  .retrievalVerificationRoute,
+  .retrievalVerificationAudit div,
   .queryPlanHeader,
   .queryPlanMeta,
   .queryPlanStage,

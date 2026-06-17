@@ -110,6 +110,23 @@ type IndexProof = {
   verifiedAt: string;
 };
 
+type RetrievalVerification = {
+  question: string;
+  answerId: string;
+  generatedAt: string;
+  topCandidatePath: string | null;
+  topAnswerSourcePath: string | null;
+  topSourceMatches: boolean;
+  sourceOverlapRatio: number;
+  previewCandidateCount: number;
+  answerSourceCount: number;
+  confidence: number;
+  documentAgreement: number;
+  needsHumanReview: boolean;
+  reviewReasons: string[];
+  toolCalls: string[];
+};
+
 const screens: Array<{ id: ConsoleScreen; label: string; title: string; description: string }> = [
   {
     id: "ask",
@@ -192,6 +209,7 @@ export default function Home() {
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
+  const [retrievalVerification, setRetrievalVerification] = useState<RetrievalVerification | null>(null);
   const [retrievalRobustness, setRetrievalRobustness] = useState<RetrievalRobustnessReport | null>(null);
   const [retrievalPermissionDiff, setRetrievalPermissionDiff] = useState<RetrievalPermissionDiffReport | null>(null);
   const [retrievalLimit, setRetrievalLimit] = useState(5);
@@ -217,6 +235,7 @@ export default function Home() {
   const [loading, setLoading] = useState<
     | "ask"
     | "retrieval"
+    | "retrieval-verification"
     | "retrieval-robustness"
     | "retrieval-permission-diff"
     | "incident"
@@ -288,11 +307,44 @@ export default function Home() {
   async function submitRetrievalPreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setRetrievalVerification(null);
     setLoading("retrieval");
     try {
       setRetrievalPreview(await previewRetrieval({ question, teamSlugs, roles, limit: retrievalLimit }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "검색 미리보기 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function verifyRetrievalAgainstAnswer() {
+    setError(null);
+    setLoading("retrieval-verification");
+    try {
+      const preview = retrievalPreview ?? (await previewRetrieval({ question, teamSlugs, roles, limit: retrievalLimit }));
+      const generatedAnswer = await askOpsPilot({ question, teamSlugs, roles });
+      const previewPaths = preview.candidates.map((candidate) => candidate.path);
+      const answerPaths = generatedAnswer.sources.map((source) => source.path);
+      setRetrievalPreview(preview);
+      setRetrievalVerification({
+        question,
+        answerId: generatedAnswer.answerId,
+        generatedAt: new Date().toISOString(),
+        topCandidatePath: previewPaths[0] ?? null,
+        topAnswerSourcePath: answerPaths[0] ?? null,
+        topSourceMatches: previewPaths.length > 0 && answerPaths.length > 0 && previewPaths[0] === answerPaths[0],
+        sourceOverlapRatio: calculateSourceOverlap(previewPaths, answerPaths),
+        previewCandidateCount: previewPaths.length,
+        answerSourceCount: answerPaths.length,
+        confidence: generatedAnswer.confidence,
+        documentAgreement: generatedAnswer.documentAgreement.score,
+        needsHumanReview: generatedAnswer.needsHumanReview,
+        reviewReasons: generatedAnswer.reviewReasons.map((reason) => formatReviewReasonCode(reason.code)),
+        toolCalls: generatedAnswer.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`)
+      });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "미리보기-답변 검증에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1653,6 +1705,68 @@ export default function Home() {
             )}
           </section>
 
+          <section className="retrievalVerificationPanel" aria-label="미리보기-답변 검증">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">실행 검증</p>
+                <h2>미리보기-답변 검증</h2>
+              </div>
+              {retrievalVerification ? (
+                <span className={retrievalVerification.topSourceMatches ? "badge" : "badge review"}>
+                  {retrievalVerification.topSourceMatches ? "1순위 일치" : "출처 비교 필요"}
+                </span>
+              ) : null}
+              <button
+                className="smallButton"
+                disabled={loading === "retrieval-verification"}
+                onClick={verifyRetrievalAgainstAnswer}
+                type="button"
+              >
+                {loading === "retrieval-verification" ? "검증 중..." : "실제 답변까지 검증"}
+              </button>
+            </div>
+            {retrievalVerification ? (
+              <>
+                <div className="retrievalVerificationStats">
+                  <Metric label="출처 겹침" value={formatPercent(retrievalVerification.sourceOverlapRatio)} />
+                  <Metric label="문서 일치율" value={formatPercent(retrievalVerification.documentAgreement)} />
+                  <Metric label="답변 신뢰도" value={formatPercent(retrievalVerification.confidence)} />
+                  <Metric label="사람 검토" value={retrievalVerification.needsHumanReview ? "필요" : "불필요"} />
+                </div>
+                <div className="retrievalVerificationRoute">
+                  <article>
+                    <span>검색 1순위</span>
+                    <strong>{retrievalVerification.topCandidatePath ?? "후보 없음"}</strong>
+                    <p>미리보기 후보 {retrievalVerification.previewCandidateCount}개 기준</p>
+                  </article>
+                  <article>
+                    <span>답변 1순위</span>
+                    <strong>{retrievalVerification.topAnswerSourcePath ?? "출처 없음"}</strong>
+                    <p>실제 답변 출처 {retrievalVerification.answerSourceCount}개 기준</p>
+                  </article>
+                </div>
+                <div className="retrievalVerificationAudit">
+                  <div>
+                    <span>도구 호출</span>
+                    <code>{retrievalVerification.toolCalls.join(", ") || "없음"}</code>
+                  </div>
+                  <div>
+                    <span>검토 사유</span>
+                    <code>{retrievalVerification.reviewReasons.join(", ") || "없음"}</code>
+                  </div>
+                  <div>
+                    <span>답변 ID</span>
+                    <code>{shortId(retrievalVerification.answerId)} · {formatShortDate(retrievalVerification.generatedAt)}</code>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="empty">
+                검색 미리보기 결과로 실제 답변을 생성해 1순위 출처, 출처 겹침, 문서 일치율, 도구 호출 감사가 서로 맞는지 확인합니다.
+              </p>
+            )}
+          </section>
+
           <section className="retrievalRobustnessPanel" aria-label="검색 강건성 리포트">
             <div className="sectionHeader compact">
               <div>
@@ -2867,6 +2981,17 @@ function shortId(value: string): string {
 
 function shortHash(value: string): string {
   return `${value.slice(0, 10)}...${value.slice(-6)}`;
+}
+
+function calculateSourceOverlap(left: string[], right: string[]): number {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  const union = new Set([...leftSet, ...rightSet]);
+  if (union.size === 0) {
+    return 0;
+  }
+
+  return [...leftSet].filter((path) => rightSet.has(path)).length / union.size;
 }
 
 function formatDeltaPercent(value: number | null | undefined): string {

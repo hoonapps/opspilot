@@ -187,12 +187,24 @@ async function main() {
     await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "실제 답변까지 검증" }).click();
+    await page.locator(".retrievalVerificationPanel").getByText("미리보기-답변 검증", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator(".retrievalVerificationPanel").getByText("출처 겹침", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalVerificationPanel").getByText("문서 일치율", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalVerificationPanel").getByText("search_documents", { exact: false }).waitFor({ timeout: 10000 });
+    const retrievalVerificationVisible =
+      (await page.locator(".retrievalVerificationPanel").getByText("미리보기-답변 검증", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalVerificationPanel").getByText("출처 겹침", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalVerificationPanel").getByText("문서 일치율", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalVerificationPanel").getByText("search_documents", { exact: false }).isVisible());
     await page.getByRole("button", { name: "질문 변형 안정성 진단" }).click();
     await page.locator(".retrievalRobustnessPanel").getByText("검색 강건성 리포트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".retrievalRobustnessPanel").getByText("1순위 안정성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".retrievalRobustnessPanel").getByText("출처 겹침", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".robustnessRuns").getByText("기준 질문", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".rankingExplanation").first().scrollIntoViewIfNeeded();
+    await page.locator(".retrievalVerificationPanel").scrollIntoViewIfNeeded();
     await page.screenshot({ path: retrievalScreenshotPath, fullPage: false });
 
     await page.getByLabel("검색 질문").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
@@ -453,6 +465,7 @@ async function main() {
         rankingExplanationVisible &&
         retrievalBoundaryVisible &&
         retrievalDiagnosticsVisible &&
+        retrievalVerificationVisible &&
         retrievalRobustnessVisible &&
         retrievalPermissionDiffVisible &&
         incidentPlanVisible &&
@@ -521,6 +534,7 @@ async function main() {
         rankingExplanationVisible,
         retrievalBoundaryVisible,
         retrievalDiagnosticsVisible,
+        retrievalVerificationVisible,
         retrievalRobustnessVisible,
         retrievalPermissionDiffVisible,
         incidentPlanVisible,
