@@ -69,11 +69,11 @@ async function main() {
       trace.summary.contextEstimatedTokenCount === trace.contextPackage.estimatedTokenCount &&
       trace.summary.contextTokenBudget === trace.contextPackage.tokenBudget &&
       trace.timeline.length >= 5 &&
-      timelineTitles.includes("Question persisted") &&
-      timelineTitles.includes("Sources attached") &&
-      timelineTitles.includes("Answer generated") &&
+      timelineTitles.includes("질문 저장") &&
+      timelineTitles.includes("출처 연결") &&
+      timelineTitles.includes("답변 생성") &&
       timelineTitles.includes("request_human_approval") &&
-      timelineTitles.includes("Feedback saved") &&
+      timelineTitles.includes("피드백 저장") &&
       sourcePaths.some((path) => path.startsWith("restricted/")) &&
       sourcePaths.length > 0 &&
       toolNames.includes("search_documents") &&

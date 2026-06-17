@@ -17,14 +17,14 @@ GET /docs-json
 - `POST /ask`: RAG 답변 생성
 - `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
 - `POST /retrieval/robustness`: 질문 변형별 1순위 출처 안정성, 출처 겹침, 점수 흔들림, 권한 경계 재검사
-- `POST /retrieval/permission-diff`: public/support/payments/ops_admin 페르소나별 검색 후보와 권한 차단 결과 비교
+- `POST /retrieval/permission-diff`: 공개 사용자/support/payments/ops_admin 페르소나별 검색 후보와 권한 차단 결과 비교
 - `POST /incidents/plan`: 런북 기반 장애 대응 플랜, 심각도, 승인 경계, 커뮤니케이션, 복구 검증 생성
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
-- `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
-- `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 diff 확인
-- `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, stale 여부, 위험도, 재검증 권고 확인
+- `GET /documents/{id}/versions`: 마스킹된 문서 버전과 변경 차이 확인
+- `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 변경 차이 확인
+- `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, 오래된 답변 여부, 위험도, 재검증 권고 확인
 - `POST /documents/github/sync`: GitHub Markdown 동기화
 - `GET /documents/indexing-jobs`: BullMQ 색인 큐 카운트, 최근 작업, 워커 상태 확인
 - `POST /documents/indexing-jobs/markdown`: BullMQ 색인 작업 생성
@@ -34,7 +34,7 @@ GET /docs-json
 - `GET /answers/{id}/replay`: 현재 문서 기준 답변 변경 감지
 - `GET /answers/{id}/evidence-bundle`: 추적, 증명, 재실행, 권한 재검사, SHA-256 무결성 해시를 묶은 감사용 증거 번들
 - `GET /answers/{id}/quality-gate`: 개별 답변을 공유 가능/검토 필요/차단으로 판정하는 신뢰 게이트
-- `GET /questions/{id}/audit-bundle`: 질문 기준 출처 계보, tool calling 정책 검사, 승인/피드백, 권한 재검사, SHA-256 해시를 묶은 감사 번들
+- `GET /questions/{id}/audit-bundle`: 질문 기준 출처 계보, 도구 호출 정책 검사, 승인/피드백, 권한 재검사, SHA-256 해시를 묶은 감사 번들
 - `GET /tool-calls/registry`: 에이전트 도구 계약 확인
 - `GET /tool-calls/recent`: 최근 도구 호출 감사 로그
 - `GET /approvals`: 승인 대기열
@@ -42,12 +42,12 @@ GET /docs-json
 - `POST /feedback`: 답변 피드백 저장
 - `GET /evaluations/latest`: 최신 평가 결과
 - `GET /evaluations/history`: 평가 이력
-- `GET /evaluations/cases`: 최신 평가 run의 케이스별 실패 원인, 위험도, 개선 권고
+- `GET /evaluations/cases`: 최신 평가 실행의 케이스별 실패 원인, 위험도, 개선 권고
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
 - `GET /observability/slo`: SLO 가드레일
 - `GET /observability/release-gate`: 배포 가능성 게이트
-- `GET /observability/action-plan`: release gate/SLO 결과를 owner별 우선순위, 조치, 검증 명령으로 변환
+- `GET /observability/action-plan`: 배포 게이트/SLO 결과를 담당자별 우선순위, 조치, 검증 명령으로 변환
 - `POST /slack/events`: Slack Events API
 - `POST /slack/simulate`: Slack 로컬 시뮬레이션
 
@@ -59,8 +59,6 @@ pnpm openapi:smoke
 
 이 명령은 포트폴리오 핵심 API, 요청 스키마, `x-opspilot-actor-token` 보안 스키마가 OpenAPI 문서에 남아 있는지 검증합니다. 기능이 커져도 공개 API가 조용히 깨지지 않게 하는 장치입니다.
 
-## `/ask` 멱등성
-
 ## 검색 미리보기 랭킹 설명
 
 `POST /retrieval/preview`의 `candidates[].rankingExplanation`은 검색 후보가 상위에 오른 이유를 기계적으로 설명합니다.
@@ -68,7 +66,7 @@ pnpm openapi:smoke
 - `method`: 벡터/키워드 가중 랭킹 또는 RRF 하이브리드 랭킹
 - `matchedQueryTerms`: 제목, 경로, 본문에 실제로 매칭된 검색어
 - `scoreContributions`: 벡터 유사도, 키워드 매칭, RRF 결합 점수의 기여도
-- `accessDecision`: 권한 필터를 통과한 이유와 적용된 enforcement
+- `accessDecision`: 권한 필터를 통과한 이유와 적용된 집행 방식
 - `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
@@ -82,17 +80,17 @@ POST /retrieval/robustness
 같은 의도를 가진 질문 변형을 자동/수동으로 실행해 검색 결과가 흔들리는지 확인합니다.
 
 - `summary.topSourceStability`: 변형 질문이 기준 질문과 같은 1순위 출처로 수렴한 비율
-- `summary.averageSourceOverlap`: 기준 질문 후보 문서와 변형 질문 후보 문서의 평균 Jaccard overlap
+- `summary.averageSourceOverlap`: 기준 질문 후보 문서와 변형 질문 후보 문서의 평균 Jaccard 겹침
 - `summary.averageConfidenceEstimate`: 변형 검색 전체의 평균 신뢰도 추정
 - `summary.maxScoreDelta`: 기준 질문 대비 최고 점수의 최대 변동폭
 - `checks`: 1순위 출처 안정성, 출처 겹침, 평균 신뢰도, 점수 흔들림, 권한 경계 재검사
-- `variants`: 변형 질문별 top source, overlap, 권한 차단 수, 검색어
+- `variants`: 변형 질문별 1순위 출처, 겹침, 권한 차단 수, 검색어
 
 ```bash
 pnpm retrieval-robustness:smoke
 ```
 
-이 smoke는 테스트 문서를 색인한 뒤 질문 표현을 바꿔도 같은 근거 문서로 수렴하는지 검증합니다. RAG가 “한 번 맞았다”가 아니라 “표현이 바뀌어도 운영 의도를 안정적으로 찾는다”는 점을 보여주기 위한 포트폴리오 증거입니다.
+이 스모크는 테스트 문서를 색인한 뒤 질문 표현을 바꿔도 같은 근거 문서로 수렴하는지 검증합니다. RAG가 “한 번 맞았다”가 아니라 “표현이 바뀌어도 운영 의도를 안정적으로 찾는다”는 점을 보여주기 위한 포트폴리오 증거입니다.
 
 ## 권한별 검색 비교
 
@@ -100,15 +98,15 @@ pnpm retrieval-robustness:smoke
 POST /retrieval/permission-diff
 ```
 
-같은 질문을 여러 actor 페르소나로 실행해 검색 후보가 어떻게 달라지는지 비교합니다.
+같은 질문을 여러 호출자 페르소나로 실행해 검색 후보가 어떻게 달라지는지 비교합니다.
 
-- `personas[]`: public viewer, support agent, payments on-call, ops admin 같은 비교 대상
-- `summary.unprivilegedRestrictedCandidateCount`: 권한 없는 페르소나에 restricted 후보가 노출됐는지
-- `summary.privilegedRestrictedCandidateCount`: 관리자 페르소나가 restricted 후보를 볼 수 있는지
+- `personas[]`: 공개 사용자, support 담당자, payments 온콜, 운영 관리자 같은 비교 대상
+- `summary.unprivilegedRestrictedCandidateCount`: 권한 없는 페르소나에 제한 후보가 노출됐는지
+- `summary.privilegedRestrictedCandidateCount`: 관리자 페르소나가 제한 후보를 볼 수 있는지
 - `personas[].topSourcePath`: 페르소나별 1순위 출처
 - `personas[].deniedCandidateCount`: 후보 창에서 권한으로 차단된 수
-- `comparisons[]`: 인접 페르소나 사이의 1순위 변경, 차단 수 변화, 새로 보이는 path
-- `checks`: restricted 격리, 팀 범위 격리, 관리자 가시성, 출처 차이, 후보 창 감사
+- `comparisons[]`: 인접 페르소나 사이의 1순위 변경, 차단 수 변화, 새로 보이는 경로
+- `checks`: 제한 문서 격리, 팀 범위 격리, 관리자 가시성, 출처 차이, 후보 창 감사
 
 검증:
 
@@ -142,12 +140,12 @@ GET /documents/{id}/index-explain
 
 응답은 특정 문서가 RAG 검색에 어떤 형태로 들어갔는지 설명합니다.
 
-- `pipeline`: frontmatter 파서, 마스킹, 청킹 전략, 임베딩, pgvector 저장소, Elasticsearch mirror 여부
+- `pipeline`: frontmatter 파서, 마스킹, 청킹 전략, 임베딩, pgvector 저장소, Elasticsearch 미러 여부
 - `summary`: 청크 수, 총 본문 길이, 평균/최대/최소 청크 길이, 헤딩 커버리지, 임베딩 커버리지, 검색 준비 상태
 - `checks`: 청크 생성, 임베딩 커버리지, 헤딩 신호, 청크 크기, 버전 추적, 보안 메타데이터 판정
-- `headingOutline`: 헤딩별 청크 index
-- `chunks[]`: 청크별 길이, 토큰 추정치, 64차원 임베딩 저장 여부, 검색 힌트, preview
-- `latestDiff`: 최신 버전 diff
+- `headingOutline`: 헤딩별 청크 인덱스
+- `chunks[]`: 청크별 길이, 토큰 추정치, 64차원 임베딩 저장 여부, 검색 힌트, 미리보기
+- `latestDiff`: 최신 버전 변경 차이
 - `recommendations`: 재색인, 헤딩 보강, 청크 분리 같은 개선 권고
 
 검증:
@@ -169,8 +167,8 @@ GET /documents/{id}/impact
 - `summary.staleAnswerCount`: 문서 변경 시각보다 오래된 답변 수
 - `summary.humanReviewAnswerCount`: 사람 검토가 필요했던 답변 수
 - `summary.riskLevel`: 낮은 영향, 검토 필요, 우선 재검증
-- `affectedAnswers[]`: 질문, 답변 미리보기, 출처 순위/점수, stale 여부
-- `recommendations[]`: replay 재검증, 승인 이력 확인, 권한 경계 검증 같은 운영 조치
+- `affectedAnswers[]`: 질문, 답변 미리보기, 출처 순위/점수, 오래된 답변 여부
+- `recommendations[]`: 재실행 검증, 승인 이력 확인, 권한 경계 검증 같은 운영 조치
 
 검증:
 
@@ -191,7 +189,7 @@ POST /incidents/plan
 - `approvalGates`: 자동 실행하지 않을 민감 작업과 사람 승인 사유
 - `communications`: 알림 채널, 트리거, 메시지 초안
 - `verification`: 복구 확인 조건과 근거 문서
-- `audit`: 저장된 question id와 `search_documents`, `create_runbook_checklist`, `create_incident_response_plan` 도구 호출
+- `audit`: 저장된 질문 ID와 `search_documents`, `create_runbook_checklist`, `create_incident_response_plan` 도구 호출
 
 검증:
 
@@ -200,7 +198,7 @@ pnpm incident-plan:smoke
 pnpm question-audit:smoke
 ```
 
-장애 대응 플랜은 일반 답변 row를 만들지 않지만, `audit.persistedQuestionId`로 `GET /questions/{id}/audit-bundle`을 호출하면 같은 실행을 질문 단위로 검증할 수 있습니다. 응답은 `opspilot.question_audit_bundle.v1` 스키마를 사용하며, 도구 레지스트리 기준 기대 상태와 실제 tool call 상태가 일치하는지, 호출자 권한으로 출처 접근을 다시 확인했는지, 어떤 문서 경로가 근거로 쓰였는지, 번들 무결성 해시가 무엇인지 반환합니다.
+장애 대응 플랜은 일반 답변 행을 만들지 않지만, `audit.persistedQuestionId`로 `GET /questions/{id}/audit-bundle`을 호출하면 같은 실행을 질문 단위로 검증할 수 있습니다. 응답은 `opspilot.question_audit_bundle.v1` 스키마를 사용하며, 도구 레지스트리 기준 기대 상태와 실제 도구 호출 상태가 일치하는지, 호출자 권한으로 출처 접근을 다시 확인했는지, 어떤 문서 경로가 근거로 쓰였는지, 번들 무결성 해시가 무엇인지 반환합니다.
 
 ## `/ask` 멱등성
 
@@ -254,8 +252,8 @@ GET /answers/{id}/quality-gate
 - `summary.replayStatus`: 현재 문서 기준 재실행 안정성
 - `summary.approvalStatus`: 민감 작업 승인 필요 여부와 처리 상태
 - `summary.positiveFeedbackCount`, `negativeFeedbackCount`: 리뷰 피드백 신호
-- `checks[]`: 증명 패킷, replay, 승인, 피드백, confidence, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 경계 체크
-- `evidenceLinks`: trace/proof/replay/evidence-bundle API 경로
+- `checks[]`: 증명 패킷, 재실행, 승인, 피드백, 신뢰도, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 경계 체크
+- `evidenceLinks`: 추적/증명/재실행/증거 번들 API 경로
 
 검증:
 
@@ -271,11 +269,11 @@ pnpm quality-gate:smoke
 GET /questions/{id}/audit-bundle
 ```
 
-응답은 답변이 생성된 `/ask` 질문뿐 아니라 `POST /incidents/plan`처럼 구조화된 workflow만 만든 질문도 감사할 수 있게 설계했습니다.
+응답은 답변이 생성된 `/ask` 질문뿐 아니라 `POST /incidents/plan`처럼 구조화된 작업 흐름만 만든 질문도 감사할 수 있게 설계했습니다.
 
 - `summary.status`: 검증됨, 검토 필요, 정책 위반, 근거 부족
 - `policyChecks`: `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`, `request_human_approval`의 기대 상태와 실제 상태 비교
-- `evidence.sources`: answer source 또는 search tool output에서 복원한 출처 계보
+- `evidence.sources`: 답변 출처 또는 검색 도구 출력에서 복원한 출처 계보
 - `decisionPath`: 질문 저장, 도구 호출, 답변/출처/승인/피드백, 정책 검사 타임라인
 - `actorBoundary`: 현재 호출자의 역할/팀과 출처 접근 재검사 여부
 - `integrity.hash`: 안정 JSON 기반 SHA-256 해시

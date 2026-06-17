@@ -362,7 +362,7 @@ export class AgentService {
         [
           questionRow.id,
           "sensitive_operation",
-          JSON.stringify({ question, policy: "Sensitive operations require human approval." })
+          JSON.stringify({ question, policy: "민감 작업은 실행 전에 사람 승인이 필요합니다." })
         ]
       );
       await connection.execute(
@@ -746,7 +746,7 @@ function buildScoreContributions(source: SearchResult): RankingExplanation["scor
         label: "벡터 후보",
         value: Number((source.retrieval.vectorScore ?? 0).toFixed(6)),
         contribution: Number((source.retrieval.vectorScore ?? 0).toFixed(6)),
-        evidence: "semantic similarity 후보가 결합 점수에 기여했습니다."
+        evidence: "의미 유사도 후보가 결합 점수에 기여했습니다."
       },
       {
         signal: "lexical",
@@ -805,14 +805,14 @@ function buildReviewReasons(input: {
   if (input.sourceCount === 0) {
     reasons.push({
       code: "no_sources",
-      message: "No permitted source chunks were retrieved for this actor."
+      message: "현재 호출자가 접근할 수 있는 출처 청크를 찾지 못했습니다."
     });
   }
 
   if (input.confidence < input.confidenceThreshold) {
     reasons.push({
       code: "low_confidence",
-      message: "Retrieval confidence is below the configured review threshold.",
+      message: "검색 신뢰도가 설정된 검토 기준보다 낮습니다.",
       confidence: input.confidence,
       threshold: input.confidenceThreshold
     });
@@ -821,8 +821,8 @@ function buildReviewReasons(input: {
   if (input.sensitiveAction) {
     reasons.push({
       code: "sensitive_action",
-      message: "The request asks for a production-sensitive operation.",
-      policy: "Sensitive operations require human approval before execution."
+      message: "요청에 운영 환경에 영향을 줄 수 있는 민감 작업이 포함되어 있습니다.",
+      policy: "민감 작업은 실행 전에 사람 승인이 필요합니다."
     });
   }
 

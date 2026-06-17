@@ -7,22 +7,22 @@ import { DocumentsService } from "../documents/documents.service";
 const SMOKE_DOCUMENT_PATH = "public/status-page-policy.md";
 
 const SMOKE_DOCUMENT = `---
-title: "Status Page Incident Communication"
+title: "상태 페이지 장애 공지 기준"
 visibility: public
 tags: incident,status-page,communication
 ---
-# Status Page Incident Communication
+# 상태 페이지 장애 공지 기준
 
-## Customer Notice SLA
+## 고객 공지 SLA
 
-Korean aliases: 장애 공지, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
+한국어 별칭: 장애 공지, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
 
-When a customer-impacting incident is confirmed, publish the first status page notice within 15 minutes.
-The notice must include affected feature, current impact, next update time, and incident owner.
+고객 영향 장애가 확인되면 첫 상태 페이지 공지는 15분 안에 게시합니다.
+공지에는 영향받은 기능, 현재 영향도, 다음 업데이트 예정 시각, 장애 담당자를 반드시 포함합니다.
 `;
 
 const UPDATED_SMOKE_DOCUMENT = `${SMOKE_DOCUMENT}
-If the incident impacts settlement, add the finance on-call engineer to the update owner list.
+장애가 정산에 영향을 주면 업데이트 담당자 목록에 finance on-call engineer를 추가합니다.
 `;
 
 async function main() {

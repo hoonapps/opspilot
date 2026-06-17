@@ -25,7 +25,7 @@ export class AgentController {
   @ApiHeader({
     name: "x-idempotency-key",
     required: false,
-    description: "Optional actor-scoped key that replays the same /ask response for safe retries."
+    description: "안전한 재시도를 위해 같은 호출자 범위에서 동일한 /ask 응답을 재사용하는 선택 키입니다."
   })
   async ask(@Body() body: AskDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     const context = parseRequestContext(headers);

@@ -434,6 +434,63 @@ h2 {
   box-shadow: var(--shadow);
 }
 
+.usageQuickStart {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f2fbf8;
+}
+
+.usageQuickStart strong,
+.usageScreenGuide strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.usageQuickStart p,
+.usageScreenGuide p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.usageCommandStack {
+  display: grid;
+  gap: 6px;
+}
+
+.usageCommandStack code {
+  overflow-wrap: anywhere;
+  border: 1px solid #d9e6e2;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #273951;
+  padding: 7px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.usageScreenGuide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.usageScreenGuide article {
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .usageGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4379,6 +4436,8 @@ pre {
   .releaseGateItem,
   .actionPlanHead,
   .usageGrid,
+  .usageQuickStart,
+  .usageScreenGuide,
   .usageChecklist,
   .apiRequestStats,
   .endpointItem,

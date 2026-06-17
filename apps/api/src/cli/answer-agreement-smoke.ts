@@ -8,18 +8,18 @@ import { DocumentsService } from "../documents/documents.service";
 const AGREEMENT_DOCUMENT_PATH = "public/agreement-smoke-policy.md";
 
 const AGREEMENT_DOCUMENT = `---
-title: "Agreement Smoke Incident Policy"
+title: "문서 일치율 장애 정책"
 visibility: public
 tags: agreement,incident,status-page
 ---
-# Agreement Smoke Incident Policy
+# 문서 일치율 장애 정책
 
-## AGREE-42 Customer Notice
+## AGREE-42 고객 공지
 
-Korean aliases: AGREE-42, 일치율 테스트, 고객 공지 일치율.
+한국어 별칭: AGREE-42, 일치율 테스트, 고객 공지 일치율.
 
-When AGREE-42 is triggered, publish the customer status page notice within 15 minutes.
-The notice must include the affected feature, current customer impact, next update time, and incident owner.
+AGREE-42가 발생하면 고객 상태 페이지 공지를 15분 안에 게시합니다.
+공지에는 영향받은 기능, 현재 고객 영향도, 다음 업데이트 예정 시각, 장애 담당자를 포함해야 합니다.
 `;
 
 async function main() {

@@ -8,7 +8,7 @@ OpsPilot은 RAG 에이전트를 운영 시스템처럼 다루기 위해 답변, 
 - `GET /observability/api-requests`: 최근 24시간 HTTP 요청 수, 성공률, 오류율, p50/p95 지연, 엔드포인트별 집계, 최근 요청
 - `GET /observability/slo`: 근거성, 검토 부하, 도구 감사 커버리지, 최신 평가 게이트를 SLO 가드레일로 변환
 - `GET /observability/release-gate`: 준비 상태, 색인된 지식, 평가 최신성, SLO, 감사 추적, 승인 대기열, 피드백 신호를 종합
-- `GET /observability/action-plan`: release gate와 SLO의 warn/fail 항목을 owner, P0/P1/P2, 조치, 검증 명령으로 변환
+- `GET /observability/action-plan`: 배포 게이트와 SLO의 주의/실패 항목을 담당자, P0/P1/P2, 조치, 검증 명령으로 변환
 
 ## 검증
 

@@ -14,18 +14,18 @@ import { RequestContext } from "../shared/request-context";
 const STATUS_PAGE_PATH = "public/status-page-policy.md";
 
 const STATUS_PAGE_MARKDOWN = `---
-title: "Status Page Incident Communication"
+title: "상태 페이지 장애 공지 기준"
 visibility: public
 tags: incident,status-page,communication
 ---
-# Status Page Incident Communication
+# 상태 페이지 장애 공지 기준
 
-## Customer Notice SLA
+## 고객 공지 SLA
 
-Korean aliases: 장애 공지, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
+한국어 별칭: 장애 공지, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
 
-When a customer-impacting incident is confirmed, publish the first status page notice within 15 minutes.
-The notice must include affected feature, current impact, next update time, and incident owner.
+고객 영향 장애가 확인되면 첫 상태 페이지 공지는 15분 안에 게시합니다.
+공지에는 영향받은 기능, 현재 영향도, 다음 업데이트 예정 시각, 장애 담당자를 반드시 포함합니다.
 `;
 
 type DemoStep = {
@@ -113,7 +113,7 @@ async function main() {
         topSourceIsNewDocument: statusPage.sources[0]?.path === STATUS_PAGE_PATH,
         answerMentionsFifteenMinutes: statusPage.answer.includes("15")
       }),
-      toStep("Runbook checklist 도구 호출", "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?", runbook, {
+      toStep("런북 체크리스트 도구 호출", "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?", runbook, {
         usesSettlementRunbook: runbook.sources.some((source) => source.path === "team/settlement-runbook.md"),
         checklistToolLogged: hasTool(runbook, "create_runbook_checklist"),
         hasToolCalling: runbook.toolCalls.length >= 2
@@ -140,9 +140,9 @@ async function main() {
       demoClaims: [
         "RAG 답변이 문서 출처를 포함합니다.",
         "새 Markdown 문서가 색인되고 검색됩니다.",
-        "Runbook 질문이 구조화된 도구 호출을 발생시킵니다.",
+        "런북 질문이 구조화된 도구 호출을 발생시킵니다.",
         "민감 작업은 사람 승인으로 분리됩니다.",
-        "Answer trace가 출처, 도구 호출, 승인, 피드백을 복원합니다."
+        "답변 추적이 출처, 도구 호출, 승인, 피드백을 복원합니다."
       ],
       ingestedDocument: {
         path: upserted.path,
@@ -215,7 +215,7 @@ function renderMarkdownReport(report: PortfolioReport): string {
     "",
     `생성 시각: ${report.generatedAt}`,
     "",
-    `전체 결과: ${report.ok ? "PASS" : "FAIL"}`,
+    `전체 결과: ${report.ok ? "통과" : "실패"}`,
     "",
     "## 증명한 항목",
     "",
@@ -223,7 +223,7 @@ function renderMarkdownReport(report: PortfolioReport): string {
     "",
     "## 실행 증거",
     "",
-    "| 단계 | 출처 | 문서 일치율 | 도구 호출 | 사람 검토 | Assertion |",
+    "| 단계 | 출처 | 문서 일치율 | 도구 호출 | 사람 검토 | 검증 항목 |",
     "| --- | --- | ---: | --- | --- | --- |",
     ...report.steps.map((step) =>
       [
@@ -238,21 +238,21 @@ function renderMarkdownReport(report: PortfolioReport): string {
     "",
     "## 새 문서 색인 증거",
     "",
-    `- Path: \`${report.ingestedDocument.path}\``,
+    `- 경로: \`${report.ingestedDocument.path}\``,
     `- 제목: ${report.ingestedDocument.title}`,
-    `- 색인 chunk: ${report.ingestedDocument.chunks}`,
-    `- 이번 실행에서 content hash 변경: ${report.ingestedDocument.changed ? "예" : "아니오"}`,
-    "- 검색 검증: 한국어 SLA 질문을 던지고 이 문서가 top source로 반환되지 않으면 실패합니다.",
+    `- 색인 청크: ${report.ingestedDocument.chunks}`,
+    `- 이번 실행에서 콘텐츠 해시 변경: ${report.ingestedDocument.changed ? "예" : "아니오"}`,
+    "- 검색 검증: 한국어 SLA 질문을 던지고 이 문서가 1순위 출처로 반환되지 않으면 실패합니다.",
     "",
-    "## 감사 trace 증거",
+    "## 감사 추적 증거",
     "",
-    `- Answer ID: \`${report.traceSummary.answerId}\``,
+    `- 답변 ID: \`${report.traceSummary.answerId}\``,
     `- 출처 수: ${report.traceSummary.sourceCount}`,
     `- 도구 호출: ${report.traceSummary.toolCalls.join(", ")}`,
     `- 승인: ${report.traceSummary.approvals.join(", ")}`,
     `- 피드백 수: ${report.traceSummary.feedbackCount}`,
     "",
-    "이 파일은 `pnpm portfolio:report`가 `pnpm portfolio:demo`와 같은 assertion을 실행한 뒤 생성합니다.",
+    "이 파일은 `pnpm portfolio:report`가 `pnpm portfolio:demo`와 같은 검증 항목을 실행한 뒤 생성합니다.",
     ""
   ];
 
@@ -261,8 +261,29 @@ function renderMarkdownReport(report: PortfolioReport): string {
 
 function renderAssertions(assertions: Record<string, boolean>): string {
   return Object.entries(assertions)
-    .map(([name, passed]) => `${passed ? "PASS" : "FAIL"} ${name}`)
+    .map(([name, passed]) => `${passed ? "통과" : "실패"} ${formatAssertionName(name)}`)
     .join("<br>");
+}
+
+function formatAssertionName(name: string): string {
+  const labels: Record<string, string> = {
+    topSourceIsPaymentErrors: "결제 에러 문서가 1순위 출처",
+    citesAtLeastOneSource: "출처 1개 이상 포함",
+    searchToolLogged: "검색 도구 호출 저장",
+    upsertCreatedChunks: "문서 등록 후 청크 생성",
+    topSourceIsNewDocument: "새 문서가 1순위 출처",
+    answerMentionsFifteenMinutes: "답변에 15분 기준 포함",
+    usesSettlementRunbook: "정산 런북 사용",
+    checklistToolLogged: "체크리스트 도구 호출 저장",
+    hasToolCalling: "복수 도구 호출 발생",
+    requiresHumanReview: "사람 검토 필요 판정",
+    includesSensitiveReason: "민감 작업 검토 사유 포함",
+    approvalToolLogged: "승인 요청 도구 호출 저장",
+    approvalCreated: "승인 요청 생성",
+    traceReconstructsToolCalls: "추적에서 도구 호출 복원",
+    traceIncludesFeedback: "추적에서 피드백 복원"
+  };
+  return labels[name] ?? name;
 }
 
 function escapeTable(value: string): string {

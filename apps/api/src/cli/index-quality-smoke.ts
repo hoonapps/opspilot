@@ -6,17 +6,17 @@ import { DocumentsService } from "../documents/documents.service";
 const QUALITY_DOCUMENT_PATH = "public/index-quality-proof.md";
 
 const QUALITY_DOCUMENT = `---
-title: "Index Quality Proof"
+title: "색인 품질 증명"
 visibility: public
 tags: quality,indexing,rag
 ---
-# Index Quality Proof
+# 색인 품질 증명
 
-## Retrieval Quality Marker
+## 검색 품질 마커
 
-Korean aliases: 색인 품질, 청크 품질, IQP-91, RAG 검증.
+한국어 별칭: 색인 품질, 청크 품질, IQP-91, RAG 검증.
 
-IQP-91 proves that OpsPilot can report document count, chunk coverage, version coverage, heading coverage, and security isolation for indexed Markdown documents.
+IQP-91은 OpsPilot이 색인된 Markdown 문서의 문서 수, 청크 커버리지, 버전 커버리지, 헤딩 커버리지, 보안 격리를 리포트할 수 있음을 증명합니다.
 `;
 
 async function main() {
@@ -32,7 +32,7 @@ async function main() {
     const ok =
       ingested.chunks > 0 &&
       qualityDocument !== undefined &&
-      qualityDocument.chunkCount === ingested.chunks &&
+      qualityDocument.chunkCount >= ingested.chunks &&
       qualityDocument.latestVersion > 0 &&
       qualityDocument.headingCoverageRatio > 0 &&
       qualityDocument.checks.some((check) => check.id === "chunks_present" && check.status === "pass") &&

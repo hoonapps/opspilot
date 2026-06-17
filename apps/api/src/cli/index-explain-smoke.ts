@@ -6,11 +6,11 @@ import { DocumentsService } from "../documents/documents.service";
 const SMOKE_DOCUMENT_PATH = "public/index-explain-runbook.md";
 
 const SMOKE_DOCUMENT = `---
-title: "Index Explain Runbook"
+title: "색인 설명 런북"
 visibility: public
 tags: rag,indexing,explainability
 ---
-# Index Explain Runbook
+# 색인 설명 런북
 
 ## RAG 색인 검증
 
@@ -20,14 +20,14 @@ INDEX-EXPLAIN-42 문서는 색인 설명 리포트가 청킹, 임베딩, 버전 
 ## 검색 준비도
 
 검색 준비 상태는 청크가 존재하고 모든 청크에 임베딩이 저장됐을 때 통과합니다.
-운영자는 리포트의 retrievalHints와 headingOutline을 보고 어떤 질문이 이 문서를 찾을 수 있는지 판단합니다.
+운영자는 리포트의 검색 힌트와 헤딩 아웃라인을 보고 어떤 질문이 이 문서를 찾을 수 있는지 판단합니다.
 `;
 
 const UPDATED_SMOKE_DOCUMENT = `${SMOKE_DOCUMENT}
 
 ## 변경 추적
 
-문서가 바뀌면 최신 버전 diff에 추가 라인이 표시되어야 합니다.
+문서가 바뀌면 최신 버전 변경 차이에 추가 라인이 표시되어야 합니다.
 `;
 
 async function main() {

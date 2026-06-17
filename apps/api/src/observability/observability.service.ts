@@ -686,15 +686,15 @@ function buildReleaseWatchAction(status: ReleaseGateStatus): OperationalAction {
     status: "watch",
     source: "operational_watch",
     sourceId: "release_gate",
-    reason: `Release gate is ${status}.`,
-    impact: "현재는 차단 액션이 없지만, 문서 변경이나 새 피드백 이후 품질 게이트가 stale해질 수 있습니다.",
+    reason: `배포 게이트 상태는 ${status}입니다.`,
+    impact: "현재는 차단 액션이 없지만, 문서 변경이나 새 피드백 이후 품질 게이트가 오래된 상태가 될 수 있습니다.",
     actionItems: [
       "배포 전 최신 평가와 웹 스모크를 다시 실행합니다.",
       "새 문서가 추가되면 검색 강건성 리포트와 문서 영향 분석을 확인합니다.",
       "민감 작업 승인 대기열이 증가하는지 확인합니다."
     ],
     verification: ["pnpm eval", "pnpm release-gate:smoke", "pnpm web:smoke"],
-    links: [{ label: "Release gate", href: "/observability/release-gate" }]
+    links: [{ label: "배포 게이트", href: "/observability/release-gate" }]
   };
 }
 
@@ -720,7 +720,7 @@ function releaseActionImpact(id: string, status: ReleaseGateCheckStatus): string
     latest_eval_gate: `${severity}: 최신 평가가 없거나 실패하면 회귀 여부를 증명할 수 없습니다.`,
     knowledge_freshness: `${severity}: 문서가 바뀐 뒤 평가가 오래되면 현재 지식 기준 답변 품질을 보장할 수 없습니다.`,
     slo_guardrails: `${severity}: SLO가 흔들리면 운영 채널에 자동 답변을 공유하기 어렵습니다.`,
-    agent_audit_trail: `${severity}: tool calling 증거가 부족하면 운영 판단을 사후 재현할 수 없습니다.`,
+    agent_audit_trail: `${severity}: 도구 호출 증거가 부족하면 운영 판단을 사후 재현할 수 없습니다.`,
     approval_backlog: `${severity}: 민감 작업 승인 대기열이 쌓이면 운영 처리 시간이 늘어납니다.`,
     feedback_signal: `${severity}: 피드백이 없으면 답변 신뢰 게이트가 실제 사용자 신호를 반영하지 못합니다.`
   };
@@ -757,13 +757,13 @@ function releaseVerificationCommands(id: string): string[] {
 
 function releaseLinks(id: string): OperationalAction["links"] {
   const links: Record<string, OperationalAction["links"]> = {
-    latest_eval_gate: [{ label: "Evaluation cases", href: "/evaluations/cases" }],
-    knowledge_freshness: [{ label: "Release gate", href: "/observability/release-gate" }],
+    latest_eval_gate: [{ label: "평가 케이스", href: "/evaluations/cases" }],
+    knowledge_freshness: [{ label: "배포 게이트", href: "/observability/release-gate" }],
     slo_guardrails: [{ label: "SLO API", href: "/observability/slo" }],
-    approval_backlog: [{ label: "Approvals", href: "/approvals" }],
-    feedback_signal: [{ label: "Feedback API", href: "/feedback" }]
+    approval_backlog: [{ label: "승인 대기열", href: "/approvals" }],
+    feedback_signal: [{ label: "피드백 API", href: "/feedback" }]
   };
-  return links[id] ?? [{ label: "Release gate", href: "/observability/release-gate" }];
+  return links[id] ?? [{ label: "배포 게이트", href: "/observability/release-gate" }];
 }
 
 function sloActionTitle(id: string, fallback: string): string {
@@ -832,35 +832,35 @@ function buildReleaseGateChecks(input: {
   return [
     {
       id: "dependencies_ready",
-      label: "Dependencies ready",
+      label: "의존성 준비",
       status: input.readiness.ok ? "pass" : "fail",
       evidence: `PostgreSQL=${input.readiness.dependencies.postgres.status}, Redis=${input.readiness.dependencies.redis.status}, Elasticsearch=${input.readiness.dependencies.elasticsearch.status}.`,
       owner: "platform"
     },
     {
       id: "indexed_knowledge_ready",
-      label: "Indexed knowledge ready",
+      label: "지식 베이스 색인 준비",
       status:
         input.summary.documents.total >= minDocuments && input.summary.documents.chunks >= minChunks
           ? "pass"
           : "fail",
-      evidence: `${input.summary.documents.total} documents and ${input.summary.documents.chunks} chunks are indexed.`,
+      evidence: `문서 ${input.summary.documents.total}개와 청크 ${input.summary.documents.chunks}개가 색인됐습니다.`,
       owner: "rag",
       metric: input.summary.documents.chunks,
       threshold: minChunks
     },
     {
       id: "latest_eval_gate",
-      label: "Latest eval gate",
+      label: "최신 평가 게이트",
       status: input.latestEvalPassed ? "pass" : "fail",
       evidence: input.latestEvalPassed
-        ? "Latest seed-ops-wiki evaluation passed."
-        : "Latest seed-ops-wiki evaluation is missing or failing.",
+        ? "최신 seed-ops-wiki 평가가 통과했습니다."
+        : "최신 seed-ops-wiki 평가가 없거나 실패했습니다.",
       owner: "quality"
     },
     {
       id: "knowledge_freshness",
-      label: "Knowledge freshness",
+      label: "지식 최신성",
       status: input.knowledgeFreshness.latestEvalCreatedAt
         ? input.knowledgeFreshness.stale
           ? "warn"
@@ -873,35 +873,35 @@ function buildReleaseGateChecks(input: {
     },
     {
       id: "slo_guardrails",
-      label: "SLO guardrails",
+      label: "SLO 가드레일",
       status: input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
-      evidence: `${input.slo.objectives.length} SLO objectives report ${input.slo.status}.`,
+      evidence: `SLO 목표 ${input.slo.objectives.length}개가 ${input.slo.status} 상태입니다.`,
       owner: "quality"
     },
     {
       id: "agent_audit_trail",
-      label: "Agent audit trail",
+      label: "에이전트 감사 추적",
       status: searchCalls > 0 && approvalCalls > 0 ? "pass" : searchCalls > 0 ? "warn" : "fail",
       evidence: `search_documents=${searchCalls}, request_human_approval=${approvalCalls}.`,
       owner: "ops"
     },
     {
       id: "approval_backlog",
-      label: "Approval backlog",
+      label: "승인 대기열",
       status: input.pendingApprovals <= maxPendingApprovals ? "pass" : "warn",
-      evidence: `${input.pendingApprovals} pending approvals; review threshold is ${maxPendingApprovals}.`,
+      evidence: `대기 중인 승인 요청은 ${input.pendingApprovals}개이고 검토 기준은 ${maxPendingApprovals}개입니다.`,
       owner: "ops",
       metric: input.pendingApprovals,
       threshold: maxPendingApprovals
     },
     {
       id: "feedback_signal",
-      label: "Feedback signal",
+      label: "피드백 신호",
       status: input.summary.feedback.total > 0 ? "pass" : "warn",
       evidence:
         input.summary.feedback.total > 0
-          ? `${input.summary.feedback.total} feedback records are available.`
-          : "No feedback has been captured yet.",
+          ? `피드백 ${input.summary.feedback.total}개를 사용할 수 있습니다.`
+          : "아직 저장된 피드백이 없습니다.",
       owner: "quality",
       metric: input.summary.feedback.total,
       threshold: 1
@@ -911,14 +911,14 @@ function buildReleaseGateChecks(input: {
 
 function freshnessEvidence(freshness: KnowledgeFreshness): string {
   if (!freshness.latestEvalCreatedAt) {
-    return "No seed-ops-wiki evaluation exists for the indexed knowledge base.";
+    return "색인된 지식 베이스에 대한 seed-ops-wiki 평가가 아직 없습니다.";
   }
 
   if (freshness.stale) {
-    return `${freshness.changedDocumentsSinceEval} documents changed after the latest seed-ops-wiki evaluation.`;
+    return `최신 seed-ops-wiki 평가 이후 변경된 문서가 ${freshness.changedDocumentsSinceEval}개 있습니다.`;
   }
 
-  return "Latest seed-ops-wiki evaluation is newer than the indexed documents.";
+  return "최신 seed-ops-wiki 평가가 색인 문서보다 최신입니다.";
 }
 
 function aggregateReleaseGateStatus(checks: ReleaseGateCheck[]): ReleaseGateStatus {

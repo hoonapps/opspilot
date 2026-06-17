@@ -1,66 +1,66 @@
 # 시스템 설계
 
-OpsPilot은 운영 지식 기반 AI Agent를 만들기 위한 RAG 백엔드와 감사 가능한 운영 콘솔로 구성됩니다.
+OpsPilot은 운영 지식 기반 AI 에이전트를 만들기 위한 RAG 백엔드와 감사 가능한 운영 콘솔로 구성됩니다.
 
 ## 구성 요소
 
-- API: NestJS HTTP API. 문서 색인, 질문 처리, 검색 미리보기, 장애 대응 플랜, 권한 감사, 답변 trace/proof/replay, 평가, 승인, 피드백, Slack 이벤트를 담당합니다.
-- Web Console: Next.js 한국어 콘솔. 질문, 검색, 대응, 문서, 품질, 승인, 감사, 사용법 화면으로 나뉩니다.
-- PostgreSQL: 문서, chunk, embedding, 질문, 답변, 출처, 도구 호출, 승인, 피드백, 평가 결과를 저장합니다.
-- pgvector: 권한이 적용된 semantic retrieval을 수행합니다.
-- Redis/BullMQ: 비동기 문서 색인 작업과 `/ask` rate limit에 사용합니다.
-- Elasticsearch: 선택형 BM25 검색 확장입니다. hybrid 모드에서도 권한 기준은 PostgreSQL입니다.
-- AI adapter: 로컬 deterministic 모드, OpenAI, Anthropic adapter를 제공합니다.
-- Slack Bot: Slack mention을 같은 Agent workflow로 처리하고 thread reply payload를 만듭니다.
-- Docker Compose: 로컬 인프라와 production-style 데모 실행을 제공합니다.
+- API: NestJS HTTP API. 문서 색인, 질문 처리, 검색 미리보기, 장애 대응 플랜, 권한 감사, 답변 추적/증명/재실행, 평가, 승인, 피드백, Slack 이벤트를 담당합니다.
+- 웹 콘솔: Next.js 한국어 콘솔. 질문, 검색, 대응, 문서, 품질, 승인, 감사, 사용법 화면으로 나뉩니다.
+- PostgreSQL: 문서, 청크, 임베딩, 질문, 답변, 출처, 도구 호출, 승인, 피드백, 평가 결과를 저장합니다.
+- pgvector: 권한이 적용된 의미 기반 검색을 수행합니다.
+- Redis/BullMQ: 비동기 문서 색인 작업과 `/ask` 호출 제한에 사용합니다.
+- Elasticsearch: 선택형 BM25 검색 확장입니다. 하이브리드 모드에서도 권한 기준은 PostgreSQL입니다.
+- AI 어댑터: 로컬 결정론 모드, OpenAI, Anthropic 어댑터를 제공합니다.
+- Slack 봇: Slack 멘션을 같은 에이전트 작업 흐름으로 처리하고 스레드 답변 페이로드를 만듭니다.
+- Docker Compose: 로컬 인프라와 프로덕션 스타일 데모 실행을 제공합니다.
 
 ## 요청 흐름
 
 1. 사용자가 웹 콘솔, API, Slack에서 질문합니다.
-2. API는 signed actor token, 로컬 header, Slack identity로 actor context를 만듭니다.
-3. `x-idempotency-key`가 있으면 actor scope와 request hash로 중복 요청을 먼저 판정합니다.
-4. 신규 `/ask`는 Redis fixed-window rate limit을 확인합니다.
-5. actor의 role/team 기준으로 문서 권한 필터를 구성합니다.
-6. `search_documents` tool이 접근 가능한 chunk만 검색합니다.
+2. API는 서명된 호출자 토큰, 로컬 헤더, Slack 식별 정보로 호출자 컨텍스트를 만듭니다.
+3. `x-idempotency-key`가 있으면 호출자 범위와 요청 해시로 중복 요청을 먼저 판정합니다.
+4. 신규 `/ask`는 Redis 고정 윈도 호출 제한을 확인합니다.
+5. 호출자의 역할/팀 기준으로 문서 권한 필터를 구성합니다.
+6. `search_documents` 도구가 접근 가능한 청크만 검색합니다.
 7. 검색 미리보기는 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 컨텍스트 패키징, 리뷰 판단 단계를 실행 계획으로 반환합니다.
 8. 검색 강건성 리포트는 기준 질문과 변형 질문을 같은 권한 컨텍스트에서 재검색해 1순위 출처 안정성, 출처 겹침, 점수 흔들림, 권한 경계 차단을 측정합니다.
-9. 검색 결과는 문서 권한으로 다시 확인된 뒤 context budget에 들어갑니다.
-10. runbook 질문이면 `create_runbook_checklist` tool을 호출합니다.
+9. 검색 결과는 문서 권한으로 다시 확인된 뒤 컨텍스트 예산에 들어갑니다.
+10. 런북 질문이면 `create_runbook_checklist` 도구를 호출합니다.
 11. `POST /incidents/plan`은 검색 결과와 런북 체크리스트를 바탕으로 SEV, 대응 단계, 승인 게이트, 커뮤니케이션, 복구 검증을 생성합니다.
-12. Agent가 출처 기반 답변을 생성합니다.
-13. 답변과 출처 chunk 사이의 문서 일치율을 계산합니다.
-14. 낮은 confidence, 출처 없음, 민감 작업은 `reviewReasons`로 구조화합니다.
-15. 민감 작업은 `request_human_approval` 도구 호출과 approval record로 분리합니다.
-16. 질문, 답변, 출처, 권한 감사, 도구 호출, approval, feedback을 저장합니다.
+12. 에이전트가 출처 기반 답변을 생성합니다.
+13. 답변과 출처 청크 사이의 문서 일치율을 계산합니다.
+14. 낮은 신뢰도, 출처 없음, 민감 작업은 `reviewReasons`로 구조화합니다.
+15. 민감 작업은 `request_human_approval` 도구 호출과 승인 기록으로 분리합니다.
+16. 질문, 답변, 출처, 권한 감사, 도구 호출, 승인, 피드백을 저장합니다.
 17. `GET /answers/:id/trace`는 저장된 답변 실행 내역을 복원합니다.
-18. `GET /answers/:id/proof`는 trace를 pass/warn/fail 증거 패킷으로 요약합니다.
-19. `GET /answers/:id/replay`는 현재 문서 기준으로 이전 답변의 drift를 확인합니다.
-20. `GET /answers/:id/evidence-bundle`은 trace/proof/replay와 권한 재검사 결과를 묶고 SHA-256 해시를 붙입니다.
-21. `GET /questions/:id/audit-bundle`은 답변 없는 incident workflow까지 질문 기준으로 묶어 tool calling 정책, 출처 계보, 권한 재검사, SHA-256 해시를 반환합니다.
-22. API request interceptor가 HTTP method, route, status, duration, actor hash를 저장합니다.
-23. observability/배포 게이트 API가 운영 품질 상태와 API p95/오류율을 집계합니다.
+18. `GET /answers/:id/proof`는 추적 결과를 통과/주의/실패 증거 패킷으로 요약합니다.
+19. `GET /answers/:id/replay`는 현재 문서 기준으로 이전 답변의 변경 여부를 확인합니다.
+20. `GET /answers/:id/evidence-bundle`은 추적/증명/재실행과 권한 재검사 결과를 묶고 SHA-256 해시를 붙입니다.
+21. `GET /questions/:id/audit-bundle`은 답변 없는 장애 대응 작업 흐름까지 질문 기준으로 묶어 도구 호출 정책, 출처 계보, 권한 재검사, SHA-256 해시를 반환합니다.
+22. API 요청 인터셉터가 HTTP 메서드, 경로, 라우트, 상태, 처리 시간, 호출자 해시를 저장합니다.
+23. 관측성/배포 게이트 API가 운영 품질 상태와 API p95/오류율을 집계합니다.
 
 ## 문서 색인 흐름
 
 1. Markdown frontmatter를 파싱합니다.
-2. secret redaction을 먼저 수행합니다.
-3. prompt-injection pattern을 탐지합니다.
-4. Markdown을 heading/paragraph 기준으로 chunking합니다.
-5. embedding을 생성합니다.
+2. 시크릿 마스킹을 먼저 수행합니다.
+3. 프롬프트 주입 패턴을 탐지합니다.
+4. Markdown을 헤딩/문단 기준으로 청킹합니다.
+5. 임베딩을 생성합니다.
 6. PostgreSQL `document_chunks`와 pgvector 컬럼에 저장합니다.
-7. 선택적으로 Elasticsearch에 redacted chunk를 mirror합니다.
-8. 같은 path 재색인 시 obsolete chunk를 정리하고 문서 버전을 남깁니다.
+7. 선택적으로 Elasticsearch에 마스킹된 청크를 미러 저장합니다.
+8. 같은 경로 재색인 시 오래된 청크를 정리하고 문서 버전을 남깁니다.
 
 ## 권한 경계
 
-핵심 원칙은 “권한 없는 chunk는 LLM 프롬프트에 들어가기 전에 제거한다”입니다. 답변 생성 후 숨기는 방식이 아닙니다.
+핵심 원칙은 “권한 없는 청크는 LLM 프롬프트에 들어가기 전에 제거한다”입니다. 답변 생성 후 숨기는 방식이 아닙니다.
 
 - `public`: 모든 사용자 접근 가능
 - `team`: 사용자 `teamSlugs`와 문서 `teamSlug`가 일치해야 접근 가능
 - `restricted`: `ops_admin` 또는 `security_admin` 필요
 
-검색 로그는 차단 후보 개수와 visibility bucket만 저장합니다. 권한 없는 사용자에게 차단된 문서 제목이나 path를 노출하지 않습니다.
+검색 로그는 차단 후보 개수와 가시성 버킷만 저장합니다. 권한 없는 사용자에게 차단된 문서 제목이나 경로를 노출하지 않습니다.
 
 ## 배포 관점
 
-로컬 데모는 Docker Compose로 PostgreSQL, Redis, 선택형 Elasticsearch를 올립니다. production-style profile은 API, Web, Worker, PostgreSQL, Redis 컨테이너를 함께 띄우며, CI에서 실제 `/ask` 요청까지 검증합니다.
+로컬 데모는 Docker Compose로 PostgreSQL, Redis, 선택형 Elasticsearch를 올립니다. 프로덕션 스타일 프로필은 API, 웹, 워커, PostgreSQL, Redis 컨테이너를 함께 띄우며, CI에서 실제 `/ask` 요청까지 검증합니다.

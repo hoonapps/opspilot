@@ -19,17 +19,17 @@ async function main() {
     await documents.ingestMarkdown(
       REPLAY_DOCUMENT_PATH,
       `---
-title: "Replay Drift Proof"
+title: "답변 변경 감지 증명"
 visibility: restricted
 teamSlug: payments
 tags: replay,drift,quality
 ---
-# Replay Drift Proof
+# 답변 변경 감지 증명
 
 ${REPLAY_TOKEN} ${REPLAY_TOKEN} ${REPLAY_TOKEN} ${REPLAY_TOKEN}
 
-The ${REPLAY_TOKEN} runbook states that replay drift checks must compare the original answer against the current indexed document set.
-When the evidence changes, OpsPilot should mark the persisted answer for review before an operator trusts it again.
+${REPLAY_TOKEN} 런북은 재실행 변경 감지가 원래 답변과 현재 색인 문서 집합을 비교해야 한다고 설명합니다.
+근거가 바뀌면 OpsPilot은 운영자가 다시 신뢰하기 전에 저장된 답변을 검토 대상으로 표시해야 합니다.
 `
     );
 
@@ -39,15 +39,15 @@ When the evidence changes, OpsPilot should mark the persisted answer for review 
     await documents.ingestMarkdown(
       REPLAY_DOCUMENT_PATH,
       `---
-title: "Replay Drift Proof"
+title: "답변 변경 감지 증명"
 visibility: restricted
 teamSlug: payments
 tags: replay,drift,quality
 ---
-# Replay Drift Proof
+# 답변 변경 감지 증명
 
-이 문서는 의도적으로 교체되었습니다. 기존 replay drift 답변의 근거 문장은 더 이상 현재 지식 베이스에 남아 있지 않습니다.
-운영자는 replay 결과를 보고 기존 답변을 재검토해야 합니다.
+이 문서는 의도적으로 교체되었습니다. 기존 재실행 변경 감지 답변의 근거 문장은 더 이상 현재 지식 베이스에 남아 있지 않습니다.
+운영자는 재실행 결과를 보고 기존 답변을 재검토해야 합니다.
 `
     );
 

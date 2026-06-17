@@ -803,55 +803,55 @@ function buildProofChecks(
   return [
     {
       id: "source_access_rechecked",
-      label: "Source access rechecked",
+      label: "출처 접근 권한 재검사",
       status: "pass",
-      evidence: `Trace read rechecked ${trace.sources.length} returned sources against the caller context.`
+      evidence: `추적 조회 시 반환 출처 ${trace.sources.length}개를 현재 호출자 권한으로 다시 확인했습니다.`
     },
     {
       id: "sources_attached",
-      label: "Sources attached",
+      label: "출처 연결",
       status: trace.sources.length > 0 ? "pass" : "fail",
       evidence:
         trace.sources.length > 0
-          ? `${trace.sources.length} sources persisted with the answer.`
-          : "No persisted sources were attached to this answer."
+          ? `답변에 출처 ${trace.sources.length}개가 저장됐습니다.`
+          : "이 답변에 저장된 출처가 없습니다."
     },
     {
       id: "document_agreement",
-      label: "Document agreement",
+      label: "문서 일치율",
       status: thresholdStatus(trace.summary.documentAgreementScore, thresholds.minDocumentAgreement),
-      evidence: `Answer/source token agreement is ${formatRatio(trace.summary.documentAgreementScore)}.`,
+      evidence: `답변과 출처 토큰 일치율은 ${formatRatio(trace.summary.documentAgreementScore)}입니다.`,
       metric: trace.summary.documentAgreementScore,
       threshold: thresholds.minDocumentAgreement
     },
     {
       id: "grounding_coverage",
-      label: "Grounding coverage",
+      label: "근거 커버리지",
       status: thresholdStatus(trace.grounding.coverageRatio, thresholds.minGroundingCoverage),
-      evidence: `${trace.grounding.coveredAnswerTokenCount}/${trace.grounding.answerTokenCount} answer tokens overlap retrieved sources.`,
+      evidence: `답변 토큰 ${trace.grounding.coveredAnswerTokenCount}/${trace.grounding.answerTokenCount}개가 검색된 출처와 겹칩니다.`,
       metric: trace.grounding.coverageRatio,
       threshold: thresholds.minGroundingCoverage
     },
     {
       id: "evidence_snippets",
-      label: "Evidence snippets",
+      label: "근거 스니펫",
       status: evidenceSnippetCount > 0 ? "pass" : "fail",
       evidence:
         evidenceSnippetCount > 0
-          ? `${evidenceSnippetCount} source snippets explain which document sentences support the answer.`
-          : "No supporting source snippets were extracted for this answer."
+          ? `출처 스니펫 ${evidenceSnippetCount}개가 어떤 문장으로 답변을 지지하는지 설명합니다.`
+          : "이 답변을 지지하는 출처 스니펫을 추출하지 못했습니다."
     },
     {
       id: "search_tool_audited",
-      label: "Search tool audited",
+      label: "검색 도구 감사",
       status: searchTool?.status === "allowed" ? "pass" : "fail",
       evidence: searchTool
-        ? `search_documents was persisted with status ${searchTool.status}.`
-        : "search_documents was not found in persisted tool call logs."
+        ? `search_documents 도구 호출이 ${searchTool.status} 상태로 저장됐습니다.`
+        : "저장된 도구 호출 로그에서 search_documents를 찾지 못했습니다."
     },
     {
       id: "approval_boundary",
-      label: "Approval boundary",
+      label: "승인 경계",
       status: needsSensitiveApproval
         ? approvalTool && trace.approvals.length > 0
           ? "pass"
@@ -859,24 +859,24 @@ function buildProofChecks(
         : "pass",
       evidence: needsSensitiveApproval
         ? approvalTool && trace.approvals.length > 0
-          ? `Sensitive answer created ${trace.approvals.length} approval request and ${approvalTool.toolName} stayed ${approvalTool.status}.`
-          : "Sensitive answer did not persist the expected approval handoff."
-        : "No sensitive approval handoff was required for this answer."
+          ? `민감 작업 답변이 승인 요청 ${trace.approvals.length}개를 만들었고 ${approvalTool.toolName} 도구는 ${approvalTool.status} 상태로 남았습니다.`
+          : "민감 작업 답변이 필요한 승인 위임 기록을 저장하지 못했습니다."
+        : "이 답변에는 민감 작업 승인 위임이 필요하지 않습니다."
     },
     {
       id: "context_budget",
-      label: "Context budget",
+      label: "컨텍스트 예산",
       status: contextWithinBudget && trace.contextPackage.includedChunkCount > 0 ? "pass" : "fail",
-      evidence: `${trace.contextPackage.estimatedTokenCount}/${trace.contextPackage.tokenBudget} estimated context tokens used.`
+      evidence: `예상 컨텍스트 토큰 ${trace.contextPackage.estimatedTokenCount}/${trace.contextPackage.tokenBudget}개를 사용했습니다.`
     },
     {
       id: "feedback_captured",
-      label: "Feedback captured",
+      label: "피드백 저장",
       status: trace.feedback.length > 0 ? "pass" : "warn",
       evidence:
         trace.feedback.length > 0
-          ? `${trace.feedback.length} feedback records are linked to the answer.`
-          : "No reviewer feedback has been linked yet."
+          ? `피드백 ${trace.feedback.length}개가 답변에 연결됐습니다.`
+          : "아직 연결된 검토자 피드백이 없습니다."
     }
   ];
 }
@@ -908,33 +908,33 @@ function buildReplayChecks(summary: AnswerReplay["summary"]): AnswerReplay["chec
   return [
     {
       id: "top_source_stable",
-      label: "Top source stable",
+      label: "1순위 출처 안정성",
       status: summary.topSourceChanged ? "fail" : "pass",
       evidence: summary.topSourceChanged
-        ? `Top source changed from ${summary.originalTopSourcePath ?? "none"} to ${summary.currentTopSourcePath ?? "none"}.`
-        : `Top source remains ${summary.currentTopSourcePath ?? "none"}.`
+        ? `1순위 출처가 ${summary.originalTopSourcePath ?? "없음"}에서 ${summary.currentTopSourcePath ?? "없음"}로 바뀌었습니다.`
+        : `1순위 출처가 ${summary.currentTopSourcePath ?? "없음"}로 유지됩니다.`
     },
     {
       id: "source_overlap",
-      label: "Source overlap",
+      label: "출처 겹침",
       status: thresholdStatus(summary.sourceOverlapRatio, minOverlap),
-      evidence: `Current retrieval overlaps ${formatRatio(summary.sourceOverlapRatio)} of the original answer sources.`,
+      evidence: `현재 검색 결과가 원래 답변 출처와 ${formatRatio(summary.sourceOverlapRatio)} 비율로 겹칩니다.`,
       metric: summary.sourceOverlapRatio,
       threshold: minOverlap
     },
     {
       id: "current_document_agreement",
-      label: "Current document agreement",
+      label: "현재 문서 일치율",
       status: thresholdStatus(summary.currentDocumentAgreement, minCurrentAgreement),
-      evidence: `Original answer/current source agreement is ${formatRatio(summary.currentDocumentAgreement)}.`,
+      evidence: `원래 답변과 현재 출처의 문서 일치율은 ${formatRatio(summary.currentDocumentAgreement)}입니다.`,
       metric: summary.currentDocumentAgreement,
       threshold: minCurrentAgreement
     },
     {
       id: "permission_boundary_replayed",
-      label: "Permission boundary replayed",
+      label: "권한 경계 재실행",
       status: "pass",
-      evidence: `Replay used permission-aware retrieval and denied ${summary.permissionDeniedCandidates} inaccessible candidates.`
+      evidence: `재실행 검색에서 권한 인식 검색을 사용했고 접근 불가 후보 ${summary.permissionDeniedCandidates}개를 차단했습니다.`
     }
   ];
 }
@@ -1213,7 +1213,7 @@ function buildTimeline(input: {
     {
       order: 1,
       kind: "question",
-      title: "Question persisted",
+      title: "질문 저장",
       status: "created",
       at: input.questionCreatedAt,
       detail: {
@@ -1224,7 +1224,7 @@ function buildTimeline(input: {
     {
       order: 2,
       kind: "retrieval",
-      title: "Sources attached",
+      title: "출처 연결",
       status: input.sources.length > 0 ? "grounded" : "empty",
       at: input.answerCreatedAt,
       detail: {
@@ -1236,7 +1236,7 @@ function buildTimeline(input: {
     {
       order: 3,
       kind: "answer",
-      title: "Answer generated",
+      title: "답변 생성",
       status: input.summary.needsHumanReview ? "needs_review" : "auto",
       at: input.answerCreatedAt,
       detail: {
@@ -1270,7 +1270,7 @@ function buildTimeline(input: {
     ...input.feedback.map((item, index) => ({
       order: 200 + index,
       kind: "feedback" as const,
-      title: "Feedback saved",
+      title: "피드백 저장",
       status: item.rating > 0 ? "helpful" : "needs_work",
       at: item.createdAt,
       detail: {

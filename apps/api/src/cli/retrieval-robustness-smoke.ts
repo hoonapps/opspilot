@@ -7,19 +7,19 @@ import { DocumentsService } from "../documents/documents.service";
 const ROBUSTNESS_DOCUMENT_PATH = "public/retrieval-robustness-proof.md";
 
 const ROBUSTNESS_DOCUMENT = `---
-title: "Retrieval Robustness Proof"
+title: "검색 강건성 증명"
 visibility: public
 tags: rag,retrieval,stability,status-page
 ---
-# Retrieval Robustness Proof
+# 검색 강건성 증명
 
-## Status Page Notice Stability
+## 상태 페이지 공지 안정성
 
-Korean aliases: 검색 강건성, 검색 안정성, RAG 안정성, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
+한국어 별칭: 검색 강건성, 검색 안정성, RAG 안정성, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
 
-RRP-42 proves that the same operational intent should keep the same top source even when the user changes the wording.
-For customer-impacting incidents, the first status page notice must be published within 15 minutes.
-The notice must include affected feature, current impact, next update time, and incident owner.
+RRP-42는 사용자가 질문 표현을 바꿔도 같은 운영 의도라면 같은 1순위 출처가 유지되어야 함을 증명합니다.
+고객 영향 장애의 첫 상태 페이지 공지는 15분 안에 게시해야 합니다.
+공지에는 영향받은 기능, 현재 영향도, 다음 업데이트 예정 시각, 장애 담당자를 포함해야 합니다.
 `;
 
 async function main() {

@@ -42,12 +42,14 @@ async function main() {
 
     await page.locator(".railNav").getByRole("button", { name: /^사용법 / }).click();
     await page.getByRole("heading", { name: "OpsPilot 사용법" }).waitFor({ timeout: 10000 });
-    await page.locator(".usagePanel").getByText("로컬 데모 실행 순서", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".usagePanel").getByText("로컬 데모 실행과 검증 순서", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".usagePanel").getByText("빠른 실행 명령", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".usagePanel").getByText("문서를 어디서 관리하나?", { exact: true }).waitFor({ timeout: 10000 });
     const usageVisible = await page.locator(".usagePanel").getByText("문서 화면", { exact: false }).first().isVisible();
     await page.goto(`${baseUrl}/usage`, { waitUntil: "networkidle" });
     await page.getByRole("heading", { name: "사용법" }).waitFor({ timeout: 10000 });
-    await page.getByText("로컬 데모 실행 순서", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByText("로컬 데모 실행과 검증 순서", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByText("빠른 실행 명령", { exact: true }).waitFor({ timeout: 10000 });
     const usagePageVisible = await page.getByText("문서 일치율은 어디서 보나?", { exact: true }).isVisible();
     await page.goto(baseUrl, { waitUntil: "networkidle" });
 
@@ -121,13 +123,13 @@ async function main() {
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).click();
     await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "색인 설명" }).click();
+    await page.getByRole("button", { name: "색인 설명", exact: true }).click();
     await page.locator(".indexExplainPanel").getByText("색인 준비", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexExplainPanel").getByText("heading_paragraph_window_v1", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".indexExplainPanel").getByText("임베딩 커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexExplainPanel").getByText("헤딩 아웃라인", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexExplainPanel").getByText("고객 공지 SLA", { exact: false }).first().waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "영향 분석" }).click();
+    await page.getByRole("button", { name: "영향 분석", exact: true }).click();
     await page.locator(".impactPanel").getByText("영향 분석", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".impactPanel").getByText("재검증 필요", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".impactPanel").getByText("고객 공지 SLA와 15분 공지 기준", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -273,7 +275,7 @@ async function main() {
     await page.locator(".answerMeta").getByText("문서 일치율", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".answerMeta").getByText("멱등성 신규", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".boundaryAudit").getByText("차단 후보", { exact: false }).waitFor({ timeout: 10000 });
-    await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".reviewReasons").getByText("민감 작업", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("추적", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText("답변 신뢰 게이트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText(/공유 가능|검토 후 공유|차단 후 재작성/u).first().waitFor({ timeout: 10000 });
@@ -310,7 +312,7 @@ async function main() {
     await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
     const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("검색 전 SQL 권한 필터", { exact: false }).isVisible();
-    const reviewReasonVisible = await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).isVisible();
+    const reviewReasonVisible = await page.locator(".reviewReasons").getByText("민감 작업", { exact: true }).isVisible();
     const traceVisible = await page.locator(".tracePanel").getByText("추적 새로고침", { exact: true }).isVisible();
     const answerQualityGateVisible =
       (await page.locator(".qualityGatePanel").getByText("답변 신뢰 게이트", { exact: true }).isVisible()) &&

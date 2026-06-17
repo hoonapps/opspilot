@@ -14,17 +14,17 @@ const RAW_BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo.payload";
 const REDACTED = "[REDACTED_SECRET]";
 
 const REDACTION_DOCUMENT = `---
-title: "Secret Rotation Bridge Procedure"
+title: "시크릿 교체 브리지 절차"
 visibility: public
 tags: security,redaction,secrets
 ---
-# Secret Rotation Bridge Procedure
+# 시크릿 교체 브리지 절차
 
-Korean aliases: 시크릿 교체, secret rotation bridge, 보안 토큰 교체.
+한국어 별칭: 시크릿 교체, secret rotation bridge, 보안 토큰 교체.
 
-When the secret rotation bridge alert fires, page the security on-call and rotate connector credentials.
-Secret rotation bridge examples must be indexed only after redaction: aws=${RAW_AWS_KEY}, github=${RAW_GITHUB_TOKEN}, api_key=${RAW_API_KEY}.
-Authorization examples must also be sanitized before retrieval: Bearer ${RAW_BEARER_TOKEN}.
+시크릿 교체 브리지 알림이 발생하면 보안 온콜을 호출하고 커넥터 인증 정보를 교체합니다.
+시크릿 교체 브리지 예시는 마스킹 이후에만 색인되어야 합니다: aws=${RAW_AWS_KEY}, github=${RAW_GITHUB_TOKEN}, api_key=${RAW_API_KEY}.
+Authorization 예시도 검색 전에 정리되어야 합니다: Bearer ${RAW_BEARER_TOKEN}.
 `;
 
 async function main() {

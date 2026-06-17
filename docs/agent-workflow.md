@@ -1,45 +1,45 @@
-# Agent Workflow
+# 에이전트 작업 흐름
 
-이 문서는 OpsPilot Agent가 질문을 받았을 때 어떤 판단 순서로 검색, 도구 호출, 승인 분리를 수행하는지 설명합니다.
+이 문서는 OpsPilot 에이전트가 질문을 받았을 때 어떤 판단 순서로 검색, 도구 호출, 승인 분리를 수행하는지 설명합니다.
 
-## Agent 도구
+## 에이전트 도구
 
-- `search_documents`: actor가 접근 가능한 문서 chunk를 검색합니다.
-- `create_runbook_checklist`: 검색된 runbook에서 번호형 체크리스트를 추출합니다.
+- `search_documents`: 호출자가 접근 가능한 문서 청크를 검색합니다.
+- `create_runbook_checklist`: 검색된 런북에서 번호형 체크리스트를 추출합니다.
 - `create_incident_response_plan`: 검색된 운영 문서와 런북을 근거로 장애 대응 플랜을 생성합니다.
-- `request_human_approval`: 민감 작업 요청을 approval queue에 저장합니다.
+- `request_human_approval`: 민감 작업 요청을 승인 대기열에 저장합니다.
 - `save_feedback`: 답변 품질 피드백을 저장합니다.
 
-도구 registry는 다음 API로 확인합니다.
+도구 레지스트리는 다음 API로 확인합니다.
 
 ```txt
 GET /tool-calls/registry
 ```
 
-registry는 도구의 category, side effect, approval policy, 입력/출력 schema, 감사 저장 필드를 보여줍니다. 웹 콘솔 `감사` 화면은 이 registry와 실제 도구 호출 로그를 나란히 보여줍니다.
+레지스트리는 도구의 분류, 부작용 여부, 승인 정책, 입력/출력 스키마, 감사 저장 필드를 보여줍니다. 웹 콘솔 `감사` 화면은 이 레지스트리와 실제 도구 호출 로그를 나란히 보여줍니다.
 
 ## 판단 순서
 
 1. `/retrieval/preview`가 호출되면 부작용 없이 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단을 먼저 보여줍니다.
-2. `/ask`, Slack mention, 평가 script에서 질문을 받습니다.
-3. actor context를 구성합니다.
-4. `x-idempotency-key`가 있으면 actor scope와 request hash를 확인합니다.
-5. 같은 key와 같은 body의 완료된 요청이면 저장된 `/ask` 응답을 replay합니다.
-6. 신규 요청이면 Redis rate limit을 확인합니다.
+2. `/ask`, Slack 멘션, 평가 스크립트에서 질문을 받습니다.
+3. 호출자 컨텍스트를 구성합니다.
+4. `x-idempotency-key`가 있으면 호출자 범위와 요청 해시를 확인합니다.
+5. 같은 키와 같은 본문의 완료된 요청이면 저장된 `/ask` 응답을 재사용합니다.
+6. 신규 요청이면 Redis 호출 제한을 확인합니다.
 7. `search_documents`를 호출합니다.
 8. vector 모드에서는 pgvector와 PostgreSQL lexical score를 사용합니다.
-9. hybrid 모드에서는 pgvector 결과와 Elasticsearch BM25 결과를 fuse합니다.
+9. 하이브리드 모드에서는 pgvector 결과와 Elasticsearch BM25 결과를 결합합니다.
 10. Elasticsearch 결과도 PostgreSQL에서 다시 로드하며 권한 필터를 적용합니다.
-11. context budget에 포함된 chunk와 제외된 chunk를 기록합니다.
-12. runbook/checklist 질문이면 `create_runbook_checklist`를 호출합니다.
+11. 컨텍스트 예산에 포함된 청크와 제외된 청크를 기록합니다.
+12. 런북/체크리스트 질문이면 `create_runbook_checklist`를 호출합니다.
 13. 출처 기반 답변을 생성합니다.
 14. confidence와 문서 일치율을 계산합니다.
-15. 출처 없음, 낮은 confidence, 민감 작업을 `reviewReasons`로 만듭니다.
+15. 출처 없음, 낮은 신뢰도, 민감 작업을 `reviewReasons`로 만듭니다.
 16. 민감 작업이면 `request_human_approval`을 호출합니다.
-17. 질문, 답변, 출처, context package, 도구 호출, review reason을 저장합니다.
-18. feedback은 answer id에 연결해 저장합니다.
-19. 답변 조회 시 trace/proof/replay/evidence bundle을 복원하고, quality gate는 이 증거를 묶어 공유 가능/검토 필요/차단을 판정합니다.
-20. Slack 요청이면 같은 결과를 thread reply payload로 포맷합니다.
+17. 질문, 답변, 출처, 컨텍스트 패키지, 도구 호출, 검토 사유를 저장합니다.
+18. 피드백은 답변 ID에 연결해 저장합니다.
+19. 답변 조회 시 추적/증명/재실행/증거 번들을 복원하고, 신뢰 게이트는 이 증거를 묶어 공유 가능/검토 필요/차단을 판정합니다.
+20. Slack 요청이면 같은 결과를 스레드 답변 페이로드로 포맷합니다.
 
 ## 검색 미리보기
 
@@ -47,7 +47,7 @@ registry는 도구의 category, side effect, approval policy, 입력/출력 sche
 POST /retrieval/preview
 ```
 
-검색 미리보기는 `/ask`와 같은 검색 경로를 타지만 질문 저장, 답변 생성, 도구 호출 저장, approval 생성을 하지 않습니다. 응답에는 후보 청크, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 신뢰도 추정, 최고 점수, 점수 격차, 출처 다양성, 컨텍스트 예산, 리뷰 권고가 포함됩니다. 검색 실행 계획은 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 컨텍스트 패키징, 리뷰 판단 단계를 pass/warn/fail 상태와 근거 문장으로 보여줍니다. 후보별 랭킹 설명은 매칭 검색어, 점수 기여도, 권한 통과 사유를 보여줍니다. 면접 데모에서는 이 화면으로 “어떤 chunk가 왜 선택됐는지”, “권한 때문에 어떤 후보가 차단됐는지”, “이 검색 결과로 바로 답변해도 되는지”를 먼저 보여주면 좋습니다.
+검색 미리보기는 `/ask`와 같은 검색 경로를 타지만 질문 저장, 답변 생성, 도구 호출 저장, 승인 요청 생성을 하지 않습니다. 응답에는 후보 청크, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 신뢰도 추정, 최고 점수, 점수 격차, 출처 다양성, 컨텍스트 예산, 검토 권고가 포함됩니다. 검색 실행 계획은 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 컨텍스트 패키징, 검토 판단 단계를 통과/주의/실패 상태와 근거 문장으로 보여줍니다. 후보별 랭킹 설명은 매칭 검색어, 점수 기여도, 권한 통과 사유를 보여줍니다. 면접 데모에서는 이 화면으로 “어떤 청크가 왜 선택됐는지”, “권한 때문에 어떤 후보가 차단됐는지”, “이 검색 결과로 바로 답변해도 되는지”를 먼저 보여주면 좋습니다.
 
 ## 장애 대응 플랜
 
@@ -55,23 +55,23 @@ POST /retrieval/preview
 POST /incidents/plan
 ```
 
-장애 대응 플랜은 `/ask` 답변과 별도로 운영자가 실행 순서를 확인하기 위한 구조화된 workflow입니다. 먼저 `search_documents`로 actor가 볼 수 있는 문서만 검색하고, incident/runbook 문서와 질문 직접 매칭을 반영해 운영 런북을 우선합니다. 런북 체크리스트가 있으면 `create_runbook_checklist`를 호출한 뒤 `create_incident_response_plan` 도구 호출을 감사 로그에 남깁니다.
+장애 대응 플랜은 `/ask` 답변과 별도로 운영자가 실행 순서를 확인하기 위한 구조화된 작업 흐름입니다. 먼저 `search_documents`로 호출자가 볼 수 있는 문서만 검색하고, 장애/런북 문서와 질문 직접 매칭을 반영해 운영 런북을 우선합니다. 런북 체크리스트가 있으면 `create_runbook_checklist`를 호출한 뒤 `create_incident_response_plan` 도구 호출을 감사 로그에 남깁니다.
 
 응답은 SEV 심각도, 상황 파악/완화/커뮤니케이션/복구 검증 단계, 사람 승인 게이트, 알림 채널, 복구 검증 조건, 권한 감사, 근거 문서, 도구 호출을 함께 반환합니다. 민감 작업이나 운영 영향 조치는 자동 실행하지 않고 `approvalGates`로 분리합니다.
 
 ## 답변 증거
 
-- `GET /answers/:id/trace`: 저장된 답변의 timeline, source, grounding, 근거 스니펫, context budget, 도구 호출, approval, feedback을 복원합니다.
-- `GET /answers/:id/proof`: trace를 운영자용 pass/warn/fail checklist로 요약합니다.
-- `GET /answers/:id/replay`: 현재 문서 기준으로 이전 답변의 source drift를 확인합니다.
-- `GET /answers/:id/evidence-bundle`: trace, proof, replay를 하나로 묶고 actor 권한 재검사와 SHA-256 무결성 해시를 함께 반환합니다.
-- `GET /answers/:id/quality-gate`: 증명 패킷, replay 안정성, 승인 상태, 피드백, confidence, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 재검사를 묶어 개별 답변의 공유 가능 여부를 판정합니다.
-- `GET /questions/:id/audit-bundle`: 답변 row가 없는 incident workflow까지 질문 기준으로 묶어 tool calling 정책 검사, 출처 계보, 승인/피드백, actor 권한 재검사, SHA-256 무결성 해시를 반환합니다.
+- `GET /answers/:id/trace`: 저장된 답변의 타임라인, 출처, 근거성, 근거 스니펫, 컨텍스트 예산, 도구 호출, 승인, 피드백을 복원합니다.
+- `GET /answers/:id/proof`: 추적 결과를 운영자용 통과/주의/실패 체크리스트로 요약합니다.
+- `GET /answers/:id/replay`: 현재 문서 기준으로 이전 답변의 출처 변경 여부를 확인합니다.
+- `GET /answers/:id/evidence-bundle`: 추적, 증명, 재실행을 하나로 묶고 호출자 권한 재검사와 SHA-256 무결성 해시를 함께 반환합니다.
+- `GET /answers/:id/quality-gate`: 증명 패킷, 재실행 안정성, 승인 상태, 피드백, 신뢰도, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 재검사를 묶어 개별 답변의 공유 가능 여부를 판정합니다.
+- `GET /questions/:id/audit-bundle`: 답변 행이 없는 장애 대응 작업 흐름까지 질문 기준으로 묶어 도구 호출 정책 검사, 출처 계보, 승인/피드백, 호출자 권한 재검사, SHA-256 무결성 해시를 반환합니다.
 
-면접 데모에서는 먼저 일반 질문의 quality gate가 피드백 전에는 검토 대상으로 남고, 긍정 피드백 후 공유 가능으로 바뀌는 모습을 보여주면 좋습니다. 이어서 민감 작업 질문을 한 뒤 evidence bundle을 보여주면, 한 응답 안에서 “어떤 문서가 근거였는지”, “출처 문서의 어떤 문장이 답변 토큰을 지지하는지”, “어떤 tool이 호출됐는지”, “사람 승인이 왜 필요했는지”, “현재 문서와 여전히 일치하는지”, “호출자가 같은 출처를 볼 권한이 있는지”를 모두 설명할 수 있습니다.
+면접 데모에서는 먼저 일반 질문의 신뢰 게이트가 피드백 전에는 검토 대상으로 남고, 긍정 피드백 후 공유 가능으로 바뀌는 모습을 보여주면 좋습니다. 이어서 민감 작업 질문을 한 뒤 증거 번들을 보여주면, 한 응답 안에서 “어떤 문서가 근거였는지”, “출처 문서의 어떤 문장이 답변 토큰을 지지하는지”, “어떤 도구가 호출됐는지”, “사람 승인이 왜 필요했는지”, “현재 문서와 여전히 일치하는지”, “호출자가 같은 출처를 볼 권한이 있는지”를 모두 설명할 수 있습니다.
 
-장애 대응 데모에서는 incident plan 아래의 질문 감사 번들을 보여주면 좋습니다. `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`이 레지스트리 정책대로 호출됐는지, 자동 허용 tool과 사람 승인 필요 tool의 경계가 어떻게 다른지, 검색 tool output이 어떤 문서 출처로 이어지는지 설명할 수 있습니다.
+장애 대응 데모에서는 장애 대응 플랜 아래의 질문 감사 번들을 보여주면 좋습니다. `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`이 레지스트리 정책대로 호출됐는지, 자동 허용 도구와 사람 승인 필요 도구의 경계가 어떻게 다른지, 검색 도구 출력이 어떤 문서 출처로 이어지는지 설명할 수 있습니다.
 
-## Guardrail
+## 가드레일
 
-Agent는 운영 정책과 runbook을 설명할 수 있지만 운영 변경 작업을 직접 실행하지 않습니다. production DB write, 강제 환불, 권한 부여, 파괴적 cache/queue 조작은 approval record로 분리됩니다.
+에이전트는 운영 정책과 런북을 설명할 수 있지만 운영 변경 작업을 직접 실행하지 않습니다. 운영 DB 쓰기, 강제 환불, 권한 부여, 파괴적 캐시/큐 조작은 승인 기록으로 분리됩니다.

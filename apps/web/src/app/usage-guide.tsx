@@ -74,6 +74,43 @@ const usageSteps = [
   }
 ];
 
+const quickStartCommands = [
+  "pnpm install",
+  "cp .env.example apps/api/.env",
+  "docker compose up -d postgres redis",
+  "pnpm --filter @opspilot/api db:migrate",
+  "pnpm ingest",
+  "pnpm dev:api",
+  "pnpm dev:web"
+];
+
+const screenGuide = [
+  {
+    screen: "질문",
+    point: "질문, 출처, 문서 일치율, 답변 신뢰 게이트, 피드백, 추적/증명/재실행을 확인합니다."
+  },
+  {
+    screen: "검색",
+    point: "답변 생성 전에 후보 청크, 점수 분해, 권한 차단, 권한별 검색 비교, 질문 변형 안정성을 확인합니다."
+  },
+  {
+    screen: "대응",
+    point: "런북 기반 장애 대응 플랜, 승인 게이트, 복구 검증 조건, 질문 단위 감사 번들을 확인합니다."
+  },
+  {
+    screen: "문서",
+    point: "Markdown 등록, GitHub 동기화, 청킹 결과, 색인 품질, 색인 설명, 문서 변경 영향 분석을 확인합니다."
+  },
+  {
+    screen: "품질",
+    point: "평가 결과, 배포 게이트, SLO, 운영 액션 플랜, API 요청 관측성을 확인합니다."
+  },
+  {
+    screen: "승인/감사",
+    point: "민감 작업 승인 대기열, 도구 레지스트리, 도구 호출 로그, Slack 시뮬레이션을 확인합니다."
+  }
+];
+
 const checklist = [
   {
     title: "데모에서 보여줄 핵심 증거",
@@ -98,6 +135,10 @@ const checklist = [
   {
     title: "도구 호출은 어떻게 증명하나?",
     body: "감사 화면에서 도구 레지스트리를 확인하고, 대응 화면의 감사 번들에서 search_documents, create_runbook_checklist, create_incident_response_plan의 정책 통과 여부와 출처 계보를 다시 검증합니다."
+  },
+  {
+    title: "로컬 데모와 실제 배포 중 무엇을 보여주나?",
+    body: "포트폴리오 면접에서는 로컬 Docker Compose 데모가 가장 재현성이 좋습니다. 실제 서버 배포는 README와 배포 문서로 설명하고, 핵심 검증은 스모크 명령과 웹 콘솔에서 증명합니다."
   }
 ];
 
@@ -107,9 +148,28 @@ export function UsageGuide({ mode = "panel" }: UsageGuideProps) {
       <div className="sectionHeader">
         <div>
           <p className="eyebrow">사용법</p>
-          <h2>로컬 데모 실행 순서</h2>
+          <h2>로컬 데모 실행과 검증 순서</h2>
         </div>
-        <span className="badge">10분 데모</span>
+        <span className="badge">포트폴리오 데모</span>
+      </div>
+      <div className="usageQuickStart" aria-label="빠른 실행 명령">
+        <div>
+          <strong>빠른 실행 명령</strong>
+          <p>처음 실행할 때는 아래 순서대로 진행합니다. API와 웹은 각각 별도 터미널에서 실행합니다.</p>
+        </div>
+        <div className="usageCommandStack">
+          {quickStartCommands.map((command) => (
+            <code key={command}>{command}</code>
+          ))}
+        </div>
+      </div>
+      <div className="usageScreenGuide" aria-label="화면별 사용법">
+        {screenGuide.map((item) => (
+          <article key={item.screen}>
+            <strong>{item.screen}</strong>
+            <p>{item.point}</p>
+          </article>
+        ))}
       </div>
       <div className="usageGrid">
         {usageSteps.map((step, index) => (

@@ -17,17 +17,17 @@ async function main() {
     const firstIngest = await documents.ingestMarkdown(
       IMPACT_DOCUMENT_PATH,
       `---
-title: "Document Impact Proof"
+title: "문서 변경 영향 분석 증명"
 visibility: public
 tags: impact,rag,quality
 ---
-# Document Impact Proof
+# 문서 변경 영향 분석 증명
 
-## Impact Marker
+## 영향 분석 마커
 
 ${IMPACT_TOKEN} ${IMPACT_TOKEN} ${IMPACT_TOKEN}
 
-OpsPilot must show which stored answers used this document as source evidence before operators trust changed RAG knowledge.
+운영자가 변경된 RAG 지식을 신뢰하기 전에 OpsPilot은 어떤 저장 답변이 이 문서를 출처 근거로 사용했는지 보여줘야 합니다.
 `
     );
     const answer = await agent.ask(`${IMPACT_TOKEN} 문서는 무엇을 증명해야 해?`, ACTOR, "document-impact-smoke");
@@ -38,14 +38,14 @@ OpsPilot must show which stored answers used this document as source evidence be
     await documents.ingestMarkdown(
       IMPACT_DOCUMENT_PATH,
       `---
-title: "Document Impact Proof"
+title: "문서 변경 영향 분석 증명"
 visibility: public
 tags: impact,rag,quality
 ---
-# Document Impact Proof
+# 문서 변경 영향 분석 증명
 
 이 문서는 변경 영향 분석 스모크를 위해 교체되었습니다.
-운영자는 이 문서를 근거로 삼은 과거 답변을 stale 상태로 보고 재검증해야 합니다.
+운영자는 이 문서를 근거로 삼은 과거 답변을 오래된 상태로 보고 재검증해야 합니다.
 `
     );
     const staleImpact = await documents.getImpactReport(documentId);

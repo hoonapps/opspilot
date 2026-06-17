@@ -8,17 +8,17 @@ import { IndexingWorkerService } from "../documents/indexing-worker.service";
 const QUEUE_DOCUMENT_PATH = "public/queue-indexing-proof.md";
 
 const QUEUE_DOCUMENT = `---
-title: "Queued Indexing Proof"
+title: "큐 색인 증명"
 visibility: public
 tags: queue,bullmq,indexing
 ---
-# Queued Indexing Proof
+# 큐 색인 증명
 
-## Worker Completion Token
+## 워커 완료 토큰
 
-Korean aliases: 큐 색인, BullMQ 워커, QIDX-77, 비동기 색인 증거.
+한국어 별칭: 큐 색인, BullMQ 워커, QIDX-77, 비동기 색인 증거.
 
-QIDX-77 proves that a BullMQ indexing worker completed the queued Markdown job and made the document searchable through RAG.
+QIDX-77은 BullMQ 색인 워커가 큐에 들어간 Markdown 작업을 완료했고, 해당 문서를 RAG 검색으로 찾을 수 있게 만들었음을 증명합니다.
 `;
 
 async function main() {

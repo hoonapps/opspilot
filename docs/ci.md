@@ -1,53 +1,53 @@
-# CI
+# 지속적 통합
 
-OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
+OpsPilot은 `main` 푸시와 풀 리퀘스트에서 GitHub Actions를 실행합니다.
 
 ## 검증 항목
 
-- frozen lockfile 기반 설치
-- PostgreSQL + pgvector, Redis service container 실행
-- DB migration
-- typecheck
-- build
-- package test: `@opspilot/ai`, `@opspilot/rag`, `@opspilot/shared`
-- RAG core contract test: `heading_paragraph_window_v1`, `token_overlap_v1`
-- shared contract test: SHA-256 해시와 citation/visibility 타입
-- Jest API package test
-- Docker image build
-- production compose smoke
+- 고정된 lockfile 기반 설치
+- PostgreSQL + pgvector, Redis 서비스 컨테이너 실행
+- DB 마이그레이션
+- 타입 검사
+- 빌드
+- 패키지 테스트: `@opspilot/ai`, `@opspilot/rag`, `@opspilot/shared`
+- RAG 핵심 계약 테스트: `heading_paragraph_window_v1`, `token_overlap_v1`
+- 공통 패키지 계약 테스트: SHA-256 해시와 인용/가시성 타입
+- Jest API 패키지 테스트
+- Docker 이미지 빌드
+- 프로덕션 compose 스모크
 - RAG 평가
-- 평가 게이트 negative smoke
-- 평가 이력 smoke
-- 지식 최신성 smoke
-- 운영 지표/SLO smoke
-- 운영 액션 플랜 smoke
-- API 요청 관측성 smoke
-- 배포 게이트 smoke
-- permission boundary smoke
-- signed actor token smoke
-- secret redaction smoke
-- prompt-injection guardrail smoke
-- actor rate limit smoke
-- ask idempotency smoke
-- readiness smoke
-- document agreement smoke
-- runbook checklist 도구 호출 smoke
-- incident response plan smoke
-- direct indexing smoke
-- retrieval robustness smoke
-- retrieval permission diff smoke
-- document index explain smoke
-- queue indexing smoke와 BullMQ 큐 관제 검증
-- GitHub sync smoke
-- document impact smoke
-- evaluation case detail smoke
-- review workflow smoke
-- 답변 trace/proof smoke
-- answer 답변 drift smoke
-- answer evidence bundle smoke
-- answer quality gate smoke
-- portfolio demo/report
-- OpenAPI contract smoke
-- Playwright web smoke
+- 평가 게이트 실패 경로 스모크
+- 평가 이력 스모크
+- 지식 최신성 스모크
+- 운영 지표/SLO 스모크
+- 운영 액션 플랜 스모크
+- API 요청 관측성 스모크
+- 배포 게이트 스모크
+- 권한 경계 스모크
+- 서명된 호출자 토큰 스모크
+- 시크릿 마스킹 스모크
+- 프롬프트 주입 가드레일 스모크
+- 호출자 호출 제한 스모크
+- `/ask` 멱등성 스모크
+- 준비 상태 스모크
+- 문서 일치율 스모크
+- 런북 체크리스트 도구 호출 스모크
+- 장애 대응 플랜 스모크
+- 직접 색인 스모크
+- 검색 강건성 스모크
+- 권한별 검색 비교 스모크
+- 문서 색인 설명 스모크
+- 큐 색인 스모크와 BullMQ 큐 관제 검증
+- GitHub 동기화 스모크
+- 문서 변경 영향 분석 스모크
+- 평가 케이스 상세 스모크
+- 승인 작업 흐름 스모크
+- 답변 추적/증명 스모크
+- 답변 변경 감지 스모크
+- 답변 증거 번들 스모크
+- 답변 신뢰 게이트 스모크
+- 포트폴리오 데모/리포트
+- OpenAPI 계약 스모크
+- Playwright 웹 스모크
 
-CI는 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. core RAG 패키지의 청킹/문서 일치율 계약, grounded retrieval, citation accuracy, 검색 강건성, 권한별 검색 비교, 문서 색인 설명, 문서 일치율, 문서 변경 영향 분석, 답변 신뢰 게이트, 권한 경계, 사람 승인, 도구 감사, 런북 기반 장애 대응 플랜, API 요청 관측성, 운영 액션 플랜, BullMQ 색인 큐 관제, `/ask` 멱등성, Slack simulator, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.
+지속적 통합은 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. 핵심 RAG 패키지의 청킹/문서 일치율 계약, 근거 기반 검색, 인용 정확도, 검색 강건성, 권한별 검색 비교, 문서 색인 설명, 문서 일치율, 문서 변경 영향 분석, 답변 신뢰 게이트, 권한 경계, 사람 승인, 도구 감사, 런북 기반 장애 대응 플랜, API 요청 관측성, 운영 액션 플랜, BullMQ 색인 큐 관제, `/ask` 멱등성, Slack 시뮬레이터, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.

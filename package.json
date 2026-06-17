@@ -2,7 +2,7 @@
   "name": "opspilot",
   "version": "0.1.0",
   "private": true,
-  "description": "Permission-aware RAG agent for operational knowledge, runbooks, and Slack support workflows.",
+  "description": "운영 지식, 런북, Slack 지원 흐름을 위한 권한 인식 RAG 에이전트입니다.",
   "packageManager": "pnpm@10.14.0",
   "scripts": {
     "build": "pnpm -r build",
