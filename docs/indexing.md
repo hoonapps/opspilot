@@ -28,6 +28,16 @@ curl -X POST http://localhost:3000/documents/markdown \
 
 If the document path already exists, OpsPilot updates the document metadata, records a new document version when the redacted content hash changed, replaces old chunks, and indexes fresh chunks. Raw secret values are not stored in document versions, chunk content, embeddings, or Elasticsearch mirrors.
 
+## Version History
+
+```bash
+curl http://localhost:3000/documents/{documentId}/versions
+```
+
+Each changed Markdown upsert records a new redacted document version. The version endpoint returns the latest document metadata, version list, content hashes, redacted previews, and a `line_set_diff_v1` summary against the previous version. The diff includes added, removed, and unchanged line counts plus short added/removed previews.
+
+This is intentionally separate from retrieval: reviewers can first inspect what changed in the knowledge base, then prove that retrieval and answers reflect the updated document.
+
 ## Index Inventory
 
 ```bash
@@ -41,11 +51,12 @@ The Documents screen in the Next.js console calls the same endpoint after Markdo
 After a Markdown upsert, the console also runs an indexed-document proof:
 
 1. refresh document inventory
-2. call retrieval preview for the verification query
-3. call `/ask` with the same query
-4. display chunk count, top source path, retrieval score, answer agreement, and confidence
+2. load version history and latest diff for the indexed document
+3. call retrieval preview for the verification query
+4. call `/ask` with the same query
+5. display chunk count, top source path, retrieval score, answer agreement, and confidence
 
-This makes the portfolio demo explicit: a reviewer can see that a newly added Markdown file was parsed, chunked, embedded, retrieved, and used as grounded answer evidence.
+This makes the portfolio demo explicit: a reviewer can see that a newly added or changed Markdown file was versioned, parsed, chunked, embedded, retrieved, and used as grounded answer evidence.
 
 ## Queued Markdown Indexing
 
@@ -101,9 +112,10 @@ pnpm indexing:smoke
 The smoke test:
 
 1. Ingests the seed wiki
-2. Upserts a new `public/status-page-policy.md` Markdown document
-3. Asks a status-page SLA question using terms that are unique to the newly indexed document
-4. Fails unless the top source is the newly indexed document and the answer includes the 15 minute SLA
+2. Upserts and then updates a `public/status-page-policy.md` Markdown document
+3. Verifies that version history and latest diff exist for that document
+4. Asks a status-page SLA question using terms that are unique to the newly indexed document
+5. Fails unless the top source is the newly indexed document and the answer includes the 15 minute SLA
 
 Run the same proof with hybrid retrieval:
 

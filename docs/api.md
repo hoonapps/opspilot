@@ -20,6 +20,7 @@ GET /docs-json
 - `POST /retrieval/preview`
 - `GET /permission-boundary/matrix`
 - `GET /documents`
+- `GET /documents/{id}/versions`
 - `POST /documents/markdown`
 - `POST /documents/github/sync`
 - `POST /documents/indexing-jobs/markdown`
@@ -46,3 +47,5 @@ This keeps the public API contract from silently drifting while the RAG agent gr
 `GET /permission-boundary/matrix` is intentionally part of the public contract because the portfolio demo needs to prove access policy independently from answer generation. It evaluates indexed documents against demo personas using the same authorization function as retrieval.
 
 `GET /documents` is intentionally part of the public contract because the portfolio demo needs to prove indexing state, not just final answers. It exposes document inventory and chunk previews for verification while keeping raw embeddings internal.
+
+`GET /documents/{id}/versions` is intentionally part of the public contract because changed operational docs need an audit trail. It exposes redacted version previews, hashes, and line-level diff summaries without exposing embeddings.

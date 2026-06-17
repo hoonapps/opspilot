@@ -17,7 +17,7 @@ The screenshot above is generated from the working Next.js console by `pnpm web:
 - render an Open Design-inspired operations dashboard shell with workspace rail, screen list navigation, KPI strip, evidence panel, quality gates, approval queue, audit feed, and a dedicated document management screen
 - load evaluation metrics and document match gates
 - load operational telemetry for questions, human review rate, document match, tool calls, approvals, feedback, and indexed knowledge
-- upsert a new Markdown document, inspect index inventory and chunk previews, and verify the indexed document through retrieval preview plus a grounded answer
+- upsert and update a Markdown document, inspect index inventory, version diff, and chunk previews, then verify the indexed document through retrieval preview plus a grounded answer
 - preview retrieval ranking before answer generation with vector/lexical scores and permission-denied candidate counts
 - ask a sensitive operations question and force human approval
 - show permission audit counts, role/team boundary matrix, review reasons, answer trace, source grounding coverage, tool calls, feedback, and approval queue state
@@ -34,6 +34,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can sensitive operations be separated into human approval?
 - Can tool calls be audited after the answer is generated?
 - Can new or changed documents be re-indexed, retrieved as top evidence, and evaluated?
+- Can document versions and diffs prove what changed before retrieval behavior changes?
 - Can retrieval ranking be debugged before answer generation?
 - Can retrieval quality be measured against expected source documents?
 
@@ -312,6 +313,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - `/ask` API
 - Source citation response
 - Runtime Markdown document upsert API
+- Document version history and diff API
 - GitHub Markdown sync API
 - BullMQ queued Markdown indexing API and worker
 - Optional signed actor token authentication boundary
@@ -332,7 +334,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
-- Next.js web console with separate Ask, Retrieval, Documents, Quality, Review, and Audit screens for asking questions, previewing retrieval ranking, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, verifying indexed documents through retrieval and answer agreement, reviewing permission boundary matrix, index inventory, and chunk previews, saving feedback, and resolving approval requests
+- Next.js web console with separate Ask, Retrieval, Documents, Quality, Review, and Audit screens for asking questions, previewing retrieval ranking, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, reviewing version diffs, verifying indexed documents through retrieval and answer agreement, reviewing permission boundary matrix, index inventory, and chunk previews, saving feedback, and resolving approval requests
 - Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
@@ -373,6 +375,7 @@ Done:
 - Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web console quality gate panel
 - Runtime Markdown document upsert API and indexing smoke test
+- Document version history endpoint and line-level diff summary for changed Markdown
 - GitHub Markdown sync API and offline sync smoke test
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
@@ -381,7 +384,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, chunk preview, indexed-document proof, security summary, evaluation metrics, operational telemetry, answer-level document match, source grounding coverage, permission audit, answer trace timeline, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, operational telemetry, answer-level document match, source grounding coverage, permission audit, answer trace timeline, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
@@ -443,6 +446,14 @@ GET /documents
 ```
 
 This returns document path, title, visibility, team boundary, latest version, content hash, chunk count, redaction summary, and chunk previews so reviewers can verify that ingestion, chunking, and security handling actually ran.
+
+Document version history endpoint:
+
+```txt
+GET /documents/:id/versions
+```
+
+This returns stored redacted versions for a document, content hashes, previews, and a line-level diff summary against the previous version. The Documents screen loads it after Markdown upsert so reviewers can see what changed before checking retrieval behavior.
 
 Queued indexing endpoint:
 

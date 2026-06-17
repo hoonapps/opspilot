@@ -8,8 +8,10 @@ import {
   AskResponse,
   createFeedback,
   DocumentInventoryItem,
+  DocumentVersionHistory,
   EvaluationReport,
   getAnswerTrace,
+  getDocumentVersionHistory,
   getLatestEvaluation,
   getObservabilitySummary,
   getPermissionBoundaryMatrix,
@@ -128,6 +130,7 @@ export default function Home() {
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
+  const [documentVersionHistory, setDocumentVersionHistory] = useState<DocumentVersionHistory | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
@@ -139,6 +142,7 @@ export default function Home() {
     | "verify"
     | "github"
     | "documents"
+    | "versions"
     | "matrix"
     | "approval"
     | "audit"
@@ -246,7 +250,11 @@ export default function Home() {
       setQuestion(verificationQuery);
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
-      setSelectedDocumentId(nextDocuments.find((document) => document.path === nextIngest.path)?.id ?? nextDocuments[0]?.id ?? null);
+      const indexedDocument = nextDocuments.find((document) => document.path === nextIngest.path) ?? nextDocuments[0] ?? null;
+      setSelectedDocumentId(indexedDocument?.id ?? null);
+      if (indexedDocument) {
+        await loadDocumentVersions(indexedDocument.id);
+      }
       await verifyIndexedDocument(nextIngest, verificationQuery);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Indexing request failed");
@@ -326,6 +334,22 @@ export default function Home() {
       );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Document inventory request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadDocumentVersions(documentId = selectedDocument?.id) {
+    if (!documentId) {
+      return;
+    }
+
+    setError(null);
+    setLoading((current) => current ?? "versions");
+    try {
+      setDocumentVersionHistory(await getDocumentVersionHistory(documentId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Document version request failed");
     } finally {
       setLoading(null);
     }
@@ -906,7 +930,10 @@ export default function Home() {
                     <button
                       className={selectedDocument?.id === document.id ? "documentRow active" : "documentRow"}
                       key={document.id}
-                      onClick={() => setSelectedDocumentId(document.id)}
+                      onClick={() => {
+                        setSelectedDocumentId(document.id);
+                        setDocumentVersionHistory(null);
+                      }}
                       type="button"
                     >
                       <span>
@@ -927,13 +954,54 @@ export default function Home() {
                           <strong>{selectedDocument.title}</strong>
                           <p>{selectedDocument.path}</p>
                         </div>
-                        <code>v{selectedDocument.latestVersion}</code>
+                        <button className="smallButton" disabled={loading === "versions"} onClick={() => loadDocumentVersions()} type="button">
+                          {loading === "versions" ? "Loading..." : `v${selectedDocument.latestVersion} history`}
+                        </button>
                       </div>
                       <div className="securityLine">
                         <span>team: {selectedDocument.teamSlug ?? "public"}</span>
                         <span>redacted: {getRedactionCount(selectedDocument)}</span>
                         <span>hash: {selectedDocument.contentHash.slice(0, 10)}</span>
                       </div>
+                      {documentVersionHistory?.document.id === selectedDocument.id ? (
+                        <section className="versionPanel" aria-label="document version history">
+                          <div className="versionSummary">
+                            <div>
+                              <span>Version history</span>
+                              <strong>{documentVersionHistory.versions.length} versions</strong>
+                            </div>
+                            <div>
+                              <span>Latest diff</span>
+                              <strong>
+                                {documentVersionHistory.latestDiff
+                                  ? `+${documentVersionHistory.latestDiff.addedLineCount} -${documentVersionHistory.latestDiff.removedLineCount}`
+                                  : "initial"}
+                              </strong>
+                            </div>
+                            <code>{documentVersionHistory.latestDiff?.method ?? "no_previous_version"}</code>
+                          </div>
+                          <div className="versionList">
+                            {documentVersionHistory.versions.slice(0, 4).map((version) => (
+                              <article className="versionItem" key={version.id}>
+                                <div>
+                                  <strong>v{version.version}</strong>
+                                  <span>{formatShortDate(version.createdAt)}</span>
+                                  <code>{version.contentHash.slice(0, 10)}</code>
+                                </div>
+                                <p>{version.contentPreview}</p>
+                                {version.diffFromPrevious ? (
+                                  <small>
+                                    +{version.diffFromPrevious.addedLineCount} -{version.diffFromPrevious.removedLineCount} ·{" "}
+                                    {version.diffFromPrevious.addedPreview[0] ?? "metadata-only change"}
+                                  </small>
+                                ) : (
+                                  <small>Initial indexed version</small>
+                                )}
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
                       <div className="chunkList">
                         {selectedDocument.chunks.map((chunk) => (
                           <article className="chunkItem" key={chunk.id}>
@@ -1162,6 +1230,15 @@ function formatDuration(value: number): string {
     return `${value}ms`;
   }
   return `${(value / 1000).toFixed(1)}s`;
+}
+
+function formatShortDate(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function summarizeToolOutput(output: Record<string, unknown>): string {

@@ -41,16 +41,28 @@ async function main() {
     await page.locator(".indexProof").getByText("Indexed doc is retrievable", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("Source hit", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".versionPanel").getByText("Version history", { exact: true }).waitFor({ timeout: 10000 });
+    const currentMarkdown = await page.getByLabel("Markdown").inputValue();
+    await page.getByLabel("Markdown").fill(`${currentMarkdown}\n\nWEB-DIFF-42: version history proof line for document diff inspection.`);
+    await page.getByRole("button", { name: "Upsert and verify RAG" }).click();
+    await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "Load matrix" }).click();
     await page.locator(".permissionMatrixPanel").getByText("Document access simulator", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".matrixTable").getByText("Production Database Access Policy", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".matrixTable").getByText("Allow", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".matrixTable").getByText("Deny", { exact: true }).first().waitFor({ timeout: 10000 });
     const inventoryVisible = await page.locator(".inventoryStats").getByText("Documents", { exact: true }).isVisible();
-    const chunkPreviewVisible = await page.locator(".chunkInspector").getByText("publish the first status page notice", { exact: false }).isVisible();
+    const chunkPreviewVisible = await page
+      .locator(".chunkInspector")
+      .getByText("publish the first status page notice", { exact: false })
+      .first()
+      .isVisible();
     const securitySummaryVisible = await page.locator(".securityLine").getByText("redacted:", { exact: false }).isVisible();
     const indexProofVisible = await page.locator(".indexProof").getByText("Indexed doc is retrievable", { exact: true }).isVisible();
     const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("Source hit", { exact: true }).isVisible();
+    const versionHistoryVisible = await page.locator(".versionPanel").getByText("Version history", { exact: true }).isVisible();
+    const versionDiffVisible = await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).isVisible();
     const permissionMatrixVisible = await page.locator(".permissionMatrixPanel").getByText("Document access simulator", { exact: true }).isVisible();
     const permissionMatrixDenyVisible = await page.locator(".matrixTable").getByText("Deny", { exact: true }).first().isVisible();
 
@@ -153,6 +165,8 @@ async function main() {
         securitySummaryVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
+        versionHistoryVisible &&
+        versionDiffVisible &&
         permissionMatrixVisible &&
         permissionMatrixDenyVisible &&
         retrievalPreviewVisible &&
@@ -185,6 +199,8 @@ async function main() {
         securitySummaryVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
+        versionHistoryVisible,
+        versionDiffVisible,
         permissionMatrixVisible,
         permissionMatrixDenyVisible,
         retrievalPreviewVisible,

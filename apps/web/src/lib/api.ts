@@ -101,6 +101,38 @@ export type DocumentInventoryItem = {
   }>;
 };
 
+export type DocumentVersionHistory = {
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    latestVersion: number;
+  };
+  versions: Array<{
+    id: string;
+    version: number;
+    contentHash: string;
+    contentLength: number;
+    contentPreview: string;
+    createdAt: string;
+    diffFromPrevious: DocumentVersionDiff | null;
+  }>;
+  latestDiff: DocumentVersionDiff | null;
+};
+
+export type DocumentVersionDiff = {
+  method: "line_set_diff_v1";
+  fromVersion: number;
+  toVersion: number;
+  addedLineCount: number;
+  removedLineCount: number;
+  unchangedLineCount: number;
+  addedPreview: string[];
+  removedPreview: string[];
+};
+
 export type RetrievalPreviewResponse = {
   query: string;
   limit: number;
@@ -454,6 +486,16 @@ export async function listDocuments(): Promise<DocumentInventoryItem[]> {
 
   const data = (await response.json()) as { documents: DocumentInventoryItem[] };
   return data.documents;
+}
+
+export async function getDocumentVersionHistory(documentId: string): Promise<DocumentVersionHistory> {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}/versions`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentVersionHistory>;
 }
 
 export async function getPermissionBoundaryMatrix(): Promise<PermissionBoundaryMatrix> {

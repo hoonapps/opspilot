@@ -25,6 +25,15 @@ export class DocumentsController {
     return this.documentsService.listInventory();
   }
 
+  @Get(":id/versions")
+  async getDocumentVersions(@Param("id") id: string) {
+    const history = await this.documentsService.getVersionHistory(id);
+    if (!history) {
+      throw new NotFoundException(`Document not found: ${id}`);
+    }
+    return history;
+  }
+
   @Post("markdown")
   upsertMarkdownDocument(@Body() body: UpsertMarkdownDocumentDto) {
     return this.documentsService.ingestMarkdown(body.path, body.markdown);

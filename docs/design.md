@@ -24,22 +24,23 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.
 - Keep sensitive actions separate from automatic answers through the approval queue.
 - Expose evaluation metrics in the same surface used for demos.
-- Keep document upsert, GitHub sync, permission boundary matrix, index inventory, and chunk previews in a dedicated Documents screen so re-indexing and access policy can be demonstrated live without hiding the controls below the answer workflow.
+- Keep document upsert, GitHub sync, permission boundary matrix, version diff, index inventory, and chunk previews in a dedicated Documents screen so re-indexing, document changes, and access policy can be demonstrated live without hiding the controls below the answer workflow.
 
 ## Portfolio Demo Path
 
 1. Run the local stack and ingest seed documents.
 2. Open the Quality screen and load the latest evaluation report.
 3. Open the Documents screen and upsert the sample status-page Markdown document.
-4. Verify that the inventory count, selected document, content hash, redaction summary, and generated chunk previews update before asking a question.
-5. Load the permission boundary matrix and verify public/team/restricted allow-deny behavior across personas.
-6. Open the Retrieval screen and preview ranking for the status-page and production DB questions.
-7. Verify vector/lexical score bars, ranked chunks, and denied restricted candidates.
-8. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
-9. Ask the production DB write question and verify human approval is required.
-10. Open the Review screen and inspect the approval queue.
-11. Open the Audit screen and inspect the persisted tool-call trail.
-12. Save feedback and refresh the answer trace timeline and source grounding coverage.
+4. Verify that the inventory count, selected document, content hash, version diff, redaction summary, and generated chunk previews update before asking a question.
+5. Update the Markdown sample again and verify the version diff shows the added line.
+6. Load the permission boundary matrix and verify public/team/restricted allow-deny behavior across personas.
+7. Open the Retrieval screen and preview ranking for the status-page and production DB questions.
+8. Verify vector/lexical score bars, ranked chunks, and denied restricted candidates.
+9. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
+10. Ask the production DB write question and verify human approval is required.
+11. Open the Review screen and inspect the approval queue.
+12. Open the Audit screen and inspect the persisted tool-call trail.
+13. Save feedback and refresh the answer trace timeline and source grounding coverage.
 
 This is the same path covered by the Playwright web smoke test.
 

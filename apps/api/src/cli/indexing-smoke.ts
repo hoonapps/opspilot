@@ -21,6 +21,10 @@ When a customer-impacting incident is confirmed, publish the first status page n
 The notice must include affected feature, current impact, next update time, and incident owner.
 `;
 
+const UPDATED_SMOKE_DOCUMENT = `${SMOKE_DOCUMENT}
+If the incident impacts settlement, add the finance on-call engineer to the update owner list.
+`;
+
 async function main() {
   const app = await NestFactory.createApplicationContext(AppModule);
   try {
@@ -28,18 +32,40 @@ async function main() {
     const agent = app.get(AgentService);
 
     await documents.ingestSeedDocuments();
-    const ingested = await documents.ingestMarkdown(SMOKE_DOCUMENT_PATH, SMOKE_DOCUMENT);
+    await documents.ingestMarkdown(SMOKE_DOCUMENT_PATH, SMOKE_DOCUMENT);
+    const ingested = await documents.ingestMarkdown(SMOKE_DOCUMENT_PATH, UPDATED_SMOKE_DOCUMENT);
+    const inventory = await documents.listInventory();
+    const indexedDocument = inventory.documents.find((document) => document.path === SMOKE_DOCUMENT_PATH);
+    const versionHistory = indexedDocument ? await documents.getVersionHistory(indexedDocument.id) : null;
     const response = await agent.ask(
       "고객 공지 SLA와 15분 공지 기준은 무엇이야?",
       { roles: [], teamSlugs: [] },
       "indexing-smoke"
     );
     const topSource = response.sources[0];
-    const ok = topSource?.path === SMOKE_DOCUMENT_PATH && response.answer.includes("15");
+    const versionHistoryOk =
+      versionHistory !== null &&
+      indexedDocument !== undefined &&
+      versionHistory.versions.length >= 2 &&
+      versionHistory.document.latestVersion === indexedDocument.latestVersion &&
+      versionHistory.latestDiff !== null &&
+      versionHistory.latestDiff.toVersion === versionHistory.document.latestVersion &&
+      versionHistory.latestDiff.addedLineCount >= 0;
+    const ok =
+      topSource?.path === SMOKE_DOCUMENT_PATH &&
+      response.answer.includes("15") &&
+      versionHistoryOk;
 
     const report = {
       ok,
       ingested,
+      versionHistory: versionHistory
+        ? {
+            latestVersion: versionHistory.document.latestVersion,
+            versionCount: versionHistory.versions.length,
+            latestDiff: versionHistory.latestDiff
+          }
+        : null,
       topSource: topSource
         ? {
             title: topSource.title,

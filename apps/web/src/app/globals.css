@@ -1138,6 +1138,7 @@ pre {
 .chunkHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 12px;
   padding: 14px;
   border-bottom: 1px solid var(--line);
@@ -1162,6 +1163,104 @@ pre {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.versionPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f2fbf8;
+}
+
+.versionSummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.versionSummary div,
+.versionSummary code {
+  min-height: 54px;
+  padding: 9px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.versionSummary span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.versionSummary strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.versionSummary code {
+  display: grid;
+  align-items: center;
+  color: var(--accent-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.versionList {
+  display: grid;
+  gap: 8px;
+}
+
+.versionItem {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.versionItem div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.versionItem strong {
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
+.versionItem span,
+.versionItem small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.versionItem code {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.versionItem p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .securityLine {
@@ -1559,6 +1658,7 @@ pre {
   .reasonItem,
   .traceSummary,
   .groundingItem,
+  .versionSummary,
   .timelineItem,
   .feedbackBar {
     grid-template-columns: 1fr;

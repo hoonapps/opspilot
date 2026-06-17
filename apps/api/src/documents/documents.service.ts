@@ -38,6 +38,15 @@ type ChunkPreviewRow = {
   heading?: string | null;
 };
 
+type DocumentVersionRow = {
+  id: string;
+  documentId: string;
+  version: number | string;
+  contentHash: string;
+  content: string;
+  createdAt: Date | string;
+};
+
 export type DocumentInventoryItem = {
   id: string;
   path: string;
@@ -56,6 +65,38 @@ export type DocumentInventoryItem = {
     contentPreview: string;
     contentLength: number;
   }>;
+};
+
+export type DocumentVersionHistory = {
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    latestVersion: number;
+  };
+  versions: Array<{
+    id: string;
+    version: number;
+    contentHash: string;
+    contentLength: number;
+    contentPreview: string;
+    createdAt: string;
+    diffFromPrevious: DocumentVersionDiff | null;
+  }>;
+  latestDiff: DocumentVersionDiff | null;
+};
+
+export type DocumentVersionDiff = {
+  method: "line_set_diff_v1";
+  fromVersion: number;
+  toVersion: number;
+  addedLineCount: number;
+  removedLineCount: number;
+  unchangedLineCount: number;
+  addedPreview: string[];
+  removedPreview: string[];
 };
 
 @Injectable()
@@ -171,6 +212,75 @@ export class DocumentsService {
     };
   }
 
+  async getVersionHistory(documentId: string): Promise<DocumentVersionHistory | null> {
+    const connection = this.orm.em.fork().getConnection();
+    const [document] = (await connection.execute<DocumentInventoryRow[]>(
+      `
+        select
+          d.id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.metadata,
+          d.content_hash as "contentHash",
+          0::int as "chunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          d.updated_at as "updatedAt"
+        from documents d
+        left join document_versions v on v.document_id = d.id
+        where d.id = ?::uuid
+        group by d.id;
+      `,
+      [documentId]
+    )) as DocumentInventoryRow[];
+
+    if (!document) {
+      return null;
+    }
+
+    const rows = (await connection.execute<DocumentVersionRow[]>(
+      `
+        select
+          id,
+          document_id as "documentId",
+          version,
+          content_hash as "contentHash",
+          content,
+          created_at as "createdAt"
+        from document_versions
+        where document_id = ?::uuid
+        order by version asc;
+      `,
+      [documentId]
+    )) as DocumentVersionRow[];
+    const versionsAscending = rows.map((row, index) => {
+      const previous = index > 0 ? rows[index - 1] : undefined;
+      return {
+        id: row.id,
+        version: Number(row.version),
+        contentHash: row.contentHash,
+        contentLength: row.content.length,
+        contentPreview: previewText(row.content),
+        createdAt: toIsoString(row.createdAt),
+        diffFromPrevious: previous ? diffVersions(Number(previous.version), previous.content, Number(row.version), row.content) : null
+      };
+    });
+
+    return {
+      document: {
+        id: document.id,
+        path: document.path,
+        title: document.title,
+        visibility: document.visibility,
+        teamSlug: document.teamSlug,
+        latestVersion: Number(document.latestVersion)
+      },
+      versions: [...versionsAscending].reverse(),
+      latestDiff: versionsAscending[versionsAscending.length - 1]?.diffFromPrevious ?? null
+    };
+  }
+
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {
     const parsed = parseMarkdownDocument(path, raw);
     const redacted = this.redaction.redactMarkdown(parsed.body);
@@ -278,6 +388,42 @@ export class DocumentsService {
       changed
     };
   }
+}
+
+function toIsoString(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function previewText(content: string): string {
+  return content.replace(/\s+/g, " ").trim().slice(0, 360);
+}
+
+function diffVersions(fromVersion: number, previousContent: string, toVersion: number, currentContent: string): DocumentVersionDiff {
+  const previousLines = normalizeLines(previousContent);
+  const currentLines = normalizeLines(currentContent);
+  const previousSet = new Set(previousLines);
+  const currentSet = new Set(currentLines);
+  const added = currentLines.filter((line) => !previousSet.has(line));
+  const removed = previousLines.filter((line) => !currentSet.has(line));
+  const unchanged = currentLines.filter((line) => previousSet.has(line));
+
+  return {
+    method: "line_set_diff_v1",
+    fromVersion,
+    toVersion,
+    addedLineCount: added.length,
+    removedLineCount: removed.length,
+    unchangedLineCount: unchanged.length,
+    addedPreview: added.slice(0, 5),
+    removedPreview: removed.slice(0, 5)
+  };
+}
+
+function normalizeLines(content: string): string[] {
+  return content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 async function findMarkdownFiles(dir: string): Promise<string[]> {
