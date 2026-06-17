@@ -55,6 +55,8 @@ The `search_documents` tool log stores an aggregated permission audit with the c
 
 `GET /answers/:id/trace` is an audit endpoint for the portfolio demo. It reconstructs the persisted answer with ranked source chunks, tool calls, approval requests, and feedback. The endpoint re-checks every traced source against the caller's roles and teams before returning the artifact, because source previews can contain permitted operational content. A production deployment should additionally require real user authentication and either original-answer access or an operator audit role.
 
+`GET /answers/:id/proof` uses the same source re-check and returns a compact evidence packet for operators. It does not bypass trace permissions; if a caller cannot access a traced source, the proof request is denied too. The proof packet reports pass/warn/fail checks for source attachment, document agreement, grounding coverage, tool audit persistence, approval boundary separation, context budget, and feedback capture.
+
 ## Slack Security
 
 When `SLACK_SIGNING_SECRET` is configured, OpsPilot verifies Slack request signatures with the raw request body and rejects stale requests older than five minutes. Local demos can leave the secret empty to replay fixture payloads without Slack credentials.

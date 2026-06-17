@@ -23,14 +23,29 @@ async function main() {
 
     const traceService = app.get(AnswerTraceService);
     const trace = await traceService.getTrace(answer.answerId, { roles: ["ops_admin"], teamSlugs: ["payments"] });
+    const proof = await traceService.getProof(answer.answerId, { roles: ["ops_admin"], teamSlugs: ["payments"] });
     const unauthorizedDenied = await rejectsTrace(traceService, answer.answerId);
     const sourcePaths = trace.sources.map((source) => source.path);
     const toolNames = trace.toolCalls.map((toolCall) => toolCall.toolName);
     const timelineTitles = trace.timeline.map((event) => event.title);
     const reviewReasons = trace.answer.metadata.reviewReasons as Array<{ code?: string }> | undefined;
+    const proofChecks = Object.fromEntries(proof.checks.map((check) => [check.id, check]));
     const ok =
       trace.answer.id === answer.answerId &&
       trace.answer.questionId === answer.questionId &&
+      proof.answerId === answer.answerId &&
+      proof.questionId === answer.questionId &&
+      proof.status === "verified" &&
+      proof.score === 1 &&
+      proofChecks.source_access_rechecked?.status === "pass" &&
+      proofChecks.document_agreement?.status === "pass" &&
+      proofChecks.grounding_coverage?.status === "pass" &&
+      proofChecks.search_tool_audited?.status === "pass" &&
+      proofChecks.approval_boundary?.status === "pass" &&
+      proofChecks.context_budget?.status === "pass" &&
+      proofChecks.feedback_captured?.status === "pass" &&
+      proof.evidence.sourcePaths.some((path) => path.startsWith("restricted/")) &&
+      proof.evidence.reviewReasons.includes("sensitive_action") &&
       trace.summary.sourceCount === trace.sources.length &&
       trace.summary.toolCallCount === trace.toolCalls.length &&
       trace.summary.approvalCount === trace.approvals.length &&
@@ -79,7 +94,8 @@ async function main() {
         contextPackage: trace.contextPackage,
         timeline: timelineTitles,
         unauthorizedDenied,
-        reviewReasons
+        reviewReasons,
+        proof
       }
     };
 

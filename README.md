@@ -41,6 +41,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can retrieval ranking be debugged before answer generation?
 - Can retrieval quality be measured and debugged against expected source documents case by case?
 - Can answer quality and review load be expressed as SLOs with error-budget style status?
+- Can a single answer produce a proof packet that summarizes grounding, policy, tool audit, approval boundary, and feedback evidence?
 
 ## Stack
 
@@ -111,7 +112,7 @@ pnpm portfolio:report
 
 The latest generated report lives at [docs/demo-report.md](docs/demo-report.md).
 
-Verify that a persisted answer can be reconstructed for audit from sources, source-level grounding coverage, tool calls, approvals, and feedback, while unauthorized trace reads are denied:
+Verify that a persisted answer can be reconstructed for audit from sources, source-level grounding coverage, tool calls, approvals, feedback, and an answer proof packet, while unauthorized trace reads are denied:
 
 ```bash
 pnpm trace:smoke
@@ -338,6 +339,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Tool call logs and recent audit API
 - Tool registry API for side effects, approval policy, and input/output contracts
 - Permission-checked answer trace API for reconstructing a persisted answer's timeline, sources, source-level grounding coverage, tool calls, approvals, and feedback
+- Answer proof packet API for pass/warn/fail checks across source access, document agreement, grounding coverage, tool audit, approval boundary, context budget, and feedback capture
 - Context package trace for prompt budget, included chunks, omitted chunks, and token estimates
 - Operational observability summary API for questions, answers, document agreement, tool calls, approvals, feedback, and indexed knowledge size
 - SLO guardrail API for answer grounding, review load, tool audit coverage, latest eval gate, and error budget status
@@ -385,6 +387,7 @@ Done:
 - Tool call logging and recent audit API
 - Tool registry endpoint and web contract panel for approval-aware agent tools
 - `GET /answers/:id/trace` answer trace API with timeline summary, source-level grounding coverage, and document access re-check
+- `GET /answers/:id/proof` answer proof packet API with operator-readable pass/warn/fail evidence checks
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, negative gate smoke, and history smoke
@@ -394,13 +397,13 @@ Done:
 - GitHub Markdown sync API and offline sync smoke test
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
-- Answer trace smoke test
+- Answer trace smoke test with answer proof packet assertions
 - Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - Observability SLO smoke test proving grounding, review load, tool audit coverage, and eval gate guardrails
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, SLO guardrails, answer-level document match, context budget, source grounding coverage, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, SLO guardrails, answer-level document match, context budget, source grounding coverage, answer proof packet, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, evaluation history, observability SLOs, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
@@ -509,13 +512,13 @@ Details: [docs/observability.md](docs/observability.md)
 
 ## API Contract
 
-Swagger UI is available at `/docs`, and the generated OpenAPI JSON is available at `/docs-json`. `pnpm openapi:smoke` verifies that the portfolio-critical paths, including the local Slack simulator, and request schemas are present.
+Swagger UI is available at `/docs`, and the generated OpenAPI JSON is available at `/docs-json`. `pnpm openapi:smoke` verifies that the portfolio-critical paths, including answer proof packets and the local Slack simulator, plus request schemas are present.
 
 Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, observability SLO smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, SLO guardrails, answer-level document match, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, observability SLO smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, SLO guardrails, answer-level document match, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

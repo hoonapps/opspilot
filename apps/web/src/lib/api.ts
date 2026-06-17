@@ -404,6 +404,40 @@ export type AnswerTrace = {
   }>;
 };
 
+export type AnswerProof = {
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "verified" | "review_required" | "insufficient_evidence";
+  score: number;
+  thresholds: {
+    minDocumentAgreement: number;
+    minGroundingCoverage: number;
+  };
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  evidence: {
+    sourcePaths: string[];
+    toolCalls: Array<{ toolName: string; status: string }>;
+    approvals: Array<{ action: string; status: string }>;
+    feedbackCount: number;
+    reviewReasons: string[];
+    metrics: {
+      confidence: number;
+      documentAgreementScore: number;
+      groundingCoverageRatio: number;
+      contextEstimatedTokenCount: number;
+      contextTokenBudget: number;
+    };
+  };
+};
+
 export type ObservabilitySummary = {
   generatedAt: string;
   questions: {
@@ -710,4 +744,20 @@ export async function getAnswerTrace(input: { answerId: string; teamSlugs: strin
   }
 
   return response.json() as Promise<AnswerTrace>;
+}
+
+export async function getAnswerProof(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerProof> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/proof`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerProof>;
 }

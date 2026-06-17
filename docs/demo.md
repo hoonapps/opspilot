@@ -2,7 +2,7 @@
 
 `pnpm portfolio:demo` runs a compact end-to-end demo without requiring a browser or external LLM provider. It creates a Nest application context, ingests the seed wiki, upserts a new Markdown document, asks representative operations questions, and prints a JSON report.
 
-`pnpm portfolio:report` runs the same assertions and writes `docs/demo-report.md`. That file is intended for portfolio review: it shows the retrieved source paths, document agreement ratio, tool calls, human review state, new-document indexing proof, and persisted audit trace evidence.
+`pnpm portfolio:report` runs the same assertions and writes `docs/demo-report.md`. That file is intended for portfolio review: it shows the retrieved source paths, document agreement ratio, tool calls, human review state, new-document indexing proof, and persisted audit trace evidence. The live trace smoke adds an answer proof packet for source access, grounding, tool audit, approval boundary, context budget, and feedback checks.
 
 ## What It Proves
 
@@ -11,6 +11,7 @@
 - A runbook question triggers the `create_runbook_checklist` tool call.
 - A sensitive production operation triggers human review and `request_human_approval`.
 - The answer trace can reconstruct sources, tool calls, approvals, and feedback.
+- The answer proof packet summarizes grounding, policy, tool audit, approval boundary, context budget, and feedback checks.
 
 ## Run
 
@@ -40,7 +41,8 @@ The report is intentionally readable in terminal output and CI logs:
     "New Markdown document is indexed and retrieved",
     "Runbook questions trigger structured tool calling",
     "Sensitive operations require human approval",
-    "Answer trace reconstructs sources, tool calls, approvals, and feedback"
+    "Answer trace reconstructs sources, tool calls, approvals, and feedback",
+    "Answer proof packet summarizes evidence checks"
   ],
   "steps": [
     {

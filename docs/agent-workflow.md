@@ -30,6 +30,7 @@ GET /tool-calls/recent
 GET /tool-calls/recent?limit=20
 GET /tool-calls/registry
 GET /answers/:id/trace
+GET /answers/:id/proof
 ```
 
 Every tool call stores the linked question id, tool name, input, output, status, and timestamp in `tool_call_logs`. The web console reads the recent audit feed so demos can show which tools were allowed and which required approval.
@@ -39,6 +40,8 @@ For `search_documents`, the output includes an aggregated `permissionAudit` obje
 `GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns a summary, ordered timeline, question, answer metadata, ranked sources with chunk previews, source-level grounding coverage, context budget package, tool calls, approval requests, and feedback for that answer. The endpoint applies the same document access check to every traced source before returning the artifact.
 
 The trace timeline includes question persistence, source attachment, answer generation, tool calls, approval transitions, and feedback events. The grounding section shows answer-token coverage by source, including the matched tokens used for the deterministic overlap check. The context package shows which ranked chunks entered the prompt budget and which were omitted. This lets the web console show an answer-level execution story and document match evidence without exposing raw embeddings or bypassing document permissions.
+
+`GET /answers/:id/proof` uses the same source access re-check as trace, then compresses the artifact into operator-readable pass/warn/fail checks. It verifies source attachment, document agreement, grounding coverage, `search_documents` audit persistence, sensitive-action approval separation, context budget, and feedback capture. This gives reviewers a short proof packet without hiding the deeper trace.
 
 ## Decision Flow
 
@@ -60,10 +63,11 @@ The trace timeline includes question persistence, source attachment, answer gene
 16. Persist every question, answer, source, review reason, context package, and tool call.
 17. Store optional feedback against the persisted answer id.
 18. Expose answer trace through `GET /answers/:id/trace`.
-19. Expose recent tool calls through the audit API.
-20. Expose pending approval requests for human review.
-21. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
-22. For local Slack simulation, return a compact trace with actor mapping, persisted question and answer ids, source scores, tool calls, and reply post mode.
+19. Expose answer proof through `GET /answers/:id/proof`.
+20. Expose recent tool calls through the audit API.
+21. Expose pending approval requests for human review.
+22. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
+23. For local Slack simulation, return a compact trace with actor mapping, persisted question and answer ids, source scores, tool calls, and reply post mode.
 
 ## Current Guardrail
 

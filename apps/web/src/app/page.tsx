@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import {
   Approval,
+  AnswerProof,
   AnswerTrace,
   askOpsPilot,
   AskResponse,
@@ -11,6 +12,7 @@ import {
   DocumentVersionHistory,
   EvaluationHistory,
   EvaluationReport,
+  getAnswerProof,
   getAnswerTrace,
   getDocumentVersionHistory,
   getEvaluationHistory,
@@ -128,6 +130,7 @@ export default function Home() {
   const [githubSourcePrefix, setGithubSourcePrefix] = useState("github/hoonapps/opspilot");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [trace, setTrace] = useState<AnswerTrace | null>(null);
+  const [proof, setProof] = useState<AnswerProof | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
@@ -194,8 +197,10 @@ export default function Home() {
     setLoading("ask");
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
+      const [nextTrace, nextProof] = await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
-      setTrace(await getAnswerTrace({ answerId: nextAnswer.answerId, teamSlugs, roles }));
+      setTrace(nextTrace);
+      setProof(nextProof);
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Ask request failed");
@@ -228,7 +233,9 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`Feedback saved (${feedback.rating > 0 ? "helpful" : "needs work"})`);
       setFeedbackComment("");
-      setTrace(await getAnswerTrace({ answerId: answer.answerId, teamSlugs, roles }));
+      const [nextTrace, nextProof] = await fetchAnswerEvidence(answer.answerId);
+      setTrace(nextTrace);
+      setProof(nextProof);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Feedback request failed");
     } finally {
@@ -453,12 +460,21 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      setTrace(await getAnswerTrace({ answerId, teamSlugs, roles }));
+      const [nextTrace, nextProof] = await fetchAnswerEvidence(answerId);
+      setTrace(nextTrace);
+      setProof(nextProof);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Answer trace request failed");
     } finally {
       setLoading(null);
     }
+  }
+
+  async function fetchAnswerEvidence(answerId: string): Promise<[AnswerTrace, AnswerProof]> {
+    return Promise.all([
+      getAnswerTrace({ answerId, teamSlugs, roles }),
+      getAnswerProof({ answerId, teamSlugs, roles })
+    ]);
   }
 
   return (
@@ -671,6 +687,34 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
+                {proof ? (
+                  <div className="proofPanel" aria-label="answer proof packet">
+                    <div className="proofHeader">
+                      <div>
+                        <span>Proof packet</span>
+                        <strong>{formatPercent(proof.score)} checks passed</strong>
+                      </div>
+                      <code>{proof.status}</code>
+                    </div>
+                    <div className="proofChecklist">
+                      {proof.checks.map((check) => (
+                        <article className="proofItem" key={check.id}>
+                          <span className={check.status === "pass" ? "badge" : "badge review"}>{check.status}</span>
+                          <div>
+                            <strong>{check.label}</strong>
+                            <p>{check.evidence}</p>
+                          </div>
+                          <code>{formatProofMetric(check)}</code>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="proofEvidence">
+                      <span>Sources {proof.evidence.sourcePaths.length}</span>
+                      <span>Tools {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ")}</span>
+                      <span>Review {proof.evidence.reviewReasons.join(" ") || "none"}</span>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="traceTimeline" aria-label="answer trace timeline">
                   {trace.timeline.map((event) => (
                     <article className="timelineItem" key={`${event.order}-${event.kind}-${event.title}-${event.at}`}>
@@ -1458,6 +1502,13 @@ function formatDuration(value: number): string {
     return `${value}ms`;
   }
   return `${(value / 1000).toFixed(1)}s`;
+}
+
+function formatProofMetric(check: AnswerProof["checks"][number]): string {
+  if (typeof check.metric === "number" && typeof check.threshold === "number") {
+    return `${formatPercent(check.metric)} / ${formatPercent(check.threshold)}`;
+  }
+  return check.id;
 }
 
 function formatShortDate(value: string): string {

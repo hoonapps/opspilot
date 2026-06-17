@@ -12,4 +12,9 @@ export class AnswerTraceController {
   trace(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.answerTraceService.getTrace(id, parseRequestContext(headers));
   }
+
+  @Get(":id/proof")
+  proof(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.answerTraceService.getProof(id, parseRequestContext(headers));
+  }
 }

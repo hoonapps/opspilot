@@ -26,6 +26,7 @@ GET /docs-json
 - `POST /documents/indexing-jobs/markdown`
 - `GET /documents/indexing-jobs/{id}`
 - `GET /answers/{id}/trace`
+- `GET /answers/{id}/proof`
 - `GET /tool-calls/registry`
 - `GET /tool-calls/recent`
 - `GET /approvals`
@@ -53,6 +54,8 @@ This keeps the public API contract from silently drifting while the RAG agent gr
 `GET /documents` is intentionally part of the public contract because the portfolio demo needs to prove indexing state, not just final answers. It exposes document inventory and chunk previews for verification while keeping raw embeddings internal.
 
 `GET /documents/{id}/versions` is intentionally part of the public contract because changed operational docs need an audit trail. It exposes redacted version previews, hashes, and line-level diff summaries without exposing embeddings.
+
+`GET /answers/{id}/proof` is intentionally part of the public contract because a grounded answer needs an operator-readable evidence packet, not only raw trace rows. It reuses the same source access re-check as answer trace and returns pass/warn/fail checks for source attachment, document agreement, grounding coverage, search tool audit, approval boundary, context budget, and feedback capture.
 
 `GET /tool-calls/registry` is intentionally part of the public contract because the portfolio demo needs to prove tool-calling structure, not only log rows. It exposes tool side effects, approval policy, and compact input/output schemas.
 

@@ -106,6 +106,40 @@ export type AnswerTrace = {
   }>;
 };
 
+export type AnswerProof = {
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "verified" | "review_required" | "insufficient_evidence";
+  score: number;
+  thresholds: {
+    minDocumentAgreement: number;
+    minGroundingCoverage: number;
+  };
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  evidence: {
+    sourcePaths: string[];
+    toolCalls: Array<{ toolName: string; status: string }>;
+    approvals: Array<{ action: string; status: string }>;
+    feedbackCount: number;
+    reviewReasons: string[];
+    metrics: {
+      confidence: number;
+      documentAgreementScore: number;
+      groundingCoverageRatio: number;
+      contextEstimatedTokenCount: number;
+      contextTokenBudget: number;
+    };
+  };
+};
+
 @Injectable()
 export class AnswerTraceService {
   constructor(
@@ -289,6 +323,44 @@ export class AnswerTraceService {
       feedback: mappedFeedback
     };
   }
+
+  async getProof(answerId: string, context: RequestContext): Promise<AnswerProof> {
+    const trace = await this.getTrace(answerId, context);
+    const thresholds = {
+      minDocumentAgreement: readProofThreshold(
+        "PROOF_MIN_DOCUMENT_AGREEMENT",
+        Number(process.env.EVAL_MIN_DOCUMENT_AGREEMENT_SCORE ?? 0.8)
+      ),
+      minGroundingCoverage: readProofThreshold("PROOF_MIN_GROUNDING_COVERAGE", 0.2)
+    };
+    const reviewReasons = readReviewReasonCodes(trace.answer.metadata.reviewReasons);
+    const checks = buildProofChecks(trace, thresholds);
+    const passCount = checks.filter((check) => check.status === "pass").length;
+
+    return {
+      answerId: trace.answer.id,
+      questionId: trace.answer.questionId,
+      generatedAt: new Date().toISOString(),
+      status: proofStatus(checks),
+      score: ratio(passCount, checks.length),
+      thresholds,
+      checks,
+      evidence: {
+        sourcePaths: trace.sources.map((source) => source.path),
+        toolCalls: trace.toolCalls.map((toolCall) => ({ toolName: toolCall.toolName, status: toolCall.status })),
+        approvals: trace.approvals.map((approval) => ({ action: approval.action, status: approval.status })),
+        feedbackCount: trace.feedback.length,
+        reviewReasons,
+        metrics: {
+          confidence: trace.summary.confidence,
+          documentAgreementScore: trace.summary.documentAgreementScore,
+          groundingCoverageRatio: trace.grounding.coverageRatio,
+          contextEstimatedTokenCount: trace.contextPackage.estimatedTokenCount,
+          contextTokenBudget: trace.contextPackage.tokenBudget
+        }
+      }
+    };
+  }
 }
 
 type AnswerTraceRow = {
@@ -392,6 +464,133 @@ function ratio(numerator: number, denominator: number): number {
     return 0;
   }
   return Number((numerator / denominator).toFixed(3));
+}
+
+function buildProofChecks(
+  trace: AnswerTrace,
+  thresholds: AnswerProof["thresholds"]
+): AnswerProof["checks"] {
+  const searchTool = trace.toolCalls.find((toolCall) => toolCall.toolName === "search_documents");
+  const approvalTool = trace.toolCalls.find((toolCall) => toolCall.toolName === "request_human_approval");
+  const reviewReasons = readReviewReasonCodes(trace.answer.metadata.reviewReasons);
+  const needsSensitiveApproval = trace.summary.needsHumanReview || reviewReasons.includes("sensitive_action");
+  const contextWithinBudget = trace.contextPackage.estimatedTokenCount <= trace.contextPackage.tokenBudget;
+
+  return [
+    {
+      id: "source_access_rechecked",
+      label: "Source access rechecked",
+      status: "pass",
+      evidence: `Trace read rechecked ${trace.sources.length} returned sources against the caller context.`
+    },
+    {
+      id: "sources_attached",
+      label: "Sources attached",
+      status: trace.sources.length > 0 ? "pass" : "fail",
+      evidence:
+        trace.sources.length > 0
+          ? `${trace.sources.length} sources persisted with the answer.`
+          : "No persisted sources were attached to this answer."
+    },
+    {
+      id: "document_agreement",
+      label: "Document agreement",
+      status: thresholdStatus(trace.summary.documentAgreementScore, thresholds.minDocumentAgreement),
+      evidence: `Answer/source token agreement is ${formatRatio(trace.summary.documentAgreementScore)}.`,
+      metric: trace.summary.documentAgreementScore,
+      threshold: thresholds.minDocumentAgreement
+    },
+    {
+      id: "grounding_coverage",
+      label: "Grounding coverage",
+      status: thresholdStatus(trace.grounding.coverageRatio, thresholds.minGroundingCoverage),
+      evidence: `${trace.grounding.coveredAnswerTokenCount}/${trace.grounding.answerTokenCount} answer tokens overlap retrieved sources.`,
+      metric: trace.grounding.coverageRatio,
+      threshold: thresholds.minGroundingCoverage
+    },
+    {
+      id: "search_tool_audited",
+      label: "Search tool audited",
+      status: searchTool?.status === "allowed" ? "pass" : "fail",
+      evidence: searchTool
+        ? `search_documents was persisted with status ${searchTool.status}.`
+        : "search_documents was not found in persisted tool call logs."
+    },
+    {
+      id: "approval_boundary",
+      label: "Approval boundary",
+      status: needsSensitiveApproval
+        ? approvalTool && trace.approvals.length > 0
+          ? "pass"
+          : "fail"
+        : "pass",
+      evidence: needsSensitiveApproval
+        ? approvalTool && trace.approvals.length > 0
+          ? `Sensitive answer created ${trace.approvals.length} approval request and ${approvalTool.toolName} stayed ${approvalTool.status}.`
+          : "Sensitive answer did not persist the expected approval handoff."
+        : "No sensitive approval handoff was required for this answer."
+    },
+    {
+      id: "context_budget",
+      label: "Context budget",
+      status: contextWithinBudget && trace.contextPackage.includedChunkCount > 0 ? "pass" : "fail",
+      evidence: `${trace.contextPackage.estimatedTokenCount}/${trace.contextPackage.tokenBudget} estimated context tokens used.`
+    },
+    {
+      id: "feedback_captured",
+      label: "Feedback captured",
+      status: trace.feedback.length > 0 ? "pass" : "warn",
+      evidence:
+        trace.feedback.length > 0
+          ? `${trace.feedback.length} feedback records are linked to the answer.`
+          : "No reviewer feedback has been linked yet."
+    }
+  ];
+}
+
+function thresholdStatus(metric: number, threshold: number): AnswerProof["checks"][number]["status"] {
+  if (metric >= threshold) {
+    return "pass";
+  }
+  return metric >= threshold * 0.8 ? "warn" : "fail";
+}
+
+function proofStatus(checks: AnswerProof["checks"]): AnswerProof["status"] {
+  if (checks.some((check) => check.status === "fail")) {
+    return "insufficient_evidence";
+  }
+  if (checks.some((check) => check.status === "warn")) {
+    return "review_required";
+  }
+  return "verified";
+}
+
+function readProofThreshold(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a number between 0 and 1`);
+  }
+  return value;
+}
+
+function readReviewReasonCodes(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || typeof (item as { code?: unknown }).code !== "string") {
+      return [];
+    }
+    return [(item as { code: string }).code];
+  });
+}
+
+function formatRatio(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function readContextPackage(value: unknown): AnswerTrace["contextPackage"] | null {
