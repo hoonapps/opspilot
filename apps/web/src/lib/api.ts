@@ -631,6 +631,48 @@ export type ObservabilitySummary = {
     total: number;
     chunks: number;
   };
+  apiRequests: {
+    total: number;
+    last24h: number;
+    successRate: number;
+    errorRate: number;
+    p95DurationMs: number;
+  };
+};
+
+export type ApiRequestObservabilityReport = {
+  generatedAt: string;
+  window: "last_24h";
+  summary: {
+    total: number;
+    successRate: number;
+    errorRate: number;
+    p50DurationMs: number;
+    p95DurationMs: number;
+  };
+  byEndpoint: Array<{
+    method: string;
+    route: string;
+    total: number;
+    successRate: number;
+    errorRate: number;
+    p50DurationMs: number;
+    p95DurationMs: number;
+    lastSeenAt: string;
+  }>;
+  recent: Array<{
+    id: string;
+    method: string;
+    route: string;
+    path: string;
+    statusCode: number;
+    durationMs: number;
+    actorHash?: string | null;
+    roles: string[];
+    teamSlugs: string[];
+    errorName?: string | null;
+    createdAt: string;
+  }>;
 };
 
 export type ObservabilitySloReport = {
@@ -646,8 +688,8 @@ export type ObservabilitySloReport = {
     actual: number;
     status: "ok" | "warn" | "breach";
     errorBudgetRemaining: number;
-    source: "answers" | "tool_calls" | "evaluations";
-    window: "all_time" | "latest_eval";
+    source: "answers" | "tool_calls" | "evaluations" | "api_requests";
+    window: "all_time" | "latest_eval" | "last_24h";
   }>;
 };
 
@@ -943,6 +985,16 @@ export async function getObservabilitySummary(): Promise<ObservabilitySummary> {
   }
 
   return response.json() as Promise<ObservabilitySummary>;
+}
+
+export async function getApiRequestObservability(): Promise<ApiRequestObservabilityReport> {
+  const response = await fetch(`${API_BASE_URL}/observability/api-requests`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<ApiRequestObservabilityReport>;
 }
 
 export async function getObservabilitySlo(): Promise<ObservabilitySloReport> {

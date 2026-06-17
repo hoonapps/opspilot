@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "OpsPilot 콘솔",
-  description: "운영 문서 기반 RAG Agent 콘솔"
+  description: "운영 문서 기반 RAG 에이전트 콘솔"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

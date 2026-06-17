@@ -114,7 +114,7 @@ async function main() {
     await page.locator(".diagnosticStats").getByText("신뢰도 추정", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticBanner").getByText("컨텍스트 예산", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".contextChunkList").getByText("tokens", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().waitFor({ timeout: 10000 });
 
     await page.getByLabel("검색 질문").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
     await page.getByRole("button", { name: "검색 미리보기" }).click();
@@ -126,7 +126,7 @@ async function main() {
     const retrievalDiagnosticsVisible =
       (await page.locator(".retrievalDiagnostics").getByText("검색 품질 진단", { exact: true }).isVisible()) &&
       (await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).isVisible()) &&
-      (await page.locator(".contextChunkList").getByText("tokens", { exact: false }).first().isVisible());
+      (await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().isVisible());
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
     await page
@@ -244,6 +244,11 @@ async function main() {
     await page.locator(".sloPanel").getByText("SLO 가드레일", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("답변 근거성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("도구 감사 커버리지", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".sloPanel").getByText("API 성공률", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".apiRequestPanel").getByText("API 요청 관측성", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".apiRequestStats").getByText("성공률", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".endpointList .endpointItem").first().waitFor({ timeout: 10000 });
+    await page.locator(".recentRequestList").getByText("GET", { exact: false }).first().waitFor({ timeout: 10000 });
     await page
       .locator(".observabilityPanel")
       .getByText("request_human_approval", { exact: false })
@@ -266,6 +271,8 @@ async function main() {
       observabilityText.includes("SLO 가드레일") &&
       observabilityText.includes("답변 근거성") &&
       observabilityText.includes("도구 감사 커버리지") &&
+      observabilityText.includes("API 성공률") &&
+      observabilityText.includes("API 요청 관측성") &&
       observabilityText.includes("request_human_approval") &&
       observabilityText.includes("피드백");
 

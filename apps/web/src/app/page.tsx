@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import {
   Approval,
+  ApiRequestObservabilityReport,
   AnswerEvidenceBundle,
   AnswerProof,
   AnswerReplay,
@@ -15,6 +16,7 @@ import {
   enqueueMarkdownIndexingJob,
   EvaluationHistory,
   EvaluationReport,
+  getApiRequestObservability,
   getAnswerProof,
   getAnswerEvidenceBundle,
   getAnswerReplay,
@@ -60,7 +62,7 @@ tags: incident,status-page,communication
 
 ## 고객 공지 SLA
 
-Korean aliases: 장애 공지, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
+한국어 별칭: 장애 공지, 상태 페이지 공지, 고객 공지 SLA, 15분 공지.
 
 고객 영향 장애가 확인되면 첫 상태 페이지 공지는 15분 안에 게시해야 합니다.
 공지에는 영향받은 기능, 현재 영향도, 다음 업데이트 예정 시각, 장애 담당자를 반드시 포함합니다.
@@ -154,6 +156,7 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
+  const [apiRequests, setApiRequests] = useState<ApiRequestObservabilityReport | null>(null);
   const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
   const [releaseGate, setReleaseGate] = useState<ObservabilityReleaseGate | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
@@ -359,7 +362,7 @@ export default function Home() {
         sourcePrefix: githubSourcePrefix || undefined
       });
       setGithubSync(result);
-      setQuestion("OpsPilot의 permission boundary는 어디에서 적용돼?");
+      setQuestion("OpsPilot의 권한 경계는 어디에서 적용돼?");
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
       setSelectedDocumentId(
@@ -496,12 +499,14 @@ export default function Home() {
     setError(null);
     setLoading("observability");
     try {
-      const [summary, slo, gate] = await Promise.all([
+      const [summary, apiRequestReport, slo, gate] = await Promise.all([
         getObservabilitySummary(),
+        getApiRequestObservability(),
         getObservabilitySlo(),
         getObservabilityReleaseGate()
       ]);
       setObservability(summary);
+      setApiRequests(apiRequestReport);
       setSloReport(slo);
       setReleaseGate(gate);
     } catch (requestError) {
@@ -646,7 +651,7 @@ export default function Home() {
 	              <span>
 	                {answer?.idempotency
 	                  ? `멱등성 ${answer.idempotency.replayed ? "재사용" : "신규"} · ${shortHash(answer.idempotency.requestHash)}`
-	                  : "멱등성 key 대기"}
+	                  : "멱등성 키 대기"}
 	              </span>
 	            </div>
 	            <pre>{answer?.answer ?? "질문을 실행하면 근거 기반 답변, 신뢰도, 도구 호출, 출처가 여기에 표시됩니다."}</pre>
@@ -754,7 +759,7 @@ export default function Home() {
                           <p>{chunk.path}</p>
                         </div>
 	                        <code>{chunk.included ? "포함" : formatContextReason(chunk.reason)}</code>
-                        <small>{chunk.estimatedTokens}t</small>
+                        <small>{chunk.estimatedTokens} 토큰</small>
                       </article>
                     ))}
                   </div>
@@ -1015,7 +1020,7 @@ export default function Home() {
                   <span>{formatRecommendedAction(retrievalPreview.diagnostics.recommendedAction)}</span>
                   <code>
                     컨텍스트 예산 {retrievalPreview.diagnostics.contextPackage.estimatedTokenCount}/
-                    {retrievalPreview.diagnostics.contextPackage.tokenBudget} tokens
+                    {retrievalPreview.diagnostics.contextPackage.tokenBudget} 토큰
                   </code>
                 </div>
                 <div className="queryTermList">
@@ -1042,7 +1047,7 @@ export default function Home() {
                     <div className="contextChunkItem" key={`${chunk.rank}-${chunk.path}`}>
                       <span>{chunk.rank}</span>
                       <strong>{chunk.path}</strong>
-                      <code>{chunk.estimatedTokens} tokens · {formatContextReason(chunk.reason)}</code>
+                      <code>{chunk.estimatedTokens} 토큰 · {formatContextReason(chunk.reason)}</code>
                     </div>
                   ))}
                 </div>
@@ -1154,8 +1159,47 @@ export default function Home() {
 	                    문서 {observability.documents.total}개 / 청크 {observability.documents.chunks}개
                   </code>
                 </div>
+                {apiRequests ? (
+                  <section className="apiRequestPanel" aria-label="API 요청 관측성">
+                    <div className="evalHistoryHead">
+                      <span>API 요청 관측성</span>
+                      <code>p95 {formatDuration(apiRequests.summary.p95DurationMs)}</code>
+                    </div>
+                    <div className="apiRequestStats">
+                      <Metric label="24시간 요청" value={String(apiRequests.summary.total)} />
+                      <Metric label="성공률" value={formatPercent(apiRequests.summary.successRate)} />
+                      <Metric label="오류율" value={formatPercent(apiRequests.summary.errorRate)} />
+                      <Metric label="중앙값" value={formatDuration(apiRequests.summary.p50DurationMs)} />
+                    </div>
+                    <div className="endpointList">
+                      {apiRequests.byEndpoint.slice(0, 5).map((endpoint) => (
+                        <article className="endpointItem" key={`${endpoint.method}-${endpoint.route}`}>
+                          <div>
+                            <strong>{endpoint.method} {endpoint.route}</strong>
+                            <p>
+                              요청 {endpoint.total}회 · 성공 {formatPercent(endpoint.successRate)} · 오류{" "}
+                              {formatPercent(endpoint.errorRate)}
+                            </p>
+                          </div>
+                          <code>p95 {formatDuration(endpoint.p95DurationMs)}</code>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="recentRequestList">
+                      {apiRequests.recent.slice(0, 4).map((request) => (
+                        <div className="recentRequestItem" key={request.id}>
+                          <span className={request.statusCode >= 500 ? "badge review" : "badge"}>
+                            {request.statusCode}
+                          </span>
+                          <strong>{request.method} {request.route}</strong>
+                          <code>{formatDuration(request.durationMs)}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
                 {sloReport ? (
-                  <section className="sloPanel" aria-label="SLO guardrails">
+                  <section className="sloPanel" aria-label="SLO 가드레일">
                     <div className="evalHistoryHead">
 	                      <span>SLO 가드레일</span>
                     <code>{formatSloStatus(sloReport.status)}</code>
@@ -1627,7 +1671,7 @@ export default function Home() {
                     />
                   ))}
                 </div>
-                <div className="matrixTable" aria-label="permission boundary matrix">
+                <div className="matrixTable" aria-label="권한 경계 매트릭스">
                   <div className="matrixHeader">
 	                    <span>문서</span>
                     {permissionMatrix.policy.personas.map((persona) => (
@@ -2250,7 +2294,8 @@ function formatSloLabel(id: string, fallback: string): string {
     answer_grounding: "답변 근거성",
     review_load: "검토 부하",
     tool_audit_coverage: "도구 감사 커버리지",
-    eval_gate: "평가 게이트"
+    eval_gate: "평가 게이트",
+    api_success_rate: "API 성공률"
   };
   return labels[id] ?? fallback;
 }
@@ -2260,7 +2305,8 @@ function formatSloDescription(id: string, fallback: string): string {
     answer_grounding: "평균 답변/문서 일치율이 목표치 이상이어야 합니다.",
     review_load: "사람 검토 비율이 운영자가 처리 가능한 기준 안에 있어야 합니다.",
     tool_audit_coverage: "질문은 저장된 search_documents 도구 호출로 추적돼야 합니다.",
-    eval_gate: "최신 seed 평가가 설정된 품질 게이트를 통과해야 합니다."
+    eval_gate: "최신 seed 평가가 설정된 품질 게이트를 통과해야 합니다.",
+    api_success_rate: "최근 24시간 HTTP 요청에서 5xx 응답이 목표치 이하로 유지돼야 합니다."
   };
   return labels[id] ?? fallback;
 }

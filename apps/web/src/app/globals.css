@@ -1734,6 +1734,7 @@ pre {
 
 .evalPanel,
 .observabilityPanel,
+.apiRequestPanel,
 .auditPanel,
 .approvalPanel,
 .retrievalPanel,
@@ -2255,6 +2256,69 @@ pre {
   background: #f2fbf8;
 }
 
+.apiRequestPanel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.apiRequestStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.apiRequestStats .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.endpointList,
+.recentRequestList {
+  display: grid;
+  gap: 8px;
+}
+
+.endpointItem,
+.recentRequestItem {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.endpointItem {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.endpointItem strong,
+.recentRequestItem strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.endpointItem p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.recentRequestItem {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
 .sloList {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2747,6 +2811,9 @@ pre {
   .releaseGateItem,
   .usageGrid,
   .usageChecklist,
+  .apiRequestStats,
+  .endpointItem,
+  .recentRequestItem,
   .queueStats,
   .queueMetaLine,
   .queueNotice,

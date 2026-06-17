@@ -21,4 +21,9 @@ export class ObservabilityController {
   releaseGate() {
     return this.observabilityService.releaseGate();
   }
+
+  @Get("api-requests")
+  apiRequests() {
+    return this.observabilityService.apiRequests();
+  }
 }

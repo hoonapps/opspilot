@@ -43,7 +43,9 @@ async function main() {
       objectives.review_load?.status === "ok" &&
       objectives.tool_audit_coverage?.status === "ok" &&
       objectives.eval_gate?.status === "ok" &&
+      objectives.api_success_rate?.status === "ok" &&
       objectives.answer_grounding.actual >= objectives.answer_grounding.target &&
+      objectives.api_success_rate.actual >= objectives.api_success_rate.target &&
       objectives.tool_audit_coverage.actual >= objectives.tool_audit_coverage.target;
 
     console.log(JSON.stringify({ ok, report }, null, 2));

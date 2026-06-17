@@ -30,6 +30,7 @@ async function main() {
     });
 
     const summary = await observability.summary();
+    const apiRequests = await observability.apiRequests();
     const ok =
       summary.questions.total >= 3 &&
       summary.questions.last24h >= 3 &&
@@ -45,7 +46,9 @@ async function main() {
       summary.approvals.byStatus.pending >= 1 &&
       summary.feedback.helpful >= 1 &&
       summary.documents.total >= 5 &&
-      summary.documents.chunks >= 20;
+      summary.documents.chunks >= 20 &&
+      summary.apiRequests.successRate >= 0.95 &&
+      apiRequests.summary.successRate >= 0.95;
 
     console.log(
       JSON.stringify(
@@ -55,7 +58,8 @@ async function main() {
             incidentAnswerId: incident.answerId,
             sensitiveAnswerId: sensitive.answerId
           },
-          summary
+          summary,
+          apiRequests: apiRequests.summary
         },
         null,
         2
