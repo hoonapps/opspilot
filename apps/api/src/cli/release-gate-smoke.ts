@@ -42,6 +42,7 @@ async function main() {
       checks.latest_eval_gate?.status === "pass" &&
       checks.knowledge_freshness?.status === "pass" &&
       checks.slo_guardrails?.status === "pass" &&
+      checks.api_error_budget?.status === "pass" &&
       checks.agent_audit_trail?.status !== "fail" &&
       gate.summary.documents >= 5 &&
       gate.summary.chunks >= 8;

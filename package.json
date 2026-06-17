@@ -45,6 +45,7 @@
     "portfolio-readiness:smoke": "pnpm --filter @opspilot/api portfolio-readiness:smoke",
     "observability:smoke": "pnpm --filter @opspilot/api observability:smoke",
     "observability:slo-smoke": "pnpm --filter @opspilot/api observability:slo-smoke",
+    "error-budget:smoke": "pnpm --filter @opspilot/api error-budget:smoke",
     "action-plan:smoke": "pnpm --filter @opspilot/api action-plan:smoke",
     "audit-ledger:smoke": "pnpm --filter @opspilot/api audit-ledger:smoke",
     "freshness:smoke": "pnpm --filter @opspilot/api freshness:smoke",

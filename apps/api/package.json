@@ -45,6 +45,7 @@
     "portfolio-readiness:smoke": "ts-node src/cli/portfolio-readiness-smoke.ts",
     "observability:smoke": "ts-node src/cli/observability-smoke.ts",
     "observability:slo-smoke": "ts-node src/cli/observability-slo-smoke.ts",
+    "error-budget:smoke": "ts-node src/cli/error-budget-smoke.ts",
     "action-plan:smoke": "ts-node src/cli/operational-action-plan-smoke.ts",
     "audit-ledger:smoke": "ts-node src/cli/audit-ledger-smoke.ts",
     "freshness:smoke": "ts-node src/cli/freshness-gate-smoke.ts",

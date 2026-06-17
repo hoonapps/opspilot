@@ -20,6 +20,7 @@ import {
   DocumentInventoryItem,
   DocumentIndexQualityReport,
   DocumentVersionHistory,
+  ErrorBudgetReport,
   enqueueMarkdownIndexingJob,
   EvaluationCaseReport,
   EvaluationHistory,
@@ -35,6 +36,7 @@ import {
   getDocumentIndexExplain,
   getDocumentVersionHistory,
   getDocumentIndexQuality,
+  getErrorBudget,
   getEvaluationCases,
   getEvaluationHistory,
   getIndexingQueueHealth,
@@ -206,6 +208,7 @@ export default function Home() {
   const [evaluationCases, setEvaluationCases] = useState<EvaluationCaseReport | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [apiRequests, setApiRequests] = useState<ApiRequestObservabilityReport | null>(null);
+  const [errorBudget, setErrorBudget] = useState<ErrorBudgetReport | null>(null);
   const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
   const [releaseGate, setReleaseGate] = useState<ObservabilityReleaseGate | null>(null);
   const [actionPlan, setActionPlan] = useState<OperationalActionPlan | null>(null);
@@ -730,9 +733,10 @@ export default function Home() {
     setError(null);
     setLoading("observability");
     try {
-      const [summary, apiRequestReport, slo, gate, plan, readiness] = await Promise.all([
+      const [summary, apiRequestReport, budget, slo, gate, plan, readiness] = await Promise.all([
         getObservabilitySummary(),
         getApiRequestObservability(),
+        getErrorBudget(),
         getObservabilitySlo(),
         getObservabilityReleaseGate(),
         getOperationalActionPlan(),
@@ -740,6 +744,7 @@ export default function Home() {
       ]);
       setObservability(summary);
       setApiRequests(apiRequestReport);
+      setErrorBudget(budget);
       setSloReport(slo);
       setReleaseGate(gate);
       setActionPlan(plan);
@@ -2126,6 +2131,80 @@ export default function Home() {
                         </div>
                       ))}
                     </div>
+                  </section>
+                ) : null}
+                {errorBudget ? (
+                  <section className={`errorBudgetPanel errorBudgetPanel--${errorBudget.status}`} aria-label="오류 예산 번레이트">
+                    <div className="evalHistoryHead">
+                      <span>오류 예산 번레이트</span>
+                      <code>{formatErrorBudgetStatus(errorBudget.status)} · {errorBudget.summary.worstBurnRate}x</code>
+                    </div>
+                    <div className="errorBudgetHero">
+                      <div>
+                        <span>배포 권고</span>
+                        <strong>{formatErrorBudgetRecommendation(errorBudget.summary.releaseRecommendation)}</strong>
+                        <p>
+                          가용성 {formatPercent(errorBudget.summary.availability)} · 오류 예산{" "}
+                          {formatPercent(errorBudget.summary.errorBudgetRemaining)}
+                        </p>
+                      </div>
+                      <div>
+                        <span>목표</span>
+                        <strong>{formatPercent(errorBudget.objective.availabilityTarget)}</strong>
+                        <p>
+                          허용 오류율 {formatPercent(errorBudget.objective.allowedErrorRate)} · 최소 표본{" "}
+                          {errorBudget.objective.minimumRequestVolume}건
+                        </p>
+                      </div>
+                    </div>
+                    <div className="errorBudgetWindows">
+                      {errorBudget.windows.map((window) => (
+                        <article className="errorBudgetWindow" key={window.id}>
+                          <div>
+                            <span>{window.label}</span>
+                            <strong>{window.burnRate}x</strong>
+                          </div>
+                          <p>
+                            요청 {window.requestCount}건 · 5xx {window.errorCount}건 · 예산{" "}
+                            {formatPercent(window.errorBudgetRemaining)}
+                          </p>
+                          <code>{formatErrorBudgetStatus(window.status)}</code>
+                        </article>
+                      ))}
+                    </div>
+                    {errorBudget.topOffenders.length > 0 ? (
+                      <div className="errorBudgetOffenders">
+                        {errorBudget.topOffenders.slice(0, 3).map((endpoint) => (
+                          <article key={`${endpoint.method}-${endpoint.route}`}>
+                            <div>
+                              <strong>
+                                {endpoint.method} {endpoint.route}
+                              </strong>
+                              <p>
+                                5xx {endpoint.errorCount}/{endpoint.requestCount} · 오류율 {formatPercent(endpoint.errorRate)}
+                              </p>
+                            </div>
+                            <code>p95 {formatDuration(endpoint.p95DurationMs)}</code>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="empty">최근 24시간 5xx top offender가 없습니다.</p>
+                    )}
+                    {errorBudget.actions.length > 0 ? (
+                      <div className="errorBudgetActions">
+                        {errorBudget.actions.slice(0, 2).map((action) => (
+                          <article key={`${action.priority}-${action.title}`}>
+                            <span className={action.priority === "p0" ? "badge review" : "badge"}>{action.priority.toUpperCase()}</span>
+                            <div>
+                              <strong>{action.title}</strong>
+                              <p>{action.reason}</p>
+                            </div>
+                            <code>{action.verification[0]}</code>
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
                   </section>
                 ) : null}
                 {sloReport ? (
@@ -3739,6 +3818,7 @@ function formatReleaseGateLabel(id: string, fallback: string): string {
     latest_eval_gate: "최신 평가 게이트",
     knowledge_freshness: "평가 최신성",
     slo_guardrails: "SLO 가드레일",
+    api_error_budget: "API 오류 예산",
     agent_audit_trail: "에이전트 감사 추적",
     approval_backlog: "승인 대기열",
     feedback_signal: "피드백 신호"
@@ -3773,6 +3853,12 @@ function formatReleaseGateEvidence(id: string, fallback: string): string {
   if (id === "slo_guardrails") {
     const match = fallback.match(/(\d+) SLO objectives report ([^.]+)/);
     return match ? `SLO 목표 ${match[1]}개가 ${formatSloStatus(match[2])} 상태입니다.` : fallback;
+  }
+  if (id === "api_error_budget") {
+    const match = fallback.match(/24시간 가용성 (\d+)%, 최악 burn rate ([^,]+), 권고 ([^.]+)\./);
+    return match
+      ? `24시간 가용성 ${match[1]}%, 최악 번레이트 ${match[2]}, 권고 ${formatErrorBudgetRecommendation(match[3])}.`
+      : fallback;
   }
   if (id === "agent_audit_trail") {
     return fallback.replace("search_documents=", "search_documents=").replace("request_human_approval=", "request_human_approval=");
@@ -3813,7 +3899,8 @@ function formatSloLabel(id: string, fallback: string): string {
     review_load: "검토 부하",
     tool_audit_coverage: "도구 감사 커버리지",
     eval_gate: "평가 게이트",
-    api_success_rate: "API 성공률"
+    api_success_rate: "API 성공률",
+    api_error_budget: "API 오류 예산"
   };
   return labels[id] ?? fallback;
 }
@@ -3824,9 +3911,29 @@ function formatSloDescription(id: string, fallback: string): string {
     review_load: "사람 검토 비율이 운영자가 처리 가능한 기준 안에 있어야 합니다.",
     tool_audit_coverage: "질문은 저장된 search_documents 도구 호출로 추적돼야 합니다.",
     eval_gate: "최신 seed 평가가 설정된 품질 게이트를 통과해야 합니다.",
-    api_success_rate: "최근 24시간 HTTP 요청에서 5xx 응답이 목표치 이하로 유지돼야 합니다."
+    api_success_rate: "최근 24시간 HTTP 요청에서 5xx 응답이 목표치 이하로 유지돼야 합니다.",
+    api_error_budget: "최근 API 실패가 허용 오류 예산 안에서 소모돼야 합니다."
   };
   return labels[id] ?? fallback;
+}
+
+function formatErrorBudgetStatus(status: string): string {
+  const labels: Record<string, string> = {
+    healthy: "정상",
+    watch: "관찰",
+    page: "호출 필요",
+    freeze: "배포 동결"
+  };
+  return labels[status] ?? status;
+}
+
+function formatErrorBudgetRecommendation(recommendation: string): string {
+  const labels: Record<string, string> = {
+    ship: "배포 가능",
+    watch: "관찰 후 배포",
+    freeze: "배포 동결"
+  };
+  return labels[recommendation] ?? recommendation;
 }
 
 function formatProofLabel(id: string, fallback: string): string {

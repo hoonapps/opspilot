@@ -1241,6 +1241,56 @@ export type ApiRequestObservabilityReport = {
   }>;
 };
 
+export type ErrorBudgetReport = {
+  schemaVersion: "opspilot.error_budget.v1";
+  generatedAt: string;
+  status: "healthy" | "watch" | "page" | "freeze";
+  objective: {
+    availabilityTarget: number;
+    allowedErrorRate: number;
+    window: "rolling_24h";
+    minimumRequestVolume: number;
+  };
+  summary: {
+    totalRequests: number;
+    totalErrors: number;
+    availability: number;
+    errorRate: number;
+    errorBudgetRemaining: number;
+    worstBurnRate: number;
+    releaseRecommendation: "ship" | "watch" | "freeze";
+  };
+  windows: Array<{
+    id: "5m" | "1h" | "24h";
+    label: string;
+    durationMinutes: number;
+    requestCount: number;
+    errorCount: number;
+    availability: number;
+    errorRate: number;
+    allowedErrorRate: number;
+    burnRate: number;
+    errorBudgetRemaining: number;
+    status: "healthy" | "watch" | "page" | "freeze";
+  }>;
+  topOffenders: Array<{
+    method: string;
+    route: string;
+    requestCount: number;
+    errorCount: number;
+    errorRate: number;
+    p95DurationMs: number;
+    lastSeenAt: string;
+  }>;
+  actions: Array<{
+    priority: "p0" | "p1" | "p2";
+    owner: "platform" | "ops" | "quality";
+    title: string;
+    reason: string;
+    verification: string[];
+  }>;
+};
+
 export type ObservabilitySloReport = {
   generatedAt: string;
   status: "ok" | "warn" | "breach";
@@ -1767,6 +1817,16 @@ export async function getApiRequestObservability(): Promise<ApiRequestObservabil
   }
 
   return response.json() as Promise<ApiRequestObservabilityReport>;
+}
+
+export async function getErrorBudget(): Promise<ErrorBudgetReport> {
+  const response = await fetch(`${API_BASE_URL}/observability/error-budget`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<ErrorBudgetReport>;
 }
 
 export async function getObservabilitySlo(): Promise<ObservabilitySloReport> {

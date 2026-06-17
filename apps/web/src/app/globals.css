@@ -3966,6 +3966,120 @@ pre {
   background: #eff6ff;
 }
 
+.errorBudgetPanel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  background: #f0f9ff;
+}
+
+.errorBudgetPanel--watch {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.errorBudgetPanel--page,
+.errorBudgetPanel--freeze {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.errorBudgetHero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.errorBudgetHero > div,
+.errorBudgetWindow,
+.errorBudgetOffenders article,
+.errorBudgetActions article {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.errorBudgetHero span,
+.errorBudgetWindow span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.errorBudgetHero strong,
+.errorBudgetWindow strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.errorBudgetHero p,
+.errorBudgetWindow p,
+.errorBudgetOffenders p,
+.errorBudgetActions p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.errorBudgetWindows,
+.errorBudgetOffenders,
+.errorBudgetActions {
+  display: grid;
+  gap: 8px;
+}
+
+.errorBudgetWindows {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.errorBudgetWindow {
+  display: grid;
+  gap: 8px;
+}
+
+.errorBudgetWindow > div,
+.errorBudgetOffenders article,
+.errorBudgetActions article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.errorBudgetWindow code,
+.errorBudgetOffenders code,
+.errorBudgetActions code {
+  overflow: hidden;
+  max-width: 220px;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  background: #f0f9ff;
+  color: #075985;
+  padding: 4px 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.errorBudgetOffenders strong,
+.errorBudgetActions strong {
+  overflow: hidden;
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .apiRequestStats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4788,6 +4902,11 @@ pre {
   .usageScreenGuide,
   .usageChecklist,
   .apiRequestStats,
+  .errorBudgetHero,
+  .errorBudgetWindows,
+  .errorBudgetWindow > div,
+  .errorBudgetOffenders article,
+  .errorBudgetActions article,
   .endpointItem,
   .recentRequestItem,
   .queueStats,

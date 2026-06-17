@@ -68,7 +68,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - 민감 작업 사람 승인 분리
 - 도구 레지스트리와 도구 호출 감사 로그
 - Slack Events API와 로컬 Slack mention 시뮬레이터
-- 평가 게이트, 최신성 게이트, 배포 게이트, SLO 가드레일
+- 평가 게이트, 최신성 게이트, 배포 게이트, SLO 가드레일, 오류 예산 번레이트
 - 운영 액션 플랜: 배포 게이트/SLO 결과를 담당자, 우선순위, 조치, 검증 명령으로 변환
 - 포트폴리오 준비도 API: RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 데모 산출물 집계
 - 감사 원장 해시 체인: 질문, 답변, 도구 호출, 승인, 피드백 이벤트의 SHA-256 루트 해시 검증
@@ -240,6 +240,7 @@ pnpm evidence-bundle:smoke
 pnpm quality-gate:smoke
 pnpm question-audit:smoke
 pnpm audit-ledger:smoke
+pnpm error-budget:smoke
 pnpm permission:smoke
 pnpm prompt-injection:smoke
 pnpm rate-limit:smoke
@@ -313,7 +314,7 @@ EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
 EVAL_MIN_CITATION_ACCURACY=1
 ```
 
-`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
+`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `error-budget:smoke`는 API 5xx가 5분/1시간/24시간 오류 예산을 얼마나 태우는지 계산하고, burn rate가 높으면 배포 동결 권고가 나오는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
 
 개별 답변은 `GET /answers/{id}/quality-gate`로 별도 판정합니다. 이 게이트는 증명 패킷, 재실행 안정성, 승인 상태, 피드백 신호, 신뢰도, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 재검사를 묶어 `pass`, `review`, `block`으로 결정합니다. 긍정 피드백이 없는 답변은 검토 대상으로 남고, 민감 작업 승인 대기 답변은 자동 공유되지 않습니다.
 

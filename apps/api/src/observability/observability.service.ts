@@ -101,6 +101,62 @@ export type ApiRequestObservabilityReport = {
   }>;
 };
 
+export type ErrorBudgetReport = {
+  schemaVersion: "opspilot.error_budget.v1";
+  generatedAt: string;
+  status: "healthy" | "watch" | "page" | "freeze";
+  objective: {
+    availabilityTarget: number;
+    allowedErrorRate: number;
+    window: "rolling_24h";
+    minimumRequestVolume: number;
+  };
+  summary: {
+    totalRequests: number;
+    totalErrors: number;
+    availability: number;
+    errorRate: number;
+    errorBudgetRemaining: number;
+    worstBurnRate: number;
+    releaseRecommendation: "ship" | "watch" | "freeze";
+  };
+  windows: ErrorBudgetWindow[];
+  topOffenders: ErrorBudgetEndpoint[];
+  actions: ErrorBudgetAction[];
+};
+
+export type ErrorBudgetWindow = {
+  id: "5m" | "1h" | "24h";
+  label: string;
+  durationMinutes: number;
+  requestCount: number;
+  errorCount: number;
+  availability: number;
+  errorRate: number;
+  allowedErrorRate: number;
+  burnRate: number;
+  errorBudgetRemaining: number;
+  status: "healthy" | "watch" | "page" | "freeze";
+};
+
+export type ErrorBudgetEndpoint = {
+  method: string;
+  route: string;
+  requestCount: number;
+  errorCount: number;
+  errorRate: number;
+  p95DurationMs: number;
+  lastSeenAt: string;
+};
+
+export type ErrorBudgetAction = {
+  priority: "p0" | "p1" | "p2";
+  owner: "platform" | "ops" | "quality";
+  title: string;
+  reason: string;
+  verification: string[];
+};
+
 export type ReleaseGateStatus = "pass" | "review" | "block";
 
 export type ReleaseGateCheckStatus = "pass" | "warn" | "fail";
@@ -308,6 +364,12 @@ type ApiRequestRecentRow = {
   team_slugs: string[] | null;
   error_name: string | null;
   created_at: Date | string;
+};
+type ErrorBudgetWindowRow = {
+  window_id: ErrorBudgetWindow["id"];
+  request_count: number | string;
+  error_count: number | string;
+  p95_duration_ms: number | string | null;
 };
 type AuditLedgerRow = {
   id: string;
@@ -544,9 +606,98 @@ export class ObservabilityService {
     };
   }
 
+  async errorBudget(): Promise<ErrorBudgetReport> {
+    const availabilityTarget = readSloThreshold("SLO_MIN_API_SUCCESS_RATE", 0.95);
+    const allowedErrorRate = Math.max(1 - availabilityTarget, 0.001);
+    const minimumRequestVolume = readCountThreshold("ERROR_BUDGET_MIN_REQUESTS", 10);
+    const connection = this.orm.em.fork().getConnection();
+    const [windowRows, offenderRows] = await Promise.all([
+      connection.execute<ErrorBudgetWindowRow[]>(`
+        with windows(window_id, duration_minutes, since_at) as (
+          values
+            ('5m'::text, 5, now() - interval '5 minutes'),
+            ('1h'::text, 60, now() - interval '1 hour'),
+            ('24h'::text, 1440, now() - interval '24 hours')
+        )
+        select
+          w.window_id,
+          count(l.id)::int as request_count,
+          count(l.id) filter (where l.status_code >= 500)::int as error_count,
+          coalesce(percentile_cont(0.95) within group (order by l.duration_ms), 0)::float as p95_duration_ms
+        from windows w
+        left join api_request_logs l on l.created_at >= w.since_at
+        group by w.window_id, w.duration_minutes
+        order by w.duration_minutes;
+      `),
+      connection.execute<ApiEndpointRow[]>(`
+        select
+          method,
+          route,
+          count(*)::int as total,
+          count(*) filter (where status_code < 500)::int as ok,
+          count(*) filter (where status_code >= 500)::int as errors,
+          coalesce(percentile_cont(0.50) within group (order by duration_ms), 0)::float as p50_duration_ms,
+          coalesce(percentile_cont(0.95) within group (order by duration_ms), 0)::float as p95_duration_ms,
+          max(created_at) as last_seen_at
+        from api_request_logs
+        where created_at >= now() - interval '24 hours'
+        group by method, route
+        having count(*) filter (where status_code >= 500) > 0
+        order by errors desc, p95_duration_ms desc, total desc
+        limit 5;
+      `)
+    ]);
+    const windows = buildErrorBudgetWindows({
+      rows: windowRows,
+      availabilityTarget,
+      allowedErrorRate,
+      minimumRequestVolume
+    });
+    const dayWindow = windows.find((window) => window.id === "24h") ?? windows[windows.length - 1];
+    const worstBurnRate = roundMetric(Math.max(...windows.map((window) => window.burnRate), 0));
+    const topOffenders = (offenderRows as ApiEndpointRow[]).map((row) => {
+      const requestCount = toNumber(row.total);
+      const errorCount = toNumber(row.errors);
+      return {
+        method: row.method,
+        route: row.route,
+        requestCount,
+        errorCount,
+        errorRate: ratio(errorCount, requestCount),
+        p95DurationMs: Math.round(toNumber(row.p95_duration_ms)),
+        lastSeenAt: toIsoString(row.last_seen_at)
+      };
+    });
+    const status = aggregateErrorBudgetStatus(windows);
+
+    return {
+      schemaVersion: "opspilot.error_budget.v1",
+      generatedAt: new Date().toISOString(),
+      status,
+      objective: {
+        availabilityTarget,
+        allowedErrorRate: roundMetric(allowedErrorRate),
+        window: "rolling_24h",
+        minimumRequestVolume
+      },
+      summary: {
+        totalRequests: dayWindow?.requestCount ?? 0,
+        totalErrors: dayWindow?.errorCount ?? 0,
+        availability: dayWindow?.availability ?? 1,
+        errorRate: dayWindow?.errorRate ?? 0,
+        errorBudgetRemaining: dayWindow?.errorBudgetRemaining ?? 1,
+        worstBurnRate,
+        releaseRecommendation: status === "freeze" || status === "page" ? "freeze" : status === "watch" ? "watch" : "ship"
+      },
+      windows,
+      topOffenders,
+      actions: buildErrorBudgetActions({ status, windows, topOffenders })
+    };
+  }
+
   async slo(): Promise<ObservabilitySloReport> {
     const connection = this.orm.em.fork().getConnection();
-    const [summary, latestEvalRows, toolCoverageRows, apiRequestRows] = await Promise.all([
+    const [summary, latestEvalRows, toolCoverageRows, apiRequestRows, errorBudget] = await Promise.all([
       this.summary(),
       connection.execute<EvaluationPassRow[]>(`
         select (details->>'passed')::boolean as passed
@@ -571,7 +722,8 @@ export class ObservabilityService {
           0::float as p95_duration_ms
         from api_request_logs
         where created_at >= now() - interval '24 hours';
-      `)
+      `),
+      this.errorBudget()
     ]);
     const toolCoverage = ratio(toNumber(toolCoverageRows[0]?.covered), toNumber(toolCoverageRows[0]?.total));
     const latestEvalPassed = latestEvalRows[0]?.passed === true ? 1 : 0;
@@ -631,6 +783,17 @@ export class ObservabilityService {
         actual: apiSuccessRate,
         source: "api_requests",
         window: "last_24h"
+      }),
+      buildObjective({
+        id: "api_error_budget",
+        label: "API 오류 예산",
+        description: "최근 API 실패가 허용 오류 예산 안에서 소모돼야 합니다.",
+        metric: "apiErrorBudgetRemaining",
+        operator: "gte",
+        target: 0,
+        actual: errorBudget.summary.errorBudgetRemaining,
+        source: "api_requests",
+        window: "last_24h"
       })
     ];
 
@@ -643,7 +806,7 @@ export class ObservabilityService {
 
   async releaseGate(): Promise<ObservabilityReleaseGate> {
     const connection = this.orm.em.fork().getConnection();
-    const [summary, slo, readiness, latestEvalRows, freshnessRows] = await Promise.all([
+    const [summary, slo, readiness, latestEvalRows, freshnessRows, errorBudget] = await Promise.all([
       this.summary(),
       this.slo(),
       this.healthService.readiness(),
@@ -669,7 +832,8 @@ export class ObservabilityService {
             cross join latest_eval e
             where e.created_at is null or d.updated_at > e.created_at
           ) as changed_documents_since_eval;
-      `)
+      `),
+      this.errorBudget()
     ]);
     const latestEvalPassed = latestEvalRows[0]?.passed === true;
     const pendingApprovals = summary.approvals.byStatus.pending ?? 0;
@@ -680,7 +844,8 @@ export class ObservabilityService {
       readiness,
       latestEvalPassed,
       pendingApprovals,
-      knowledgeFreshness
+      knowledgeFreshness,
+      errorBudget
     });
 
     return {
@@ -701,14 +866,15 @@ export class ObservabilityService {
   }
 
   async actionPlan(): Promise<OperationalActionPlan> {
-    const [gate, slo] = await Promise.all([this.releaseGate(), this.slo()]);
+    const [gate, slo, errorBudget] = await Promise.all([this.releaseGate(), this.slo(), this.errorBudget()]);
     const releaseGateActions = gate.checks
       .filter((check) => check.status !== "pass")
       .map((check) => actionFromReleaseGateCheck(check, gate.status));
     const sloActions = slo.objectives
       .filter((objective) => objective.status !== "ok")
       .map((objective) => actionFromSloObjective(objective));
-    const actions = [...releaseGateActions, ...sloActions];
+    const errorBudgetActions = errorBudget.actions.map((action, index) => actionFromErrorBudgetAction(action, index));
+    const actions = [...releaseGateActions, ...sloActions, ...errorBudgetActions];
 
     if (actions.length === 0) {
       actions.push(buildReleaseWatchAction(gate.status));
@@ -977,6 +1143,7 @@ function buildPortfolioPillars(input: {
   const runbookCalls = input.summary.toolCalls.byName.create_runbook_checklist ?? 0;
   const documentAgreement = input.summary.answers.averageDocumentAgreement;
   const apiSuccessRate = input.apiRequests.summary.successRate;
+  const errorBudgetCheck = checks.api_error_budget;
 
   return [
     {
@@ -1032,15 +1199,24 @@ function buildPortfolioPillars(input: {
       status: weakestStatus([
         checks.dependencies_ready?.status ?? "fail",
         input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
+        errorBudgetCheck?.status ?? "fail",
         apiSuccessRate >= 0.95 ? "pass" : apiSuccessRate >= 0.9 ? "warn" : "fail"
       ]),
-      score: roundMetric(average([statusScore(checks.dependencies_ready?.status), input.slo.status === "ok" ? 1 : input.slo.status === "warn" ? 0.75 : 0, apiSuccessRate])),
-      evidence: `릴리즈 게이트 ${input.gate.status}, SLO ${input.slo.status}, API 성공률 ${Math.round(apiSuccessRate * 100)}%, p95 ${input.apiRequests.summary.p95DurationMs}ms.`,
-      whyItMatters: "데모 앱이 아니라 운영 서비스처럼 준비 상태, 요청 품질, 회복 액션을 보여줍니다.",
-      demoScript: "품질 화면에서 릴리즈 게이트, SLO 가드레일, 운영 액션 플랜을 순서대로 엽니다.",
-      verification: ["pnpm readiness:smoke", "pnpm observability:slo-smoke", "pnpm release-gate:smoke"],
+      score: roundMetric(
+        average([
+          statusScore(checks.dependencies_ready?.status),
+          input.slo.status === "ok" ? 1 : input.slo.status === "warn" ? 0.75 : 0,
+          statusScore(errorBudgetCheck?.status),
+          apiSuccessRate
+        ])
+      ),
+      evidence: `릴리즈 게이트 ${input.gate.status}, SLO ${input.slo.status}, 오류 예산 ${errorBudgetCheck?.status ?? "missing"}, API 성공률 ${Math.round(apiSuccessRate * 100)}%, p95 ${input.apiRequests.summary.p95DurationMs}ms.`,
+      whyItMatters: "데모 앱이 아니라 운영 서비스처럼 준비 상태, 요청 품질, 오류 예산, 회복 액션을 보여줍니다.",
+      demoScript: "품질 화면에서 릴리즈 게이트, SLO 가드레일, 오류 예산, 운영 액션 플랜을 순서대로 엽니다.",
+      verification: ["pnpm readiness:smoke", "pnpm observability:slo-smoke", "pnpm error-budget:smoke", "pnpm release-gate:smoke"],
       links: [
         { label: "릴리즈 게이트", href: "/observability/release-gate" },
+        { label: "오류 예산", href: "/observability/error-budget" },
         { label: "API 요청 관측성", href: "/observability/api-requests" }
       ]
     },
@@ -1138,6 +1314,125 @@ function stableStringify(value: unknown): string {
     .join(",")}}`;
 }
 
+function buildErrorBudgetWindows(input: {
+  rows: ErrorBudgetWindowRow[];
+  availabilityTarget: number;
+  allowedErrorRate: number;
+  minimumRequestVolume: number;
+}): ErrorBudgetWindow[] {
+  const labels: Record<ErrorBudgetWindow["id"], { label: string; durationMinutes: number }> = {
+    "5m": { label: "최근 5분", durationMinutes: 5 },
+    "1h": { label: "최근 1시간", durationMinutes: 60 },
+    "24h": { label: "최근 24시간", durationMinutes: 1440 }
+  };
+  const rowsById = new Map(input.rows.map((row) => [row.window_id, row]));
+
+  return (Object.keys(labels) as ErrorBudgetWindow["id"][]).map((id) => {
+    const row = rowsById.get(id);
+    const requestCount = toNumber(row?.request_count);
+    const errorCount = toNumber(row?.error_count);
+    const errorRate = ratio(errorCount, requestCount);
+    const availability = requestCount === 0 ? 1 : roundMetric(1 - errorRate);
+    const burnRate = requestCount < input.minimumRequestVolume ? 0 : roundMetric(errorRate / input.allowedErrorRate);
+    const errorBudgetRemaining = requestCount === 0 ? 1 : clampMetric((input.allowedErrorRate - errorRate) / input.allowedErrorRate);
+    const status = errorBudgetWindowStatus({
+      id,
+      requestCount,
+      burnRate,
+      errorBudgetRemaining,
+      minimumRequestVolume: input.minimumRequestVolume
+    });
+
+    return {
+      id,
+      label: labels[id].label,
+      durationMinutes: labels[id].durationMinutes,
+      requestCount,
+      errorCount,
+      availability,
+      errorRate,
+      allowedErrorRate: roundMetric(input.allowedErrorRate),
+      burnRate,
+      errorBudgetRemaining,
+      status
+    };
+  });
+}
+
+function errorBudgetWindowStatus(input: {
+  id: ErrorBudgetWindow["id"];
+  requestCount: number;
+  burnRate: number;
+  errorBudgetRemaining: number;
+  minimumRequestVolume: number;
+}): ErrorBudgetWindow["status"] {
+  if (input.requestCount < input.minimumRequestVolume) {
+    return "healthy";
+  }
+
+  if (input.errorBudgetRemaining < 0 || input.burnRate >= (input.id === "5m" ? 14 : 6)) {
+    return "freeze";
+  }
+
+  if (input.burnRate >= (input.id === "5m" ? 6 : 3)) {
+    return "page";
+  }
+
+  if (input.burnRate >= 1 || input.errorBudgetRemaining < 0.25) {
+    return "watch";
+  }
+
+  return "healthy";
+}
+
+function aggregateErrorBudgetStatus(windows: ErrorBudgetWindow[]): ErrorBudgetReport["status"] {
+  if (windows.some((window) => window.status === "freeze")) {
+    return "freeze";
+  }
+  if (windows.some((window) => window.status === "page")) {
+    return "page";
+  }
+  if (windows.some((window) => window.status === "watch")) {
+    return "watch";
+  }
+  return "healthy";
+}
+
+function buildErrorBudgetActions(input: {
+  status: ErrorBudgetReport["status"];
+  windows: ErrorBudgetWindow[];
+  topOffenders: ErrorBudgetEndpoint[];
+}): ErrorBudgetAction[] {
+  if (input.status === "healthy") {
+    return [];
+  }
+
+  const worstWindow = [...input.windows].sort((left, right) => right.burnRate - left.burnRate)[0];
+  const topOffender = input.topOffenders[0];
+  const priority: ErrorBudgetAction["priority"] = input.status === "freeze" ? "p0" : input.status === "page" ? "p1" : "p2";
+  const actions: ErrorBudgetAction[] = [
+    {
+      priority,
+      owner: "platform",
+      title: input.status === "freeze" ? "배포 동결 및 5xx 원인 제거" : "오류 예산 번레이트 확인",
+      reason: `${worstWindow?.label ?? "최근 창"} burn rate ${worstWindow?.burnRate ?? 0}x, 오류 예산 ${Math.round((worstWindow?.errorBudgetRemaining ?? 0) * 100)}%.`,
+      verification: ["pnpm error-budget:smoke", "pnpm observability:slo-smoke", "pnpm release-gate:smoke"]
+    }
+  ];
+
+  if (topOffender) {
+    actions.push({
+      priority,
+      owner: "ops",
+      title: "최상위 실패 endpoint 점검",
+      reason: `${topOffender.method} ${topOffender.route}에서 5xx ${topOffender.errorCount}/${topOffender.requestCount}건, p95 ${topOffender.p95DurationMs}ms.`,
+      verification: ["pnpm error-budget:smoke", "pnpm web:smoke"]
+    });
+  }
+
+  return actions;
+}
+
 function portfolioHeadline(score: number, fail: number, warn: number): string {
   if (fail > 0) {
     return "핵심 증거가 부족해 데모 전에 보강이 필요합니다.";
@@ -1185,6 +1480,26 @@ function actionFromSloObjective(objective: SloObjective): OperationalAction {
   };
 }
 
+function actionFromErrorBudgetAction(action: ErrorBudgetAction, index: number): OperationalAction {
+  return {
+    id: `error_budget_${index + 1}`,
+    title: action.title,
+    priority: action.priority,
+    owner: action.owner,
+    status: "open",
+    source: "slo",
+    sourceId: "api_error_budget",
+    reason: action.reason,
+    impact: "오류 예산이 빠르게 소진되면 Slack/Web 운영 채널에서 답변 자체보다 시스템 신뢰성이 먼저 무너집니다.",
+    actionItems: [
+      "최근 창별 burn rate와 5xx endpoint를 확인합니다.",
+      "원인 endpoint를 롤백하거나 실패 응답을 줄인 뒤 오류 예산을 다시 계산합니다."
+    ],
+    verification: action.verification,
+    links: [{ label: "오류 예산 API", href: "/observability/error-budget" }]
+  };
+}
+
 function buildReleaseWatchAction(status: ReleaseGateStatus): OperationalAction {
   return {
     id: "release_watch",
@@ -1197,11 +1512,11 @@ function buildReleaseWatchAction(status: ReleaseGateStatus): OperationalAction {
     reason: `배포 게이트 상태는 ${status}입니다.`,
     impact: "현재는 차단 액션이 없지만, 문서 변경이나 새 피드백 이후 품질 게이트가 오래된 상태가 될 수 있습니다.",
     actionItems: [
-      "배포 전 최신 평가와 웹 스모크를 다시 실행합니다.",
+      "배포 전 최신 평가, 오류 예산, 웹 스모크를 다시 실행합니다.",
       "새 문서가 추가되면 검색 강건성 리포트와 문서 영향 분석을 확인합니다.",
       "민감 작업 승인 대기열이 증가하는지 확인합니다."
     ],
-    verification: ["pnpm eval", "pnpm release-gate:smoke", "pnpm web:smoke"],
+    verification: ["pnpm eval", "pnpm error-budget:smoke", "pnpm release-gate:smoke", "pnpm web:smoke"],
     links: [{ label: "배포 게이트", href: "/observability/release-gate" }]
   };
 }
@@ -1213,6 +1528,7 @@ function releaseActionTitle(id: string, fallback: string): string {
     latest_eval_gate: "최신 평가 게이트 복구",
     knowledge_freshness: "문서 변경 후 재평가",
     slo_guardrails: "SLO 위반 원인 제거",
+    api_error_budget: "API 오류 예산 회복",
     agent_audit_trail: "에이전트 감사 추적 보강",
     approval_backlog: "승인 대기열 정리",
     feedback_signal: "피드백 신호 수집"
@@ -1228,6 +1544,7 @@ function releaseActionImpact(id: string, status: ReleaseGateCheckStatus): string
     latest_eval_gate: `${severity}: 최신 평가가 없거나 실패하면 회귀 여부를 증명할 수 없습니다.`,
     knowledge_freshness: `${severity}: 문서가 바뀐 뒤 평가가 오래되면 현재 지식 기준 답변 품질을 보장할 수 없습니다.`,
     slo_guardrails: `${severity}: SLO가 흔들리면 운영 채널에 자동 답변을 공유하기 어렵습니다.`,
+    api_error_budget: `${severity}: 최근 API 실패가 허용 오류 예산을 빠르게 소모하면 배포를 멈추고 원인을 제거해야 합니다.`,
     agent_audit_trail: `${severity}: 도구 호출 증거가 부족하면 운영 판단을 사후 재현할 수 없습니다.`,
     approval_backlog: `${severity}: 민감 작업 승인 대기열이 쌓이면 운영 처리 시간이 늘어납니다.`,
     feedback_signal: `${severity}: 피드백이 없으면 답변 신뢰 게이트가 실제 사용자 신호를 반영하지 못합니다.`
@@ -1242,6 +1559,7 @@ function releaseActionItems(check: ReleaseGateCheck): string[] {
     latest_eval_gate: ["`pnpm eval`을 실행해 최신 평가 결과를 생성합니다.", "실패 케이스는 `GET /evaluations/cases`에서 기대 출처와 일치율을 확인합니다."],
     knowledge_freshness: ["변경된 문서의 영향 분석을 확인합니다.", "`pnpm eval`과 `pnpm freshness:smoke`를 순서대로 실행합니다."],
     slo_guardrails: ["`GET /observability/slo`에서 warn/breach objective를 확인합니다.", "문서 일치율, 검토 부하, 도구 감사 커버리지 중 실패한 지표를 먼저 복구합니다."],
+    api_error_budget: ["`GET /observability/error-budget`에서 5분/1시간/24시간 burn rate를 확인합니다.", "top offender endpoint의 5xx 원인을 제거하거나 배포를 동결합니다."],
     agent_audit_trail: ["질문 실행 시 `search_documents` tool log가 저장되는지 확인합니다.", "민감 작업 질문으로 `request_human_approval` 경계를 검증합니다."],
     approval_backlog: ["승인 화면에서 pending 요청을 승인 또는 반려합니다.", "민감 작업 정책이 과도하게 넓지 않은지 확인합니다."],
     feedback_signal: ["대표 질문에 대해 `도움됨/개선 필요` 피드백을 저장합니다.", "답변 신뢰 게이트가 feedback_signal 체크를 반영하는지 확인합니다."]
@@ -1256,6 +1574,7 @@ function releaseVerificationCommands(id: string): string[] {
     latest_eval_gate: ["pnpm eval", "pnpm eval:cases-smoke", "pnpm release-gate:smoke"],
     knowledge_freshness: ["pnpm freshness:smoke", "pnpm release-gate:smoke"],
     slo_guardrails: ["pnpm observability:slo-smoke", "pnpm release-gate:smoke"],
+    api_error_budget: ["pnpm error-budget:smoke", "pnpm observability:slo-smoke", "pnpm release-gate:smoke"],
     agent_audit_trail: ["pnpm trace:smoke", "pnpm question-audit:smoke", "pnpm release-gate:smoke"],
     approval_backlog: ["pnpm review:smoke", "pnpm release-gate:smoke"],
     feedback_signal: ["pnpm quality-gate:smoke", "pnpm release-gate:smoke"]
@@ -1268,6 +1587,7 @@ function releaseLinks(id: string): OperationalAction["links"] {
     latest_eval_gate: [{ label: "평가 케이스", href: "/evaluations/cases" }],
     knowledge_freshness: [{ label: "배포 게이트", href: "/observability/release-gate" }],
     slo_guardrails: [{ label: "SLO API", href: "/observability/slo" }],
+    api_error_budget: [{ label: "오류 예산 API", href: "/observability/error-budget" }],
     approval_backlog: [{ label: "승인 대기열", href: "/approvals" }],
     feedback_signal: [{ label: "피드백 API", href: "/feedback" }]
   };
@@ -1280,7 +1600,8 @@ function sloActionTitle(id: string, fallback: string): string {
     review_load: "사람 검토 부하 완화",
     tool_audit_coverage: "도구 감사 커버리지 복구",
     eval_gate: "평가 게이트 재실행",
-    api_success_rate: "API 성공률 복구"
+    api_success_rate: "API 성공률 복구",
+    api_error_budget: "API 오류 예산 복구"
   };
   return titles[id] ?? fallback;
 }
@@ -1291,7 +1612,8 @@ function sloOwner(objective: SloObjective): ReleaseGateCheck["owner"] {
     review_load: "ops",
     tool_audit_coverage: "ops",
     eval_gate: "quality",
-    api_success_rate: "platform"
+    api_success_rate: "platform",
+    api_error_budget: "platform"
   };
   return owners[objective.id] ?? (objective.source === "api_requests" ? "platform" : "quality");
 }
@@ -1302,7 +1624,8 @@ function sloImpact(id: string): string {
     review_load: "검토 비율이 높으면 운영자가 AI Agent를 처리 큐처럼 써야 해서 자동화 효과가 줄어듭니다.",
     tool_audit_coverage: "도구 호출 증거가 빠지면 장애 대응과 권한 경계를 재현할 수 없습니다.",
     eval_gate: "평가 게이트가 실패하면 새 문서/프롬프트 변경의 회귀를 증명할 수 없습니다.",
-    api_success_rate: "최근 API 5xx가 늘면 Slack/Web 사용자가 운영 답변을 안정적으로 받을 수 없습니다."
+    api_success_rate: "최근 API 5xx가 늘면 Slack/Web 사용자가 운영 답변을 안정적으로 받을 수 없습니다.",
+    api_error_budget: "오류 예산이 소진되면 성공률 평균이 아직 괜찮아 보여도 배포 위험이 급격히 커집니다."
   };
   return impacts[id] ?? "SLO objective가 기준을 벗어나 release gate가 흔들릴 수 있습니다.";
 }
@@ -1313,7 +1636,8 @@ function sloActionItems(objective: SloObjective): string[] {
     review_load: ["low confidence와 sensitive_action review reason 분포를 확인합니다.", "민감 작업은 승인 경계로 유지하되 일반 질문의 검색 품질을 보강합니다."],
     tool_audit_coverage: ["질문 저장 후 `search_documents` 로그가 누락되는 경로를 확인합니다.", "incident workflow는 질문 단위 audit bundle로 재검증합니다."],
     eval_gate: ["`pnpm eval`을 실행하고 실패 케이스의 기대 출처를 수정합니다.", "평가 케이스가 현재 문서 변경을 반영하는지 확인합니다."],
-    api_success_rate: ["최근 24시간 endpoint별 5xx와 p95를 확인합니다.", "실패 endpoint의 입력 검증, DB 연결, Redis 연결을 우선 점검합니다."]
+    api_success_rate: ["최근 24시간 endpoint별 5xx와 p95를 확인합니다.", "실패 endpoint의 입력 검증, DB 연결, Redis 연결을 우선 점검합니다."],
+    api_error_budget: ["5분/1시간 burn rate가 24시간 평균보다 튀는지 확인합니다.", "`pnpm error-budget:smoke`로 회복 후 오류 예산이 정상인지 증명합니다."]
   };
   return items[objective.id] ?? ["SLO objective의 actual/target 차이를 확인합니다.", "수정 후 SLO smoke를 다시 실행합니다."];
 }
@@ -1330,6 +1654,7 @@ function buildReleaseGateChecks(input: {
   latestEvalPassed: boolean;
   pendingApprovals: number;
   knowledgeFreshness: KnowledgeFreshness;
+  errorBudget: ErrorBudgetReport;
 }): ReleaseGateCheck[] {
   const minDocuments = readCountThreshold("RELEASE_MIN_DOCUMENTS", 5);
   const minChunks = readCountThreshold("RELEASE_MIN_CHUNKS", 8);
@@ -1385,6 +1710,20 @@ function buildReleaseGateChecks(input: {
       status: input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
       evidence: `SLO 목표 ${input.slo.objectives.length}개가 ${input.slo.status} 상태입니다.`,
       owner: "quality"
+    },
+    {
+      id: "api_error_budget",
+      label: "API 오류 예산",
+      status:
+        input.errorBudget.status === "healthy"
+          ? "pass"
+          : input.errorBudget.status === "watch"
+            ? "warn"
+            : "fail",
+      evidence: `24시간 가용성 ${Math.round(input.errorBudget.summary.availability * 100)}%, 최악 burn rate ${input.errorBudget.summary.worstBurnRate}x, 권고 ${input.errorBudget.summary.releaseRecommendation}.`,
+      owner: "platform",
+      metric: input.errorBudget.summary.errorBudgetRemaining,
+      threshold: 0
     },
     {
       id: "agent_audit_trail",

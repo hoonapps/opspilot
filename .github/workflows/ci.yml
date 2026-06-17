@@ -194,6 +194,9 @@ jobs:
       - name: Observability SLO smoke
         run: pnpm observability:slo-smoke
 
+      - name: Error budget smoke
+        run: pnpm error-budget:smoke
+
       - name: Operational action plan smoke
         run: pnpm action-plan:smoke
 

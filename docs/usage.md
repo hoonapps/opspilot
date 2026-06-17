@@ -278,6 +278,7 @@ pnpm evidence-bundle:smoke
 pnpm quality-gate:smoke
 pnpm question-audit:smoke
 pnpm audit-ledger:smoke
+pnpm error-budget:smoke
 pnpm action-plan:smoke
 ```
 
@@ -285,7 +286,9 @@ pnpm action-plan:smoke
 
 웹 콘솔 `질문` 화면에서는 근거 커버리지에 출처별 근거 스니펫이 표시되고, 추적 요약 아래에 `답변 신뢰 게이트`가 표시됩니다. 이 게이트는 증명 패킷, 현재 문서 기준 재실행, 승인 상태, 피드백 신호, 문서 일치율, 근거 커버리지, 권한 재검사를 묶어 `공유 가능`, `검토 후 공유`, `차단 후 재작성` 중 하나로 판정합니다. 일반 답변은 피드백 저장 전에는 검토 대상으로 남고, `도움됨` 피드백을 저장하면 공유 가능으로 바뀝니다. 민감 작업 질문은 승인 대기 상태 때문에 자동 공유되지 않습니다.
 
-웹 콘솔 `품질` 화면의 `운영 액션 플랜`은 배포 게이트와 SLO의 실패/검토 항목을 담당자, P0/P1/P2 우선순위, 조치, 검증 명령으로 바꿉니다. 배포 보류 사유를 말할 때는 이 영역에서 “누가 무엇을 고치고 어떤 명령으로 회복을 증명하는지”를 보여주면 됩니다.
+웹 콘솔 `품질` 화면의 `오류 예산 번레이트`는 최근 5분, 1시간, 24시간 API 5xx가 허용 오류 예산을 얼마나 태우는지 보여줍니다. `error-budget:smoke`는 실패 로그를 주입해 burn rate가 높을 때 배포 동결 권고와 top offender endpoint가 잡히는지 검증합니다.
+
+같은 화면의 `운영 액션 플랜`은 배포 게이트와 SLO의 실패/검토 항목을 담당자, P0/P1/P2 우선순위, 조치, 검증 명령으로 바꿉니다. 배포 보류 사유를 말할 때는 이 영역에서 “누가 무엇을 고치고 어떤 명령으로 회복을 증명하는지”를 보여주면 됩니다.
 
 같은 화면의 `포트폴리오 증거 보드`는 RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 데모 산출물을 서버에서 한 번에 집계합니다. 이 패널은 `GET /observability/portfolio-readiness` 응답을 사용하며, 면접에서는 “현재 데모가 보여줄 준비가 됐는지”를 먼저 설명한 뒤 아래 화면으로 들어가면 됩니다.
 
@@ -359,6 +362,7 @@ pnpm idempotency:smoke
 pnpm release-gate:smoke
 pnpm portfolio-readiness:smoke
 pnpm audit-ledger:smoke
+pnpm error-budget:smoke
 pnpm evidence-bundle:smoke
 pnpm quality-gate:smoke
 pnpm web:smoke

@@ -422,6 +422,7 @@ async function main() {
     await page.locator(".releaseGatePanel").getByText("최신 평가 게이트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("평가 최신성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("SLO 가드레일", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".releaseGatePanel").getByText("API 오류 예산", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".actionPlanPanel").getByText("운영 액션 플랜", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".actionPlanPanel").getByText("액션", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".actionPlanVerify").getByText("pnpm", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -431,10 +432,14 @@ async function main() {
     await page.locator(".sloPanel").getByText("답변 근거성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("도구 감사 커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("API 성공률", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".sloPanel").getByText("API 오류 예산", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".apiRequestPanel").getByText("API 요청 관측성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".apiRequestStats").getByText("성공률", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".endpointList .endpointItem").first().waitFor({ timeout: 10000 });
     await page.locator(".recentRequestList").getByText("GET", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".errorBudgetPanel").getByText("오류 예산 번레이트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".errorBudgetPanel").getByText("배포 권고", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".errorBudgetWindows").getByText("최근 24시간", { exact: true }).waitFor({ timeout: 10000 });
     await page
       .locator(".observabilityPanel")
       .getByText("request_human_approval", { exact: false })
@@ -457,12 +462,19 @@ async function main() {
       observabilityText.includes("운영성, SLO, API 안정성") &&
       observabilityText.includes("5분 데모 경로") &&
       observabilityText.includes("pnpm portfolio:demo");
+    const errorBudgetVisible =
+      observabilityText.includes("오류 예산 번레이트") &&
+      observabilityText.includes("배포 권고") &&
+      observabilityText.includes("최근 24시간") &&
+      observabilityText.includes("API 오류 예산");
     const observabilityVisible =
       portfolioReadinessVisible &&
+      errorBudgetVisible &&
       observabilityText.includes("릴리즈 게이트") &&
       observabilityText.includes("의존성 준비") &&
       observabilityText.includes("최신 평가 게이트") &&
       observabilityText.includes("평가 최신성") &&
+      observabilityText.includes("API 오류 예산") &&
       observabilityText.includes("운영 액션 플랜") &&
       observabilityText.includes("사람 검토율") &&
       observabilityText.includes("평균 일치율") &&
@@ -470,6 +482,8 @@ async function main() {
       observabilityText.includes("답변 근거성") &&
       observabilityText.includes("도구 감사 커버리지") &&
       observabilityText.includes("API 성공률") &&
+      observabilityText.includes("오류 예산 번레이트") &&
+      observabilityText.includes("배포 권고") &&
       observabilityText.includes("API 요청 관측성") &&
       observabilityText.includes("request_human_approval") &&
       observabilityText.includes("피드백");
@@ -540,6 +554,7 @@ async function main() {
         slackTraceVisible &&
         auditVisible &&
         portfolioReadinessVisible &&
+        errorBudgetVisible &&
         observabilityVisible &&
         usageVisible &&
         usagePageVisible,
@@ -613,6 +628,7 @@ async function main() {
         slackTraceVisible,
         auditVisible,
         portfolioReadinessVisible,
+        errorBudgetVisible,
         observabilityVisible,
         usageVisible,
         usagePageVisible

@@ -37,6 +37,11 @@ export class ObservabilityController {
     return this.observabilityService.apiRequests();
   }
 
+  @Get("error-budget")
+  errorBudget() {
+    return this.observabilityService.errorBudget();
+  }
+
   @Get("audit-ledger")
   auditLedger(@Query("limit") limit?: string) {
     return this.observabilityService.auditLedger(limit ? Number(limit) : undefined);

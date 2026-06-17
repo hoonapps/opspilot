@@ -44,6 +44,7 @@ async function main() {
       objectives.tool_audit_coverage?.status === "ok" &&
       objectives.eval_gate?.status === "ok" &&
       objectives.api_success_rate?.status === "ok" &&
+      objectives.api_error_budget?.status === "ok" &&
       objectives.answer_grounding.actual >= objectives.answer_grounding.target &&
       objectives.api_success_rate.actual >= objectives.api_success_rate.target &&
       objectives.tool_audit_coverage.actual >= objectives.tool_audit_coverage.target;
