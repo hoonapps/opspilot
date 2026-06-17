@@ -30,6 +30,25 @@ export type AskResponse = {
   permissionAudit: PermissionBoundaryAudit;
 };
 
+export type RetrievalPreviewResponse = {
+  query: string;
+  limit: number;
+  permissionAudit: PermissionBoundaryAudit;
+  candidates: Array<{
+    rank: number;
+    chunkId: string;
+    documentId: string;
+    title: string;
+    path: string;
+    visibility: string;
+    teamSlug?: string | null;
+    score: number;
+    retrieval: SearchResult["retrieval"];
+    heading?: string | null;
+    contentPreview: string;
+  }>;
+};
+
 export type ReviewReason =
   | {
       code: "no_sources";
@@ -188,6 +207,30 @@ export class AgentService {
         ...(sensitiveAction ? [{ toolName: "request_human_approval", status: ToolCallStatus.NeedsApproval }] : [])
       ],
       permissionAudit
+    };
+  }
+
+  async previewRetrieval(question: string, context: RequestContext, limit = 5): Promise<RetrievalPreviewResponse> {
+    const safeLimit = Math.max(1, Math.min(limit, 10));
+    const { results, permissionAudit } = await this.searchService.searchWithAudit(question, context, safeLimit);
+
+    return {
+      query: question,
+      limit: safeLimit,
+      permissionAudit,
+      candidates: results.map((result, index) => ({
+        rank: index + 1,
+        chunkId: result.chunkId,
+        documentId: result.documentId,
+        title: result.title,
+        path: result.path,
+        visibility: result.visibility,
+        teamSlug: result.teamSlug,
+        score: Number(result.score.toFixed(6)),
+        retrieval: result.retrieval,
+        heading: typeof result.metadata.heading === "string" ? result.metadata.heading : null,
+        contentPreview: result.content.slice(0, 520)
+      }))
     };
   }
 

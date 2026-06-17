@@ -5,7 +5,7 @@ OpsPilot keeps its product proof close to the code. The checked-in design artifa
 ## Assets
 
 - `docs/assets/opspilot-dashboard.svg`: editable SVG product board showing the target operating model for a permission-aware RAG agent console.
-- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, evidence panel, operations telemetry, quality gates, approval queue, audit feed, and a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection.
+- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, retrieval lab, evidence panel, operations telemetry, quality gates, approval queue, audit feed, and a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection.
 
 The PNG is refreshed by `pnpm web:smoke` after the API and web console are running. This makes the README image a runtime artifact, not a static marketing mockup.
 
@@ -17,9 +17,10 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 
 - Show the answer, confidence, document match, tool calls, and sources in one scan.
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
-- Split the console into Ask, Documents, Quality, Review, and Audit screens so document management is a first-class workflow.
+- Split the console into Ask, Retrieval, Documents, Quality, Review, and Audit screens so retrieval debugging and document management are first-class workflows.
 - Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
 - Make permission boundaries visible through denied candidate counts and review reasons.
+- Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.
 - Keep sensitive actions separate from automatic answers through the approval queue.
 - Expose evaluation metrics in the same surface used for demos.
 - Keep document upsert, GitHub sync, index inventory, and chunk previews in a dedicated Documents screen so re-indexing can be demonstrated live without hiding the controls below the answer workflow.
@@ -30,11 +31,13 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 2. Open the Quality screen and load the latest evaluation report.
 3. Open the Documents screen and upsert the sample status-page Markdown document.
 4. Verify that the inventory count, selected document, content hash, redaction summary, and generated chunk previews update before asking a question.
-5. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
-6. Ask the production DB write question and verify human approval is required.
-7. Open the Review screen and inspect the approval queue.
-8. Open the Audit screen and inspect the persisted tool-call trail.
-9. Save feedback and refresh the answer trace.
+5. Open the Retrieval screen and preview ranking for the status-page and production DB questions.
+6. Verify vector/lexical score bars, ranked chunks, and denied restricted candidates.
+7. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
+8. Ask the production DB write question and verify human approval is required.
+9. Open the Review screen and inspect the approval queue.
+10. Open the Audit screen and inspect the persisted tool-call trail.
+11. Save feedback and refresh the answer trace.
 
 This is the same path covered by the Playwright web smoke test.
 

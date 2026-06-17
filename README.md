@@ -18,6 +18,7 @@ The screenshot above is generated from the working Next.js console by `pnpm web:
 - load evaluation metrics and document match gates
 - load operational telemetry for questions, human review rate, document match, tool calls, approvals, feedback, and indexed knowledge
 - upsert a new Markdown document, inspect index inventory and chunk previews, and retrieve it as a cited source
+- preview retrieval ranking before answer generation with vector/lexical scores and permission-denied candidate counts
 - ask a sensitive operations question and force human approval
 - show permission audit counts, review reasons, answer trace, tool calls, feedback, and approval queue state
 
@@ -32,6 +33,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can sensitive operations be separated into human approval?
 - Can tool calls be audited after the answer is generated?
 - Can new or changed documents be re-indexed and evaluated?
+- Can retrieval ranking be debugged before answer generation?
 - Can retrieval quality be measured against expected source documents?
 
 ## Stack
@@ -328,7 +330,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
-- Next.js web console with separate Ask, Documents, Quality, Review, and Audit screens for asking questions, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, reviewing index inventory and chunk previews, saving feedback, and resolving approval requests
+- Next.js web console with separate Ask, Retrieval, Documents, Quality, Review, and Audit screens for asking questions, previewing retrieval ranking, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, reviewing index inventory and chunk previews, saving feedback, and resolving approval requests
 - Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
@@ -376,7 +378,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, document management, index inventory, chunk preview, security summary, evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, index inventory, chunk preview, security summary, evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
@@ -423,6 +425,14 @@ POST /documents/markdown
 
 This replaces chunks for the same document path, records a new document version when content changes, stores embeddings in pgvector, and optionally updates Elasticsearch for hybrid retrieval.
 
+Retrieval preview endpoint:
+
+```txt
+POST /retrieval/preview
+```
+
+This returns ranked candidate chunks, vector/lexical/fused score details, content previews, actor context, and aggregated permission audit without persisting a question or generating an answer. The Retrieval screen uses it to debug why a chunk would enter prompt context and which inaccessible candidates were denied.
+
 Index inventory endpoint:
 
 ```txt
@@ -464,7 +474,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

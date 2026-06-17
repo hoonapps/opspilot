@@ -101,6 +101,30 @@ export type DocumentInventoryItem = {
   }>;
 };
 
+export type RetrievalPreviewResponse = {
+  query: string;
+  limit: number;
+  permissionAudit: AskResponse["permissionAudit"];
+  candidates: Array<{
+    rank: number;
+    chunkId: string;
+    documentId: string;
+    title: string;
+    path: string;
+    visibility: string;
+    teamSlug?: string | null;
+    score: number;
+    retrieval: {
+      vectorScore?: number;
+      lexicalScore?: number;
+      fusedScore?: number;
+      mode: "vector" | "hybrid";
+    };
+    heading?: string | null;
+    contentPreview: string;
+  }>;
+};
+
 export type EvaluationReport = {
   suiteName: string;
   createdAt: string;
@@ -254,6 +278,30 @@ export async function askOpsPilot(input: {
   }
 
   return response.json() as Promise<AskResponse>;
+}
+
+export async function previewRetrieval(input: {
+  question: string;
+  teamSlugs: string;
+  roles: string;
+  limit: number;
+}): Promise<RetrievalPreviewResponse> {
+  const response = await fetch(`${API_BASE_URL}/retrieval/preview`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    },
+    body: JSON.stringify({ question: input.question, limit: input.limit })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<RetrievalPreviewResponse>;
 }
 
 export async function listApprovals(): Promise<Approval[]> {

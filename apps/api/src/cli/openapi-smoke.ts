@@ -12,6 +12,7 @@ type OpenApiOperation = {
 
 const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId?: string }> = [
   { path: "/ask", method: "post", operationId: "AgentController_ask" },
+  { path: "/retrieval/preview", method: "post", operationId: "AgentController_previewRetrieval" },
   { path: "/documents", method: "get", operationId: "DocumentsController_listDocuments" },
   { path: "/documents/markdown", method: "post", operationId: "DocumentsController_upsertMarkdownDocument" },
   { path: "/documents/github/sync", method: "post", operationId: "DocumentsController_syncGithubDocuments" },
@@ -31,6 +32,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
 
 const REQUIRED_SCHEMAS = [
   "AskDto",
+  "RetrievalPreviewDto",
   "UpsertMarkdownDocumentDto",
   "SyncGithubDocumentsDto",
   "UpdateApprovalDto",
@@ -53,6 +55,7 @@ async function main() {
     const missingSchemas = REQUIRED_SCHEMAS.filter((schemaName) => !schemas[schemaName]);
     const actorTokenScheme = document.components?.securitySchemes?.["actor-token"];
     const askRequestSchema = getRequestSchemaRef(document, "/ask", "post");
+    const retrievalPreviewSchema = getRequestSchemaRef(document, "/retrieval/preview", "post");
     const markdownRequestSchema = getRequestSchemaRef(document, "/documents/markdown", "post");
     const updateApprovalSchema = getRequestSchemaRef(document, "/approvals/{id}", "patch");
 
@@ -61,6 +64,7 @@ async function main() {
       missingSchemas.length === 0 &&
       isApiKeyScheme(actorTokenScheme) &&
       askRequestSchema === "#/components/schemas/AskDto" &&
+      retrievalPreviewSchema === "#/components/schemas/RetrievalPreviewDto" &&
       markdownRequestSchema === "#/components/schemas/UpsertMarkdownDocumentDto" &&
       updateApprovalSchema === "#/components/schemas/UpdateApprovalDto";
 
@@ -75,6 +79,7 @@ async function main() {
       securitySchemes: Object.keys(document.components?.securitySchemes ?? {}),
       requestSchemas: {
         ask: askRequestSchema,
+        retrievalPreview: retrievalPreviewSchema,
         markdown: markdownRequestSchema,
         updateApproval: updateApprovalSchema
       }

@@ -18,6 +18,8 @@ import {
   listRecentToolCalls,
   listApprovals,
   ObservabilitySummary,
+  previewRetrieval,
+  RetrievalPreviewResponse,
   syncGithubDocuments,
   ToolCallAuditItem,
   updateApproval,
@@ -46,7 +48,7 @@ const quickQuestions = [
   "운영 DB에서 고객 정보를 바로 수정해도 돼?"
 ];
 
-type ConsoleScreen = "ask" | "documents" | "quality" | "review" | "audit";
+type ConsoleScreen = "ask" | "retrieval" | "documents" | "quality" | "review" | "audit";
 
 const screens: Array<{ id: ConsoleScreen; label: string; title: string; description: string }> = [
   {
@@ -54,6 +56,12 @@ const screens: Array<{ id: ConsoleScreen; label: string; title: string; descript
     label: "Ask",
     title: "Ask operational docs",
     description: "Ask questions, inspect grounded answers, sources, traces, review reasons, and feedback."
+  },
+  {
+    id: "retrieval",
+    label: "Retrieval",
+    title: "Retrieval lab",
+    description: "Preview candidate chunks, score breakdown, and permission filtering before answer generation."
   },
   {
     id: "documents",
@@ -99,6 +107,8 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
+  const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
+  const [retrievalLimit, setRetrievalLimit] = useState(5);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
@@ -107,6 +117,7 @@ export default function Home() {
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<
     | "ask"
+    | "retrieval"
     | "ingest"
     | "github"
     | "documents"
@@ -128,6 +139,7 @@ export default function Home() {
     () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
     [documents, selectedDocumentId]
   );
+  const topRetrievalCandidate = retrievalPreview?.candidates[0] ?? null;
   const documentStats = useMemo(
     () => ({
       total: documents.length,
@@ -150,6 +162,19 @@ export default function Home() {
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Ask request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function submitRetrievalPreview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading("retrieval");
+    try {
+      setRetrievalPreview(await previewRetrieval({ question, teamSlugs, roles, limit: retrievalLimit }));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Retrieval preview request failed");
     } finally {
       setLoading(null);
     }
@@ -501,6 +526,118 @@ export default function Home() {
           </>
           ) : null}
 
+          {activeScreen === "retrieval" ? (
+          <>
+          <form onSubmit={submitRetrievalPreview} className="retrievalPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Preview</p>
+                <h2>Candidate ranking</h2>
+              </div>
+              {retrievalPreview ? <span className="badge">{retrievalPreview.candidates.length} candidates</span> : null}
+            </div>
+
+            <label>
+              Query
+              <textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows={4} />
+            </label>
+            <div className="fieldGrid">
+              <label>
+                Team slugs
+                <input value={teamSlugs} onChange={(event) => setTeamSlugs(event.target.value)} placeholder="payments" />
+              </label>
+              <label>
+                Roles
+                <input value={roles} onChange={(event) => setRoles(event.target.value)} placeholder="ops_admin, oncall" />
+              </label>
+            </div>
+            <label>
+              Candidate limit
+              <input
+                max={10}
+                min={1}
+                onChange={(event) => setRetrievalLimit(Number(event.target.value))}
+                type="number"
+                value={retrievalLimit}
+              />
+            </label>
+            <button className="secondaryButton" disabled={loading === "retrieval"} type="submit">
+              {loading === "retrieval" ? "Previewing..." : "Preview retrieval"}
+            </button>
+          </form>
+
+          <section className="retrievalPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Boundary</p>
+                <h2>Permission audit</h2>
+              </div>
+              {retrievalPreview ? <span className="badge">{retrievalPreview.permissionAudit.enforcement}</span> : null}
+            </div>
+            {retrievalPreview ? (
+              <>
+                <div className="retrievalStats">
+                  <Metric label="Allowed" value={String(retrievalPreview.permissionAudit.allowedCandidateCount)} />
+                  <Metric label="Denied" value={String(retrievalPreview.permissionAudit.deniedCandidateCount)} />
+                  <Metric label="Window" value={String(retrievalPreview.permissionAudit.candidateWindow)} />
+                  <Metric label="Top score" value={topRetrievalCandidate ? formatScore(topRetrievalCandidate.score) : "0.000"} />
+                </div>
+                <div className="opsBreakdown">
+                  <span>Actor</span>
+                  <code>
+                    roles:{retrievalPreview.permissionAudit.actor.roles.join("|") || "none"} teams:
+                    {retrievalPreview.permissionAudit.actor.teamSlugs.join("|") || "none"}
+                  </code>
+                  <span>Denied</span>
+                  <code>{formatDeniedVisibility(retrievalPreview.permissionAudit.deniedByVisibility)}</code>
+                </div>
+              </>
+            ) : (
+              <p className="empty">Preview retrieval to verify allowed candidates, denied visibility, and enforcement mode before generating an answer.</p>
+            )}
+          </section>
+
+          <section className="retrievalResults">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Evidence</p>
+                <h2>Ranked chunks</h2>
+              </div>
+              {retrievalPreview ? <span className="badge">{retrievalPreview.limit} limit</span> : null}
+            </div>
+            <div className="candidateList">
+              {(retrievalPreview?.candidates ?? []).length > 0 ? (
+                retrievalPreview?.candidates.map((candidate) => (
+                  <article className="candidateItem" key={candidate.chunkId}>
+                    <div className="candidateHead">
+                      <span className="rank">{candidate.rank}</span>
+                      <div>
+                        <strong>{candidate.title}</strong>
+                        <p>{candidate.path}</p>
+                      </div>
+                      <span className="badge">{candidate.visibility}</span>
+                    </div>
+                    <div className="scoreBars">
+                      <ScoreBar label="score" value={candidate.score} />
+                      <ScoreBar label="vector" value={candidate.retrieval.vectorScore ?? 0} />
+                      <ScoreBar label="lexical" value={candidate.retrieval.lexicalScore ?? 0} />
+                    </div>
+                    <div className="candidateMeta">
+                      <code>{candidate.retrieval.mode}</code>
+                      <code>{candidate.heading ?? "body"}</code>
+                      <code>{candidate.teamSlug ?? "public"}</code>
+                    </div>
+                    <p>{candidate.contentPreview}</p>
+                  </article>
+                ))
+              ) : (
+                <p className="empty">Candidate chunks appear here after a retrieval preview.</p>
+              )}
+            </div>
+          </section>
+          </>
+          ) : null}
+
           {activeScreen === "quality" ? (
           <>
           <section className="observabilityPanel">
@@ -797,8 +934,25 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ScoreBar({ label, value }: { label: string; value: number }) {
+  const width = `${Math.max(0, Math.min(value, 1)) * 100}%`;
+  return (
+    <div className="scoreBar">
+      <div>
+        <span>{label}</span>
+        <strong>{formatScore(value)}</strong>
+      </div>
+      <i style={{ width }} />
+    </div>
+  );
+}
+
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function formatScore(value: number): string {
+  return value.toFixed(3);
 }
 
 function summarizeToolOutput(output: Record<string, unknown>): string {

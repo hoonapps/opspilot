@@ -290,6 +290,7 @@ h2 {
 }
 
 .workspace.documents,
+.workspace.retrieval,
 .workspace.quality,
 .workspace.review,
 .workspace.audit {
@@ -297,10 +298,15 @@ h2 {
 }
 
 .workspace.documents .sidePanel,
+.workspace.retrieval .sidePanel,
 .workspace.quality .sidePanel,
 .workspace.review .sidePanel,
 .workspace.audit .sidePanel {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workspace.retrieval .retrievalResults {
+  grid-column: 1 / -1;
 }
 
 .workspace.review .sidePanel,
@@ -313,6 +319,8 @@ h2 {
 .answerPanel,
 .indexPanel,
 .knowledgePanel,
+.retrievalPanel,
+.retrievalResults,
 .errorPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -894,11 +902,136 @@ pre {
 .evalPanel,
 .observabilityPanel,
 .auditPanel,
-.approvalPanel {
+.approvalPanel,
+.retrievalPanel,
+.retrievalResults {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   padding: 16px;
+}
+
+.retrievalPanel {
+  display: grid;
+  gap: 12px;
+  border-top: 3px solid var(--accent);
+  box-shadow: none;
+}
+
+.retrievalResults {
+  border-top: 3px solid var(--info);
+  box-shadow: none;
+}
+
+.retrievalStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.retrievalStats .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.candidateList {
+  display: grid;
+  gap: 10px;
+}
+
+.candidateItem {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.candidateHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.candidateHead strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidateHead p,
+.candidateItem > p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.scoreBars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scoreBar {
+  position: relative;
+  min-height: 58px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.scoreBar div {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+}
+
+.scoreBar span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.scoreBar strong {
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.scoreBar i {
+  position: absolute;
+  inset: auto auto 0 0;
+  display: block;
+  height: 7px;
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(90deg, var(--accent), var(--info));
+}
+
+.candidateMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.candidateMeta code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
 }
 
 .evalPanel {
@@ -1081,6 +1214,8 @@ pre {
   .quickGrid,
   .inventoryStats,
   .inventoryGrid,
+  .retrievalStats,
+  .scoreBars,
   .evalGrid,
   .opsGrid,
   .opsBreakdown,
@@ -1092,6 +1227,7 @@ pre {
   }
 
   .workspace.documents .sidePanel,
+  .workspace.retrieval .sidePanel,
   .workspace.quality .sidePanel {
     grid-template-columns: 1fr;
   }

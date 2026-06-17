@@ -28,6 +28,8 @@ async function main() {
     const qualityGatePassed = await page.locator(".evalPanel").getByText("Passed", { exact: true }).isVisible();
 
     await page.getByRole("button", { name: /Documents/ }).click();
+    await page.getByRole("heading", { name: "Manage knowledge base" }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "Upsert document" }).waitFor({ timeout: 10000 });
     const githubSyncFormVisible = await page.getByRole("button", { name: "Sync GitHub docs" }).isVisible();
     const indexInventoryVisible = await page.getByText("Index inventory and chunks", { exact: true }).isVisible();
 
@@ -39,6 +41,22 @@ async function main() {
     const inventoryVisible = await page.locator(".inventoryStats").getByText("Documents", { exact: true }).isVisible();
     const chunkPreviewVisible = await page.locator(".chunkInspector").getByText("publish the first status page notice", { exact: false }).isVisible();
     const securitySummaryVisible = await page.locator(".securityLine").getByText("redacted:", { exact: false }).isVisible();
+
+    await page.getByRole("button", { name: /Retrieval/ }).click();
+    await page.getByLabel("Query").fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
+    await page.getByLabel("Roles").fill("support_agent");
+    await page.getByRole("button", { name: "Preview retrieval" }).click();
+    await page.locator(".candidateHead p").getByText("public/status-page-policy.md", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".scoreBars").getByText("vector", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".scoreBars").getByText("lexical", { exact: true }).first().waitFor({ timeout: 10000 });
+
+    await page.getByLabel("Query").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
+    await page.getByRole("button", { name: "Preview retrieval" }).click();
+    await page.locator(".retrievalPanel").getByText("Denied", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".opsBreakdown").getByText("restricted", { exact: false }).waitFor({ timeout: 10000 });
+    const retrievalPreviewVisible = await page.locator(".candidateList").getByText("score", { exact: true }).first().isVisible();
+    const retrievalScoreVisible = await page.locator(".scoreBars").getByText("lexical", { exact: true }).first().isVisible();
+    const retrievalBoundaryVisible = await page.locator(".opsBreakdown").getByText("restricted", { exact: false }).isVisible();
 
     await page.getByRole("button", { name: /Ask/ }).click();
     await page
@@ -96,7 +114,7 @@ async function main() {
       observabilityText.includes("request_human_approval") &&
       observabilityText.includes("Feedback");
 
-    await page.getByRole("button", { name: /Documents/ }).click();
+    await page.getByRole("button", { name: /Retrieval/ }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: screenshotPath, fullPage: false });
 
@@ -113,6 +131,9 @@ async function main() {
         inventoryVisible &&
         chunkPreviewVisible &&
         securitySummaryVisible &&
+        retrievalPreviewVisible &&
+        retrievalScoreVisible &&
+        retrievalBoundaryVisible &&
         evaluationVisible &&
         documentMatchVisible &&
         citationVisible &&
@@ -136,6 +157,9 @@ async function main() {
         inventoryVisible,
         chunkPreviewVisible,
         securitySummaryVisible,
+        retrievalPreviewVisible,
+        retrievalScoreVisible,
+        retrievalBoundaryVisible,
         evaluationVisible,
         documentMatchVisible,
         citationVisible,

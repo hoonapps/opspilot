@@ -7,6 +7,14 @@
 - `save_feedback`: records answer quality feedback
 - `create_runbook_checklist`: extracts numbered action items from retrieved runbooks
 
+## Retrieval Preview
+
+```txt
+POST /retrieval/preview
+```
+
+The preview endpoint runs the same `SearchService.searchWithAudit` path used by `/ask`, but does not persist a question, create tool-call logs, generate an answer, or enqueue human approval. It returns ranked candidate chunks with vector/lexical/fused score details, content previews, actor roles/teams, and the aggregated permission audit. This gives the web console a safe RAG debugging surface for proving which chunks would enter prompt context and which inaccessible candidates were denied.
+
 ## Tool Audit
 
 ```txt
@@ -23,25 +31,26 @@ For `search_documents`, the output includes an aggregated `permissionAudit` obje
 
 ## Decision Flow
 
-1. Receive the question through HTTP `/ask`, Slack `app_mention`, or evaluation script.
-2. Classify the question and actor context.
-3. Call `search_documents`.
-4. In `vector` mode, retrieve with pgvector and PostgreSQL lexical overlap. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
-5. Store the aggregated permission audit for the search call.
-6. Re-check accessible chunk ids in PostgreSQL before prompt construction.
-7. If the user asks for a runbook/checklist and the retrieved source has a checklist section, call `create_runbook_checklist`.
-8. Generate a grounded answer with citations.
-9. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
-10. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
-11. Build structured `reviewReasons` for missing sources, low confidence, or sensitive actions.
-12. If any review reason exists, mark `needsHumanReview`.
-13. If sensitive, call `request_human_approval`.
-14. Persist every question, answer, source, review reason, and tool call.
-15. Store optional feedback against the persisted answer id.
-16. Expose answer trace through `GET /answers/:id/trace`.
-17. Expose recent tool calls through the audit API.
-18. Expose pending approval requests for human review.
-19. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
+1. Optionally preview retrieval through HTTP `/retrieval/preview` to inspect ranking and permission behavior without side effects.
+2. Receive the question through HTTP `/ask`, Slack `app_mention`, or evaluation script.
+3. Classify the question and actor context.
+4. Call `search_documents`.
+5. In `vector` mode, retrieve with pgvector and PostgreSQL lexical overlap. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
+6. Store the aggregated permission audit for the search call.
+7. Re-check accessible chunk ids in PostgreSQL before prompt construction.
+8. If the user asks for a runbook/checklist and the retrieved source has a checklist section, call `create_runbook_checklist`.
+9. Generate a grounded answer with citations.
+10. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
+11. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
+12. Build structured `reviewReasons` for missing sources, low confidence, or sensitive actions.
+13. If any review reason exists, mark `needsHumanReview`.
+14. If sensitive, call `request_human_approval`.
+15. Persist every question, answer, source, review reason, and tool call.
+16. Store optional feedback against the persisted answer id.
+17. Expose answer trace through `GET /answers/:id/trace`.
+18. Expose recent tool calls through the audit API.
+19. Expose pending approval requests for human review.
+20. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 
