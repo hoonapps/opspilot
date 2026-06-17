@@ -170,6 +170,50 @@ export type OperationalAction = {
   }>;
 };
 
+export type PortfolioReadinessReport = {
+  schemaVersion: "opspilot.portfolio_readiness.v1";
+  generatedAt: string;
+  status: ReleaseGateStatus;
+  score: number;
+  headline: string;
+  summary: {
+    pass: number;
+    warn: number;
+    fail: number;
+    evidenceCount: number;
+    actionCount: number;
+    releaseRecommendation: OperationalActionPlan["summary"]["releaseRecommendation"];
+    documents: number;
+    chunks: number;
+    averageDocumentAgreement: number;
+    apiSuccessRate: number;
+  };
+  pillars: PortfolioReadinessPillar[];
+  demoPath: PortfolioDemoStep[];
+};
+
+export type PortfolioReadinessPillar = {
+  id: "rag_grounding" | "permission_boundary" | "tool_audit" | "operational_reliability" | "demo_artifacts";
+  label: string;
+  status: ReleaseGateCheckStatus;
+  score: number;
+  evidence: string;
+  whyItMatters: string;
+  demoScript: string;
+  verification: string[];
+  links: Array<{
+    label: string;
+    href: string;
+  }>;
+};
+
+export type PortfolioDemoStep = {
+  step: number;
+  screen: string;
+  action: string;
+  proof: string;
+};
+
 type CountRow = { total: number | string };
 type QuestionRow = { total: number | string; last24h: number | string };
 type AnswerRow = {
@@ -641,6 +685,211 @@ export class ObservabilityService {
       actions: actions.sort(compareActions)
     };
   }
+
+  async portfolioReadiness(): Promise<PortfolioReadinessReport> {
+    const [summary, apiRequests, slo, gate, actionPlan] = await Promise.all([
+      this.summary(),
+      this.apiRequests(),
+      this.slo(),
+      this.releaseGate(),
+      this.actionPlan()
+    ]);
+    const pillars = buildPortfolioPillars({ summary, apiRequests, slo, gate });
+    const pass = pillars.filter((pillar) => pillar.status === "pass").length;
+    const warn = pillars.filter((pillar) => pillar.status === "warn").length;
+    const fail = pillars.filter((pillar) => pillar.status === "fail").length;
+    const score = roundMetric(average(pillars.map((pillar) => pillar.score)));
+
+    return {
+      schemaVersion: "opspilot.portfolio_readiness.v1",
+      generatedAt: new Date().toISOString(),
+      status: fail > 0 ? "block" : warn > 0 || gate.status === "review" ? "review" : "pass",
+      score,
+      headline: portfolioHeadline(score, fail, warn),
+      summary: {
+        pass,
+        warn,
+        fail,
+        evidenceCount: pillars.reduce((total, pillar) => total + pillar.verification.length + pillar.links.length, 0),
+        actionCount: actionPlan.summary.actionCount,
+        releaseRecommendation: actionPlan.summary.releaseRecommendation,
+        documents: summary.documents.total,
+        chunks: summary.documents.chunks,
+        averageDocumentAgreement: summary.answers.averageDocumentAgreement,
+        apiSuccessRate: apiRequests.summary.successRate
+      },
+      pillars,
+      demoPath: [
+        {
+          step: 1,
+          screen: "문서",
+          action: "Markdown 등록 후 색인 설명과 영향 분석을 엽니다.",
+          proof: "청크 수, 헤딩 보존, 임베딩 커버리지, 문서 변경 이후 오래된 답변을 확인합니다."
+        },
+        {
+          step: 2,
+          screen: "검색",
+          action: "검색 미리보기 후 실제 답변까지 검증을 실행합니다.",
+          proof: "후보 1순위와 실제 답변 출처, 출처 겹침, 문서 일치율, search_documents 호출을 비교합니다."
+        },
+        {
+          step: 3,
+          screen: "질문",
+          action: "일반 질문과 민감 작업 질문을 각각 실행합니다.",
+          proof: "일반 답변은 출처와 신뢰 게이트를 보여주고, 민감 작업은 사람 승인으로 분리합니다."
+        },
+        {
+          step: 4,
+          screen: "대응",
+          action: "정산 지연 장애 대응 플랜을 생성합니다.",
+          proof: "런북 기반 단계, 승인 게이트, 질문 단위 감사 번들, SHA-256 해시를 확인합니다."
+        },
+        {
+          step: 5,
+          screen: "품질",
+          action: "포트폴리오 준비도, 릴리즈 게이트, SLO, 운영 액션 플랜을 확인합니다.",
+          proof: "현재 데모가 면접에서 보여줄 수 있는 수준인지 서버가 계산한 게이트로 설명합니다."
+        }
+      ]
+    };
+  }
+}
+
+function buildPortfolioPillars(input: {
+  summary: ObservabilitySummary;
+  apiRequests: ApiRequestObservabilityReport;
+  slo: ObservabilitySloReport;
+  gate: ObservabilityReleaseGate;
+}): PortfolioReadinessPillar[] {
+  const checks = Object.fromEntries(input.gate.checks.map((check) => [check.id, check]));
+  const searchCalls = input.summary.toolCalls.byName.search_documents ?? 0;
+  const approvalCalls = input.summary.toolCalls.byName.request_human_approval ?? 0;
+  const runbookCalls = input.summary.toolCalls.byName.create_runbook_checklist ?? 0;
+  const documentAgreement = input.summary.answers.averageDocumentAgreement;
+  const apiSuccessRate = input.apiRequests.summary.successRate;
+
+  return [
+    {
+      id: "rag_grounding",
+      label: "RAG 근거성과 문서 일치",
+      status: weakestStatus([
+        checks.indexed_knowledge_ready?.status ?? "fail",
+        checks.latest_eval_gate?.status ?? "fail",
+        checks.knowledge_freshness?.status ?? "fail",
+        documentAgreement >= 0.8 ? "pass" : documentAgreement >= 0.7 ? "warn" : "fail"
+      ]),
+      score: roundMetric(average([documentAgreement, statusScore(checks.latest_eval_gate?.status), statusScore(checks.knowledge_freshness?.status)])),
+      evidence: `문서 ${input.summary.documents.total}개, 청크 ${input.summary.documents.chunks}개, 평균 문서 일치율 ${Math.round(documentAgreement * 100)}%, 최신 평가 ${checks.latest_eval_gate?.status ?? "missing"}.`,
+      whyItMatters: "AI 답변이 그럴듯한 문장에 그치지 않고 실제 운영 문서와 얼마나 붙어 있는지 보여줍니다.",
+      demoScript: "검색 화면에서 미리보기-답변 검증을 실행해 후보 출처와 실제 답변 출처가 일치하는지 설명합니다.",
+      verification: ["pnpm eval", "pnpm agreement:smoke", "pnpm retrieval-robustness:smoke", "pnpm index-quality:smoke"],
+      links: [
+        { label: "검색 미리보기", href: "/retrieval/preview" },
+        { label: "색인 품질", href: "/documents/index-quality" }
+      ]
+    },
+    {
+      id: "permission_boundary",
+      label: "권한 경계와 사람 승인",
+      status: weakestStatus([approvalCalls > 0 ? "pass" : "fail", checks.approval_backlog?.status ?? "fail"]),
+      score: roundMetric(average([approvalCalls > 0 ? 1 : 0, statusScore(checks.approval_backlog?.status)])),
+      evidence: `request_human_approval ${approvalCalls}회, 대기 승인 ${input.summary.approvals.byStatus.pending ?? 0}개, 승인 게이트 ${checks.approval_backlog?.status ?? "missing"}.`,
+      whyItMatters: "민감 작업을 자동 실행하지 않고 사람 승인으로 분리하는 경계를 증명합니다.",
+      demoScript: "운영 DB 수정 질문을 던지고 승인 화면에서 pending 요청과 검토 사유를 보여줍니다.",
+      verification: ["pnpm permission:smoke", "pnpm retrieval-permission-diff:smoke", "pnpm review:smoke"],
+      links: [
+        { label: "권한 비교", href: "/retrieval/permission-diff" },
+        { label: "승인 대기열", href: "/approvals" }
+      ]
+    },
+    {
+      id: "tool_audit",
+      label: "도구 호출과 감사 재현성",
+      status: weakestStatus([searchCalls > 0 ? "pass" : "fail", runbookCalls > 0 ? "pass" : "warn", checks.agent_audit_trail?.status ?? "fail"]),
+      score: roundMetric(average([searchCalls > 0 ? 1 : 0, runbookCalls > 0 ? 1 : 0.75, statusScore(checks.agent_audit_trail?.status)])),
+      evidence: `search_documents ${searchCalls}회, create_runbook_checklist ${runbookCalls}회, 전체 도구 호출 ${input.summary.toolCalls.total}회.`,
+      whyItMatters: "에이전트가 어떤 도구를 왜 호출했는지 사후에 재현할 수 있어야 운영 시스템으로 신뢰할 수 있습니다.",
+      demoScript: "감사 화면과 장애 대응 감사 번들에서 도구 호출 상태, 출처 계보, 정책 통과 여부를 확인합니다.",
+      verification: ["pnpm trace:smoke", "pnpm evidence-bundle:smoke", "pnpm question-audit:smoke"],
+      links: [
+        { label: "도구 감사", href: "/tools/calls" },
+        { label: "질문 감사 번들", href: "/questions/{id}/audit-bundle" }
+      ]
+    },
+    {
+      id: "operational_reliability",
+      label: "운영성, SLO, API 안정성",
+      status: weakestStatus([
+        checks.dependencies_ready?.status ?? "fail",
+        input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
+        apiSuccessRate >= 0.95 ? "pass" : apiSuccessRate >= 0.9 ? "warn" : "fail"
+      ]),
+      score: roundMetric(average([statusScore(checks.dependencies_ready?.status), input.slo.status === "ok" ? 1 : input.slo.status === "warn" ? 0.75 : 0, apiSuccessRate])),
+      evidence: `릴리즈 게이트 ${input.gate.status}, SLO ${input.slo.status}, API 성공률 ${Math.round(apiSuccessRate * 100)}%, p95 ${input.apiRequests.summary.p95DurationMs}ms.`,
+      whyItMatters: "데모 앱이 아니라 운영 서비스처럼 준비 상태, 요청 품질, 회복 액션을 보여줍니다.",
+      demoScript: "품질 화면에서 릴리즈 게이트, SLO 가드레일, 운영 액션 플랜을 순서대로 엽니다.",
+      verification: ["pnpm readiness:smoke", "pnpm observability:slo-smoke", "pnpm release-gate:smoke"],
+      links: [
+        { label: "릴리즈 게이트", href: "/observability/release-gate" },
+        { label: "API 요청 관측성", href: "/observability/api-requests" }
+      ]
+    },
+    {
+      id: "demo_artifacts",
+      label: "포트폴리오 산출물과 재현성",
+      status: weakestStatus([
+        input.summary.documents.total >= 5 ? "pass" : "fail",
+        input.summary.feedback.total > 0 ? "pass" : "warn",
+        input.gate.status === "block" ? "fail" : input.gate.status === "review" ? "warn" : "pass"
+      ]),
+      score: roundMetric(average([input.summary.documents.total >= 5 ? 1 : 0, input.summary.feedback.total > 0 ? 1 : 0.75, statusScore(input.gate.status === "block" ? "fail" : input.gate.status === "review" ? "warn" : "pass")])),
+      evidence: `README 스크린샷, 사용법 페이지, 데모 리포트, 웹 smoke 경로가 준비됐고 서버 증거 ${input.summary.toolCalls.total}개를 집계했습니다.`,
+      whyItMatters: "코드만 있는 프로젝트가 아니라 면접관이 같은 순서로 실행하고 검증할 수 있는 산출물이 됩니다.",
+      demoScript: "사용법 화면에서 데모 순서를 열고, README 스크린샷과 `pnpm portfolio:report` 결과를 연결해 설명합니다.",
+      verification: ["pnpm portfolio:demo", "pnpm portfolio:report", "pnpm web:smoke"],
+      links: [
+        { label: "사용법", href: "/usage" },
+        { label: "데모 리포트", href: "docs/demo-report.md" }
+      ]
+    }
+  ];
+}
+
+function weakestStatus(statuses: ReleaseGateCheckStatus[]): ReleaseGateCheckStatus {
+  if (statuses.includes("fail")) {
+    return "fail";
+  }
+  if (statuses.includes("warn")) {
+    return "warn";
+  }
+  return "pass";
+}
+
+function statusScore(status: ReleaseGateCheckStatus | undefined): number {
+  if (status === "pass") {
+    return 1;
+  }
+  if (status === "warn") {
+    return 0.75;
+  }
+  return 0;
+}
+
+function average(values: number[]): number {
+  return values.length === 0 ? 0 : values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function portfolioHeadline(score: number, fail: number, warn: number): string {
+  if (fail > 0) {
+    return "핵심 증거가 부족해 데모 전에 보강이 필요합니다.";
+  }
+  if (warn > 0) {
+    return `면접 데모 가능 상태입니다. 다만 ${warn}개 항목은 설명 전에 확인하세요.`;
+  }
+  if (score >= 0.95) {
+    return "RAG, 권한, 도구 호출, 운영성 증거가 모두 데모 가능한 상태입니다.";
+  }
+  return "주요 포트폴리오 증거가 준비됐습니다.";
 }
 
 function actionFromReleaseGateCheck(check: ReleaseGateCheck, gateStatus: ReleaseGateStatus): OperationalAction {

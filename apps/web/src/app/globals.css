@@ -3618,6 +3618,180 @@ pre {
   border-top: 3px solid #0f766e;
 }
 
+.portfolioReadinessPanel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  background: #f0fdfa;
+}
+
+.portfolioReadinessPanel--review {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.portfolioReadinessPanel--block {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.portfolioReadinessHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.portfolioReadinessHero h2 {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 20px;
+}
+
+.portfolioReadinessHero p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.readinessScore {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  border: 1px solid #5eead4;
+  border-radius: 8px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.readinessScore span,
+.readinessScore small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.readinessScore strong {
+  color: var(--ink);
+  font-size: 28px;
+}
+
+.readinessSnapshot {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.readinessPillars {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.readinessPillar,
+.readinessDemoStep {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.readinessPillar {
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+}
+
+.readinessPillarHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.readinessPillarHead strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.readinessPillarHead code,
+.readinessCommands code,
+.readinessDemoPath code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.readinessPillar p,
+.readinessPillar small,
+.readinessScript p,
+.readinessDemoStep p,
+.readinessDemoStep small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.readinessScript {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.readinessScript span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.readinessCommands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.readinessDemoPath {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.readinessDemoStep {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+}
+
+.readinessDemoStep > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.readinessDemoStep strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .releaseGatePanel {
   display: grid;
   gap: 9px;
@@ -4512,6 +4686,11 @@ pre {
   .evalHistoryHead,
   .evalHistoryItem,
   .opsGrid,
+  .readinessSnapshot,
+  .readinessPillars,
+  .portfolioReadinessHero,
+  .readinessPillarHead,
+  .readinessDemoStep,
   .releaseGateList,
   .releaseGateItem,
   .actionPlanHead,

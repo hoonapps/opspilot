@@ -42,6 +42,7 @@
     "replay:smoke": "pnpm --filter @opspilot/api replay:smoke",
     "portfolio:demo": "pnpm --filter @opspilot/api portfolio:demo",
     "portfolio:report": "pnpm --filter @opspilot/api portfolio:report",
+    "portfolio-readiness:smoke": "pnpm --filter @opspilot/api portfolio-readiness:smoke",
     "observability:smoke": "pnpm --filter @opspilot/api observability:smoke",
     "observability:slo-smoke": "pnpm --filter @opspilot/api observability:slo-smoke",
     "action-plan:smoke": "pnpm --filter @opspilot/api action-plan:smoke",

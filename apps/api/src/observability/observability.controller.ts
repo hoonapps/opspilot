@@ -22,6 +22,11 @@ export class ObservabilityController {
     return this.observabilityService.releaseGate();
   }
 
+  @Get("portfolio-readiness")
+  portfolioReadiness() {
+    return this.observabilityService.portfolioReadiness();
+  }
+
   @Get("action-plan")
   actionPlan() {
     return this.observabilityService.actionPlan();

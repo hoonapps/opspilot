@@ -41,6 +41,7 @@ import {
   getObservabilitySlo,
   getObservabilitySummary,
   getOperationalActionPlan,
+  getPortfolioReadiness,
   getPermissionBoundaryMatrix,
   getQuestionAuditBundle,
   GithubSyncResponse,
@@ -59,6 +60,7 @@ import {
   ObservabilitySummary,
   OperationalActionPlan,
   PermissionBoundaryMatrix,
+  PortfolioReadinessReport,
   QuestionAuditBundle,
   previewRetrieval,
   RetrievalPreviewResponse,
@@ -205,6 +207,7 @@ export default function Home() {
   const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
   const [releaseGate, setReleaseGate] = useState<ObservabilityReleaseGate | null>(null);
   const [actionPlan, setActionPlan] = useState<OperationalActionPlan | null>(null);
+  const [portfolioReadiness, setPortfolioReadiness] = useState<PortfolioReadinessReport | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
@@ -711,18 +714,20 @@ export default function Home() {
     setError(null);
     setLoading("observability");
     try {
-      const [summary, apiRequestReport, slo, gate, plan] = await Promise.all([
+      const [summary, apiRequestReport, slo, gate, plan, readiness] = await Promise.all([
         getObservabilitySummary(),
         getApiRequestObservability(),
         getObservabilitySlo(),
         getObservabilityReleaseGate(),
-        getOperationalActionPlan()
+        getOperationalActionPlan(),
+        getPortfolioReadiness()
       ]);
       setObservability(summary);
       setApiRequests(apiRequestReport);
       setSloReport(slo);
       setReleaseGate(gate);
       setActionPlan(plan);
+      setPortfolioReadiness(readiness);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "운영 지표 요청에 실패했습니다.");
     } finally {
@@ -1923,6 +1928,68 @@ export default function Home() {
             </div>
             {observability ? (
               <>
+                {portfolioReadiness ? (
+                  <section className={`portfolioReadinessPanel portfolioReadinessPanel--${portfolioReadiness.status}`} aria-label="포트폴리오 준비도">
+                    <div className="portfolioReadinessHero">
+                      <div>
+                        <p className="eyebrow">면접 데모 준비도</p>
+                        <h2>포트폴리오 증거 보드</h2>
+                        <p>{portfolioReadiness.headline}</p>
+                      </div>
+                      <div className="readinessScore">
+                        <span>{formatReleaseStatus(portfolioReadiness.status)}</span>
+                        <strong>{formatPercent(portfolioReadiness.score)}</strong>
+                        <small>서버 집계 점수</small>
+                      </div>
+                    </div>
+                    <div className="readinessSnapshot">
+                      <Metric label="통과" value={`${portfolioReadiness.summary.pass}/${portfolioReadiness.pillars.length}`} />
+                      <Metric label="주의" value={String(portfolioReadiness.summary.warn)} />
+                      <Metric label="차단" value={String(portfolioReadiness.summary.fail)} />
+                      <Metric label="검증 증거" value={`${portfolioReadiness.summary.evidenceCount}개`} />
+                      <Metric label="문서 일치율" value={formatPercent(portfolioReadiness.summary.averageDocumentAgreement)} />
+                      <Metric label="API 성공률" value={formatPercent(portfolioReadiness.summary.apiSuccessRate)} />
+                    </div>
+                    <div className="readinessPillars">
+                      {portfolioReadiness.pillars.map((pillar) => (
+                        <article className="readinessPillar" key={pillar.id}>
+                          <div className="readinessPillarHead">
+                            <span className={pillar.status === "pass" ? "badge" : "badge review"}>{formatGateStatus(pillar.status)}</span>
+                            <strong>{pillar.label}</strong>
+                            <code>{formatPercent(pillar.score)}</code>
+                          </div>
+                          <p>{pillar.evidence}</p>
+                          <small>{pillar.whyItMatters}</small>
+                          <div className="readinessScript">
+                            <span>데모 멘트</span>
+                            <p>{pillar.demoScript}</p>
+                          </div>
+                          <div className="readinessCommands">
+                            {pillar.verification.slice(0, 3).map((command) => (
+                              <code key={command}>{command}</code>
+                            ))}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="readinessDemoPath">
+                      <div className="evalHistoryHead">
+                        <span>5분 데모 경로</span>
+                        <code>{formatActionPlanRecommendation(portfolioReadiness.summary.releaseRecommendation)}</code>
+                      </div>
+                      {portfolioReadiness.demoPath.map((step) => (
+                        <article className="readinessDemoStep" key={step.step}>
+                          <span>{step.step}</span>
+                          <div>
+                            <strong>{step.screen}</strong>
+                            <p>{step.action}</p>
+                            <small>{step.proof}</small>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
                 {releaseGate ? (
                   <section className="releaseGatePanel" aria-label="배포 게이트">
                     <div className="releaseGateHeader">

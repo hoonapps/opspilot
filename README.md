@@ -16,6 +16,8 @@
 
 ![OpsPilot 장애 대응 플랜](docs/assets/opspilot-incident-plan.png)
 
+![OpsPilot 포트폴리오 증거 보드](docs/assets/opspilot-portfolio-readiness.png)
+
 ![OpsPilot 답변 근거 스니펫](docs/assets/opspilot-answer-grounding.png)
 
 ![OpsPilot 사용법 페이지](docs/assets/opspilot-usage-page.png)
@@ -66,6 +68,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - Slack Events API와 로컬 Slack mention 시뮬레이터
 - 평가 게이트, 최신성 게이트, 배포 게이트, SLO 가드레일
 - 운영 액션 플랜: 배포 게이트/SLO 결과를 담당자, 우선순위, 조치, 검증 명령으로 변환
+- 포트폴리오 준비도 API: RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 데모 산출물 집계
 - API 요청 로그, 엔드포인트별 p95 지연, 오류율 관측성
 - 한국어 Next.js 웹 콘솔
 - Docker Compose 로컬/프로덕션 데모
@@ -250,10 +253,11 @@ pnpm portfolio:demo
 Markdown 증거 리포트를 생성합니다.
 
 ```bash
+pnpm portfolio-readiness:smoke
 pnpm portfolio:report
 ```
 
-생성 결과는 [docs/demo-report.md](docs/demo-report.md)에 저장됩니다. 이 리포트는 근거 기반 RAG, 신규 문서 색인, 런북 도구 호출, 사람 승인, 답변 추적 복원을 한 번에 보여줍니다.
+생성 결과는 [docs/demo-report.md](docs/demo-report.md)에 저장됩니다. 포트폴리오 준비도는 `GET /observability/portfolio-readiness`와 품질 화면의 `포트폴리오 증거 보드`에서 확인합니다. 이 리포트는 근거 기반 RAG, 신규 문서 색인, 런북 도구 호출, 사람 승인, 답변 추적 복원을 한 번에 보여줍니다.
 
 웹 콘솔까지 검증하고 README 스크린샷을 갱신합니다.
 

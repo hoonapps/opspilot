@@ -33,6 +33,11 @@ const incidentPlanScreenshotPath = process.env.INCIDENT_PLAN_SCREENSHOT_PATH
     ? process.env.INCIDENT_PLAN_SCREENSHOT_PATH
     : join(repoRoot, process.env.INCIDENT_PLAN_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-incident-plan.png");
+const portfolioReadinessScreenshotPath = process.env.PORTFOLIO_READINESS_SCREENSHOT_PATH
+  ? isAbsolute(process.env.PORTFOLIO_READINESS_SCREENSHOT_PATH)
+    ? process.env.PORTFOLIO_READINESS_SCREENSHOT_PATH
+    : join(repoRoot, process.env.PORTFOLIO_READINESS_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-portfolio-readiness.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -385,6 +390,17 @@ async function main() {
 
     await page.locator(".railNav").getByRole("button", { name: /^품질 / }).click();
     await page.getByRole("button", { name: "운영 지표 불러오기" }).click();
+    await page.locator(".portfolioReadinessPanel").getByText("포트폴리오 증거 보드", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".portfolioReadinessPanel").getByText("RAG 근거성과 문서 일치", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator(".portfolioReadinessPanel").getByText("권한 경계와 사람 승인", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator(".portfolioReadinessPanel").getByText("도구 호출과 감사 재현성", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator(".portfolioReadinessPanel").getByText("5분 데모 경로", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("릴리즈 게이트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("의존성 준비", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("최신 평가 게이트", { exact: true }).waitFor({ timeout: 10000 });
@@ -413,9 +429,20 @@ async function main() {
       .getByText("승인 필요", { exact: false })
       .first()
       .waitFor({ timeout: 10000 });
+    await page.locator(".portfolioReadinessPanel").scrollIntoViewIfNeeded();
+    await page.locator(".portfolioReadinessPanel").screenshot({ path: portfolioReadinessScreenshotPath });
     const observabilityText = await page.locator(".observabilityPanel").innerText();
     const normalizedObservabilityText = observabilityText.toLowerCase();
+    const portfolioReadinessVisible =
+      observabilityText.includes("포트폴리오 증거 보드") &&
+      observabilityText.includes("RAG 근거성과 문서 일치") &&
+      observabilityText.includes("권한 경계와 사람 승인") &&
+      observabilityText.includes("도구 호출과 감사 재현성") &&
+      observabilityText.includes("운영성, SLO, API 안정성") &&
+      observabilityText.includes("5분 데모 경로") &&
+      observabilityText.includes("pnpm portfolio:demo");
     const observabilityVisible =
+      portfolioReadinessVisible &&
       observabilityText.includes("릴리즈 게이트") &&
       observabilityText.includes("의존성 준비") &&
       observabilityText.includes("최신 평가 게이트") &&
@@ -495,6 +522,7 @@ async function main() {
         slackProofVisible &&
         slackTraceVisible &&
         auditVisible &&
+        portfolioReadinessVisible &&
         observabilityVisible &&
         usageVisible &&
         usagePageVisible,
@@ -505,6 +533,7 @@ async function main() {
       indexQualityScreenshotPath,
       documentImpactScreenshotPath,
       incidentPlanScreenshotPath,
+      portfolioReadinessScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
@@ -564,6 +593,7 @@ async function main() {
         slackProofVisible,
         slackTraceVisible,
         auditVisible,
+        portfolioReadinessVisible,
         observabilityVisible,
         usageVisible,
         usagePageVisible

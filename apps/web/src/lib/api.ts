@@ -1286,6 +1286,46 @@ export type OperationalActionPlan = {
   }>;
 };
 
+export type PortfolioReadinessReport = {
+  schemaVersion: "opspilot.portfolio_readiness.v1";
+  generatedAt: string;
+  status: ObservabilityReleaseGate["status"];
+  score: number;
+  headline: string;
+  summary: {
+    pass: number;
+    warn: number;
+    fail: number;
+    evidenceCount: number;
+    actionCount: number;
+    releaseRecommendation: OperationalActionPlan["summary"]["releaseRecommendation"];
+    documents: number;
+    chunks: number;
+    averageDocumentAgreement: number;
+    apiSuccessRate: number;
+  };
+  pillars: Array<{
+    id: "rag_grounding" | "permission_boundary" | "tool_audit" | "operational_reliability" | "demo_artifacts";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    score: number;
+    evidence: string;
+    whyItMatters: string;
+    demoScript: string;
+    verification: string[];
+    links: Array<{
+      label: string;
+      href: string;
+    }>;
+  }>;
+  demoPath: Array<{
+    step: number;
+    screen: string;
+    action: string;
+    proof: string;
+  }>;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -1704,6 +1744,16 @@ export async function getObservabilityReleaseGate(): Promise<ObservabilityReleas
   }
 
   return response.json() as Promise<ObservabilityReleaseGate>;
+}
+
+export async function getPortfolioReadiness(): Promise<PortfolioReadinessReport> {
+  const response = await fetch(`${API_BASE_URL}/observability/portfolio-readiness`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<PortfolioReadinessReport>;
 }
 
 export async function getOperationalActionPlan(): Promise<OperationalActionPlan> {
