@@ -30,6 +30,7 @@
     "portfolio:report": "pnpm --filter @opspilot/api portfolio:report",
     "observability:smoke": "pnpm --filter @opspilot/api observability:smoke",
     "observability:slo-smoke": "pnpm --filter @opspilot/api observability:slo-smoke",
+    "freshness:smoke": "pnpm --filter @opspilot/api freshness:smoke",
     "release-gate:smoke": "pnpm --filter @opspilot/api release-gate:smoke",
     "openapi:smoke": "pnpm --filter @opspilot/api openapi:smoke",
     "slack:simulate": "pnpm --filter @opspilot/api slack:simulate",

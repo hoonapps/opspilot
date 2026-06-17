@@ -597,6 +597,7 @@ export default function Home() {
 	                  <strong>품질 게이트 확인</strong>
 	                  <p>평가, 문서 일치율, SLO, release gate를 확인해 RAG 품질이 현재 문서 상태와 맞는지 봅니다.</p>
 	                  <code>pnpm eval</code>
+	                  <code>pnpm freshness:smoke</code>
 	                  <code>pnpm release-gate:smoke</code>
 	                  <code>품질 화면 → 평가 불러오기 · 운영 지표 불러오기</code>
 	                </div>
@@ -1008,7 +1009,9 @@ export default function Home() {
                       </div>
                       <code>
 	                        준비:{releaseGate.summary.readinessOk ? "예" : "아니오"} 평가:
-	                        {releaseGate.summary.latestEvalPassed ? "통과" : "실패"} SLO:{formatSloStatus(releaseGate.summary.sloStatus)}
+	                        {releaseGate.summary.latestEvalPassed ? "통과" : "실패"} 최신성:
+	                        {releaseGate.summary.knowledgeFreshness.stale ? "재평가 필요" : "최신"} SLO:
+	                        {formatSloStatus(releaseGate.summary.sloStatus)}
                       </code>
                     </div>
                     <div className="releaseGateList">
@@ -1820,6 +1823,7 @@ function formatReleaseGateLabel(id: string, fallback: string): string {
     dependencies_ready: "의존성 준비",
     indexed_knowledge_ready: "지식 색인 준비",
     latest_eval_gate: "최신 평가 게이트",
+    knowledge_freshness: "평가 최신성",
     slo_guardrails: "SLO 가드레일",
     agent_audit_trail: "Agent 감사 추적",
     approval_backlog: "승인 대기열",
@@ -1841,6 +1845,16 @@ function formatReleaseGateEvidence(id: string, fallback: string): string {
   }
   if (id === "latest_eval_gate") {
     return fallback.includes("passed") ? "최신 seed-ops-wiki 평가가 통과했습니다." : "최신 seed-ops-wiki 평가가 없거나 실패했습니다.";
+  }
+  if (id === "knowledge_freshness") {
+    const staleMatch = fallback.match(/(\d+) documents changed after the latest seed-ops-wiki evaluation/);
+    if (staleMatch) {
+      return `최신 평가 이후 변경된 문서가 ${staleMatch[1]}개 있습니다. 재평가가 필요합니다.`;
+    }
+    if (fallback.includes("No seed-ops-wiki evaluation")) {
+      return "색인된 지식 베이스에 대한 seed-ops-wiki 평가가 아직 없습니다.";
+    }
+    return "최신 seed-ops-wiki 평가가 색인 문서보다 최신입니다.";
   }
   if (id === "slo_guardrails") {
     const match = fallback.match(/(\d+) SLO objectives report ([^.]+)/);

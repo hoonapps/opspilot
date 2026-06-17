@@ -30,6 +30,7 @@
     "portfolio:report": "ts-node src/cli/portfolio-demo.ts --report ../../docs/demo-report.md",
     "observability:smoke": "ts-node src/cli/observability-smoke.ts",
     "observability:slo-smoke": "ts-node src/cli/observability-slo-smoke.ts",
+    "freshness:smoke": "ts-node src/cli/freshness-gate-smoke.ts",
     "release-gate:smoke": "ts-node src/cli/release-gate-smoke.ts",
     "openapi:smoke": "ts-node src/cli/openapi-smoke.ts",
     "slack:simulate": "ts-node src/cli/simulate-slack.ts",

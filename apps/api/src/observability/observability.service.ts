@@ -74,7 +74,15 @@ export type ObservabilityReleaseGate = {
     documents: number;
     chunks: number;
     feedback: number;
+    knowledgeFreshness: KnowledgeFreshness;
   };
+};
+
+export type KnowledgeFreshness = {
+  latestEvalCreatedAt: string | null;
+  latestDocumentUpdatedAt: string | null;
+  changedDocumentsSinceEval: number;
+  stale: boolean;
 };
 
 export type ReleaseGateCheck = {
@@ -106,8 +114,13 @@ type DocumentsRow = {
   chunks: number | string;
 };
 type GroupRow = { key: string; total: number | string };
-type EvaluationPassRow = { passed: boolean | null };
+type EvaluationPassRow = { passed: boolean | null; created_at?: Date | string | null };
 type ToolCoverageRow = { covered: number | string; total: number | string };
+type KnowledgeFreshnessRow = {
+  latest_eval_created_at: Date | string | null;
+  latest_document_updated_at: Date | string | null;
+  changed_documents_since_eval: number | string;
+};
 
 @Injectable()
 export class ObservabilityService {
@@ -290,26 +303,44 @@ export class ObservabilityService {
 
   async releaseGate(): Promise<ObservabilityReleaseGate> {
     const connection = this.orm.em.fork().getConnection();
-    const [summary, slo, readiness, latestEvalRows] = await Promise.all([
+    const [summary, slo, readiness, latestEvalRows, freshnessRows] = await Promise.all([
       this.summary(),
       this.slo(),
       this.healthService.readiness(),
       connection.execute<EvaluationPassRow[]>(`
-        select (details->>'passed')::boolean as passed
+        select (details->>'passed')::boolean as passed, created_at
         from evaluation_results
         where suite_name = 'seed-ops-wiki'
         order by created_at desc
         limit 1;
+      `),
+      connection.execute<KnowledgeFreshnessRow[]>(`
+        with latest_eval as (
+          select max(created_at) as created_at
+          from evaluation_results
+          where suite_name = 'seed-ops-wiki'
+        )
+        select
+          (select created_at from latest_eval) as latest_eval_created_at,
+          (select max(updated_at) from documents) as latest_document_updated_at,
+          (
+            select count(*)::int
+            from documents d
+            cross join latest_eval e
+            where e.created_at is null or d.updated_at > e.created_at
+          ) as changed_documents_since_eval;
       `)
     ]);
     const latestEvalPassed = latestEvalRows[0]?.passed === true;
     const pendingApprovals = summary.approvals.byStatus.pending ?? 0;
+    const knowledgeFreshness = toKnowledgeFreshness(freshnessRows[0]);
     const checks = buildReleaseGateChecks({
       summary,
       slo,
       readiness,
       latestEvalPassed,
-      pendingApprovals
+      pendingApprovals,
+      knowledgeFreshness
     });
 
     return {
@@ -323,7 +354,8 @@ export class ObservabilityService {
         pendingApprovals,
         documents: summary.documents.total,
         chunks: summary.documents.chunks,
-        feedback: summary.feedback.total
+        feedback: summary.feedback.total,
+        knowledgeFreshness
       }
     };
   }
@@ -335,6 +367,7 @@ function buildReleaseGateChecks(input: {
   readiness: ReadinessReport;
   latestEvalPassed: boolean;
   pendingApprovals: number;
+  knowledgeFreshness: KnowledgeFreshness;
 }): ReleaseGateCheck[] {
   const minDocuments = readCountThreshold("RELEASE_MIN_DOCUMENTS", 5);
   const minChunks = readCountThreshold("RELEASE_MIN_CHUNKS", 8);
@@ -372,6 +405,19 @@ function buildReleaseGateChecks(input: {
       owner: "quality"
     },
     {
+      id: "knowledge_freshness",
+      label: "Knowledge freshness",
+      status: input.knowledgeFreshness.latestEvalCreatedAt
+        ? input.knowledgeFreshness.stale
+          ? "warn"
+          : "pass"
+        : "fail",
+      evidence: freshnessEvidence(input.knowledgeFreshness),
+      owner: "quality",
+      metric: input.knowledgeFreshness.changedDocumentsSinceEval,
+      threshold: 0
+    },
+    {
       id: "slo_guardrails",
       label: "SLO guardrails",
       status: input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
@@ -407,6 +453,18 @@ function buildReleaseGateChecks(input: {
       threshold: 1
     }
   ];
+}
+
+function freshnessEvidence(freshness: KnowledgeFreshness): string {
+  if (!freshness.latestEvalCreatedAt) {
+    return "No seed-ops-wiki evaluation exists for the indexed knowledge base.";
+  }
+
+  if (freshness.stale) {
+    return `${freshness.changedDocumentsSinceEval} documents changed after the latest seed-ops-wiki evaluation.`;
+  }
+
+  return "Latest seed-ops-wiki evaluation is newer than the indexed documents.";
 }
 
 function aggregateReleaseGateStatus(checks: ReleaseGateCheck[]): ReleaseGateStatus {
@@ -510,6 +568,26 @@ function ratio(numerator: number, denominator: number): number {
 
 function roundMetric(value: number | string | null | undefined): number {
   return Number(toNumber(value).toFixed(3));
+}
+
+function toKnowledgeFreshness(row: KnowledgeFreshnessRow | undefined): KnowledgeFreshness {
+  const latestEvalCreatedAt = toIsoStringOrNull(row?.latest_eval_created_at);
+  const latestDocumentUpdatedAt = toIsoStringOrNull(row?.latest_document_updated_at);
+  const changedDocumentsSinceEval = toNumber(row?.changed_documents_since_eval);
+
+  return {
+    latestEvalCreatedAt,
+    latestDocumentUpdatedAt,
+    changedDocumentsSinceEval,
+    stale: changedDocumentsSinceEval > 0
+  };
+}
+
+function toIsoStringOrNull(value: Date | string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
 function toNumber(value: number | string | null | undefined): number {

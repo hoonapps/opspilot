@@ -40,6 +40,7 @@ async function main() {
       checks.dependencies_ready?.status === "pass" &&
       checks.indexed_knowledge_ready?.status === "pass" &&
       checks.latest_eval_gate?.status === "pass" &&
+      checks.knowledge_freshness?.status === "pass" &&
       checks.slo_guardrails?.status === "pass" &&
       checks.agent_audit_trail?.status !== "fail" &&
       gate.summary.documents >= 5 &&

@@ -23,7 +23,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
 - Split the console into Korean Ask, Retrieval, Documents, Quality, Review, Audit, and Usage screens so retrieval debugging, document management, and onboarding are first-class workflows.
 - Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
-- Show a release gate in the Quality screen so readiness, eval, SLO, audit, approval backlog, and feedback evidence collapse into one operator decision.
+- Show a release gate in the Quality screen so readiness, eval freshness, SLO, audit, approval backlog, and feedback evidence collapse into one operator decision.
 - Render SLO guardrails in the Quality screen so answer grounding, review load, tool audit coverage, and eval gate state are visible as operating objectives.
 - Make permission boundaries visible through denied candidate counts and review reasons.
 - Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.

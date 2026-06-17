@@ -130,7 +130,13 @@ Verify SLO guardrails for grounding, review load, tool audit coverage, and the l
 pnpm observability:slo-smoke
 ```
 
-Verify the deploy-style release gate for dependency readiness, indexed knowledge, eval, SLOs, audit trail, approval backlog, and feedback:
+Verify that the release gate detects stale RAG evaluations after a document change, then recovers after re-evaluation:
+
+```bash
+pnpm freshness:smoke
+```
+
+Verify the deploy-style release gate for dependency readiness, indexed knowledge, eval freshness, SLOs, audit trail, approval backlog, and feedback:
 
 ```bash
 pnpm release-gate:smoke
@@ -349,7 +355,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Context package trace for prompt budget, included chunks, omitted chunks, and token estimates
 - Operational observability summary API for questions, answers, document agreement, tool calls, approvals, feedback, and indexed knowledge size
 - SLO guardrail API for answer grounding, review load, tool audit coverage, latest eval gate, and error budget status
-- Release gate API for dependency readiness, indexed knowledge, eval state, SLO status, agent audit trail, approval backlog, and feedback signal
+- Release gate API for dependency readiness, indexed knowledge, eval state, knowledge freshness, SLO status, agent audit trail, approval backlog, and feedback signal
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
@@ -409,6 +415,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - Observability SLO smoke test proving grounding, review load, tool audit coverage, and eval gate guardrails
+- Knowledge freshness smoke test proving document changes make the latest evaluation stale until the suite is rerun
 - Release gate smoke test proving deploy-style readiness evidence
 - OpenAPI contract smoke test for the public API surface and request schemas
 - Korean Next.js web console and Playwright smoke test with screen navigation, in-app usage guide, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, release gate, SLO guardrails, answer-level document match, context budget, source grounding coverage, answer proof packet, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
@@ -514,7 +521,7 @@ Details: [docs/demo.md](docs/demo.md)
 
 ## Observability
 
-`GET /observability/summary` aggregates persisted operating evidence: question volume, answer count, human review rate, average confidence, average document agreement, tool calls by name/status, approvals by status, feedback, and indexed document/chunk counts. `GET /observability/slo` turns those signals into SLO guardrails for grounding, review load, tool audit coverage, and the latest eval gate. `GET /observability/release-gate` combines readiness, indexed knowledge, eval, SLO, audit trail, approval backlog, and feedback into a deploy-style `pass`, `review`, or `block`. The web console renders all three in the Operations panel.
+`GET /observability/summary` aggregates persisted operating evidence: question volume, answer count, human review rate, average confidence, average document agreement, tool calls by name/status, approvals by status, feedback, and indexed document/chunk counts. `GET /observability/slo` turns those signals into SLO guardrails for grounding, review load, tool audit coverage, and the latest eval gate. `GET /observability/release-gate` combines readiness, indexed knowledge, eval, knowledge freshness, SLO, audit trail, approval backlog, and feedback into a deploy-style `pass`, `review`, or `block`. The web console renders all three in the Operations panel.
 
 Details: [docs/observability.md](docs/observability.md)
 
@@ -526,7 +533,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, observability SLO smoke, release gate smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, release gate, SLO guardrails, answer-level document match, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, knowledge freshness smoke, observability SLO smoke, release gate smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, release gate, eval freshness, SLO guardrails, answer-level document match, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

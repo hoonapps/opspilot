@@ -510,6 +510,12 @@ export type ObservabilityReleaseGate = {
     documents: number;
     chunks: number;
     feedback: number;
+    knowledgeFreshness: {
+      latestEvalCreatedAt: string | null;
+      latestDocumentUpdatedAt: string | null;
+      changedDocumentsSinceEval: number;
+      stale: boolean;
+    };
   };
 };
 

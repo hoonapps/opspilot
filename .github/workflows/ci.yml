@@ -149,6 +149,9 @@ jobs:
       - name: Observability SLO smoke
         run: pnpm observability:slo-smoke
 
+      - name: Knowledge freshness smoke
+        run: pnpm freshness:smoke
+
       - name: Release gate smoke
         run: pnpm release-gate:smoke
 

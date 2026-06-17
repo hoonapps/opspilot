@@ -30,7 +30,7 @@ OpsPilot is designed as an operational knowledge platform with an agentic RAG ba
 12. `GET /answers/:id/proof` summarizes the same persisted artifact into pass/warn/fail evidence checks for grounding, tool audit, approval boundary, context budget, and feedback capture.
 13. `GET /observability/summary` aggregates the persisted rows into operating metrics for question volume, answer quality, review rate, tool calls, approvals, feedback, and indexed knowledge size.
 14. `GET /observability/slo` turns quality and audit metrics into SLO guardrails with status and error budget remaining.
-15. `GET /observability/release-gate` combines readiness, indexed knowledge, eval state, SLOs, audit trail, approval backlog, and feedback into a deploy-style `pass`, `review`, or `block`.
+15. `GET /observability/release-gate` combines readiness, indexed knowledge, eval state, knowledge freshness, SLOs, audit trail, approval backlog, and feedback into a deploy-style `pass`, `review`, or `block`.
 16. Web requests render the grounded answer, document match, sources, confidence, review reasons, permission audit, trace summary, proof packet, release gate, and tool calls in the console.
 17. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
 
