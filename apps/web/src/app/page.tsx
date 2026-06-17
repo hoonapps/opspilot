@@ -49,6 +49,7 @@ import {
   IndexingQueueHealth,
   IncidentResponsePlan,
   AgentToolDefinition,
+  analyzeRetrievalPermissionDiff,
   listDocuments,
   listAgentTools,
   listRecentToolCalls,
@@ -61,6 +62,7 @@ import {
   QuestionAuditBundle,
   previewRetrieval,
   RetrievalPreviewResponse,
+  RetrievalPermissionDiffReport,
   RetrievalRobustnessReport,
   simulateSlackMention,
   SlackSimulationTrace,
@@ -191,6 +193,7 @@ export default function Home() {
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
   const [retrievalRobustness, setRetrievalRobustness] = useState<RetrievalRobustnessReport | null>(null);
+  const [retrievalPermissionDiff, setRetrievalPermissionDiff] = useState<RetrievalPermissionDiffReport | null>(null);
   const [retrievalLimit, setRetrievalLimit] = useState(5);
   const [incidentDescription, setIncidentDescription] = useState(
     "정산 배치가 30분 이상 지연되고 settlement.dlq.count가 120이면 어떻게 대응해야 해?"
@@ -215,6 +218,7 @@ export default function Home() {
     | "ask"
     | "retrieval"
     | "retrieval-robustness"
+    | "retrieval-permission-diff"
     | "incident"
     | "ingest"
     | "verify"
@@ -313,6 +317,25 @@ export default function Home() {
       );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "검색 강건성 진단 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runRetrievalPermissionDiff() {
+    setError(null);
+    setLoading("retrieval-permission-diff");
+    try {
+      setRetrievalPermissionDiff(
+        await analyzeRetrievalPermissionDiff({
+          question,
+          teamSlugs,
+          roles,
+          limit: retrievalLimit
+        })
+      );
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "권한별 검색 비교 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1456,6 +1479,86 @@ export default function Home() {
               </>
             ) : (
               <p className="empty">답변 생성 전에 검색을 미리 실행해 허용 후보, 차단 범위, 권한 적용 방식을 확인합니다.</p>
+            )}
+          </section>
+
+          <section className="permissionDiffPanel" aria-label="권한별 검색 비교">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">권한 비교</p>
+                <h2>권한별 검색 비교</h2>
+              </div>
+              {retrievalPermissionDiff ? (
+                <span className={retrievalPermissionDiff.status === "isolated" ? "badge" : "badge review"}>
+                  {retrievalPermissionDiff.status === "isolated" ? "격리 정상" : "검토 필요"}
+                </span>
+              ) : null}
+            </div>
+            <button
+              className="secondaryButton"
+              disabled={loading === "retrieval-permission-diff"}
+              onClick={runRetrievalPermissionDiff}
+              type="button"
+            >
+              {loading === "retrieval-permission-diff" ? "비교 중..." : "권한별 검색 비교"}
+            </button>
+            {retrievalPermissionDiff ? (
+              <>
+                <div className="permissionDiffStats">
+                  <Metric label="페르소나" value={String(retrievalPermissionDiff.summary.personaCount)} />
+                  <Metric label="1순위 변화" value={String(retrievalPermissionDiff.summary.topSourceChangedCount)} />
+                  <Metric label="최대 차단" value={String(retrievalPermissionDiff.summary.maxDeniedCandidateCount)} />
+                  <Metric label="관리자 제한 후보" value={String(retrievalPermissionDiff.summary.privilegedRestrictedCandidateCount)} />
+                </div>
+                <div className="permissionDiffChecks">
+                  {retrievalPermissionDiff.checks.map((check) => (
+                    <article className={check.status === "pass" ? "permissionDiffCheck pass" : "permissionDiffCheck review"} key={check.id}>
+                      <span>{formatGateStatus(check.status)}</span>
+                      <strong>{check.label}</strong>
+                      <p>{check.message}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="permissionPersonaGrid">
+                  {retrievalPermissionDiff.personas.map((persona) => (
+                    <article className="permissionPersonaCard" key={persona.id}>
+                      <div>
+                        <span>{persona.label}</span>
+                        <strong>{persona.topSourcePath ?? "출처 없음"}</strong>
+                        <code>{persona.topSourceVisibility ?? "none"} · 차단 {persona.deniedCandidateCount}개</code>
+                      </div>
+                      <p>
+                        역할 {persona.roles.join("|") || "없음"} · 팀 {persona.teamSlugs.join("|") || "없음"}
+                      </p>
+                      <div className="permissionCandidateList">
+                        {persona.candidates.slice(0, 3).map((candidate) => (
+                          <span className={candidate.visibility === "restricted" ? "restricted" : ""} key={`${persona.id}-${candidate.rank}-${candidate.path}`}>
+                            #{candidate.rank} {candidate.visibility}:{candidate.path}
+                          </span>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <div className="permissionComparisonList">
+                  {retrievalPermissionDiff.comparisons.map((comparison) => (
+                    <article key={`${comparison.from}-${comparison.to}`}>
+                      <strong>
+                        {comparison.from} → {comparison.to}
+                      </strong>
+                      <code>
+                        {comparison.topSourceChanged ? "1순위 변경" : "1순위 유지"} · 차단 {comparison.deniedCandidateDelta >= 0 ? "+" : ""}
+                        {comparison.deniedCandidateDelta}
+                      </code>
+                      <p>
+                        새로 보임: {comparison.newlyVisiblePaths.length > 0 ? comparison.newlyVisiblePaths.join(", ") : "없음"}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="empty">같은 질문을 public, support, payments, ops_admin 페르소나로 실행해 권한별 출처 차이와 restricted 문서 격리를 확인합니다.</p>
             )}
           </section>
 

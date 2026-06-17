@@ -81,6 +81,8 @@ pnpm idempotency:smoke
 
 Elasticsearch는 recall booster일 뿐 권한 기준이 아닙니다. hybrid 모드에서도 Elasticsearch가 반환한 chunk id를 PostgreSQL에서 다시 로드하고 actor 권한 필터를 통과한 chunk만 답변 context에 들어갑니다.
 
+`POST /retrieval/permission-diff`는 같은 질문을 여러 actor 페르소나로 실행해 권한 경계를 비교합니다. public/support 페르소나에 restricted 후보가 노출되지 않는지, payments 팀 권한이 있을 때 team 문서가 새로 보이는지, ops_admin에서 restricted 문서가 검색 가능한지 한 응답에서 확인합니다. 이 리포트는 권한 우회용 API가 아니라, 실제 검색 필터가 페르소나별로 어떤 결과 차이를 만드는지 검증하는 감사용 API입니다.
+
 ## Trace 보안
 
 `GET /answers/:id/trace`, `proof`, `replay`, `evidence-bundle`은 저장된 source에 대해 현재 caller 권한을 다시 확인합니다. `GET /questions/:id/audit-bundle`도 answer source와 search tool output에서 복원한 source path를 현재 caller 권한으로 다시 확인합니다. 권한 없는 사용자는 trace나 감사 bundle을 통해 restricted 출처 path나 preview를 추론할 수 없어야 합니다.

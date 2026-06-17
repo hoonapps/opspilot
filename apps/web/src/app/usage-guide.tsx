@@ -31,9 +31,11 @@ const usageSteps = [
       "문서 선택 > 색인 설명",
       "검색 화면 > 검색 미리보기",
       "권한 감사 허용/차단 후보 확인",
+      "권한별 검색 비교",
       "검색 품질 진단 확인",
       "질문 변형 안정성 진단",
       "pnpm index-explain:smoke",
+      "pnpm retrieval-permission-diff:smoke",
       "pnpm retrieval-robustness:smoke"
     ]
   },
@@ -53,6 +55,7 @@ const usageSteps = [
     commands: [
       "pnpm eval",
       "pnpm retrieval-robustness:smoke",
+      "pnpm retrieval-permission-diff:smoke",
       "pnpm index-explain:smoke",
       "pnpm index-quality:smoke",
       "pnpm incident-plan:smoke",
@@ -82,7 +85,7 @@ const checklist = [
   },
   {
     title: "청킹과 RAG 검색은 어디서 보나?",
-    body: "문서 화면의 색인 설명, 색인 품질 리포트와 청크 미리보기, 검색 화면의 후보 청크 순위와 검색 강건성 리포트에서 실제 청크, 점수, 권한 차단 결과, 컨텍스트 예산 포함 여부, 질문 변형별 1순위 출처 안정성을 확인합니다."
+    body: "문서 화면의 색인 설명, 색인 품질 리포트와 청크 미리보기, 검색 화면의 후보 청크 순위, 권한별 검색 비교, 검색 강건성 리포트에서 실제 청크, 점수, 권한 차단 결과, 컨텍스트 예산 포함 여부, 질문 변형별 1순위 출처 안정성을 확인합니다."
   },
   {
     title: "문서 일치율은 어디서 보나?",

@@ -113,6 +113,9 @@ jobs:
       - name: Retrieval robustness smoke
         run: pnpm retrieval-robustness:smoke
 
+      - name: Retrieval permission diff smoke
+        run: pnpm retrieval-permission-diff:smoke
+
       - name: Document index explain smoke
         run: pnpm index-explain:smoke
 

@@ -4108,6 +4108,155 @@ pre {
   white-space: nowrap;
 }
 
+.permissionDiffPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.permissionDiffStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permissionDiffStats .metric {
+  min-height: 72px;
+}
+
+.permissionDiffChecks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permissionDiffCheck {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.permissionDiffCheck.pass {
+  border: 1px solid rgba(15, 118, 110, 0.22);
+}
+
+.permissionDiffCheck.review {
+  border: 1px solid rgba(161, 98, 7, 0.24);
+}
+
+.permissionDiffCheck span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef7f4;
+  color: var(--accent-strong);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.permissionDiffCheck strong,
+.permissionComparisonList strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.permissionDiffCheck p,
+.permissionPersonaCard p,
+.permissionComparisonList p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.permissionPersonaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permissionPersonaCard {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.permissionPersonaCard > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.permissionPersonaCard span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.permissionPersonaCard strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.permissionPersonaCard code,
+.permissionComparisonList code {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.permissionCandidateList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.permissionCandidateList span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border: 1px solid #d9e6e2;
+  border-radius: 999px;
+  background: #f4fbf8;
+  color: var(--accent-strong);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.permissionCandidateList span.restricted {
+  border-color: rgba(154, 75, 19, 0.24);
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.permissionComparisonList {
+  display: grid;
+  gap: 8px;
+}
+
+.permissionComparisonList article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.permissionComparisonList p {
+  grid-column: 1 / -1;
+}
+
 .queueJobMeta {
   display: flex;
   flex-wrap: wrap;
@@ -4204,6 +4353,10 @@ pre {
   .proofDetails,
   .inventoryGrid,
   .retrievalStats,
+  .permissionDiffStats,
+  .permissionDiffChecks,
+  .permissionPersonaGrid,
+  .permissionComparisonList article,
   .diagnosticStats,
   .queryPlanHeader,
   .queryPlanMeta,

@@ -21,6 +21,7 @@
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",
     "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
     "retrieval-robustness:smoke": "pnpm --filter @opspilot/api retrieval-robustness:smoke",
+    "retrieval-permission-diff:smoke": "pnpm --filter @opspilot/api retrieval-permission-diff:smoke",
     "index-explain:smoke": "pnpm --filter @opspilot/api index-explain:smoke",
     "index-quality:smoke": "pnpm --filter @opspilot/api index-quality:smoke",
     "document-impact:smoke": "pnpm --filter @opspilot/api document-impact:smoke",

@@ -479,6 +479,61 @@ export type RetrievalRobustnessRun = {
   queryTerms: string[];
 };
 
+export type RetrievalPermissionDiffReport = {
+  schemaVersion: "opspilot.retrieval_permission_diff.v1";
+  generatedAt: string;
+  query: string;
+  status: "isolated" | "review";
+  summary: {
+    personaCount: number;
+    uniqueTopSourceCount: number;
+    maxDeniedCandidateCount: number;
+    unprivilegedRestrictedCandidateCount: number;
+    privilegedRestrictedCandidateCount: number;
+    topSourceChangedCount: number;
+  };
+  checks: Array<{
+    id: "restricted_isolation" | "team_scope" | "privileged_visibility" | "top_source_diff" | "candidate_window";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    message: string;
+  }>;
+  personas: Array<{
+    id: string;
+    label: string;
+    roles: string[];
+    teamSlugs: string[];
+    diagnosticsStatus: RetrievalPreviewResponse["diagnostics"]["status"];
+    recommendedAction: RetrievalPreviewResponse["diagnostics"]["recommendedAction"];
+    allowedCandidateCount: number;
+    deniedCandidateCount: number;
+    deniedByVisibility: Record<string, number>;
+    topSourcePath: string | null;
+    topSourceTitle: string | null;
+    topSourceVisibility: string | null;
+    topSourceScore: number;
+    candidates: Array<{
+      rank: number;
+      path: string;
+      title: string;
+      visibility: string;
+      teamSlug?: string | null;
+      score: number;
+      reasonCodes: string[];
+    }>;
+  }>;
+  comparisons: Array<{
+    from: string;
+    to: string;
+    topSourceChanged: boolean;
+    deniedCandidateDelta: number;
+    newlyVisiblePaths: string[];
+    noLongerVisiblePaths: string[];
+  }>;
+};
+
 export type IncidentResponsePlan = {
   planId: string;
   generatedAt: string;
@@ -1316,6 +1371,41 @@ export async function analyzeRetrievalRobustness(input: {
   return response.json() as Promise<RetrievalRobustnessReport>;
 }
 
+export async function analyzeRetrievalPermissionDiff(input: {
+  question: string;
+  teamSlugs: string;
+  roles: string;
+  limit: number;
+}): Promise<RetrievalPermissionDiffReport> {
+  const currentRoles = splitCsv(input.roles);
+  const currentTeamSlugs = splitCsv(input.teamSlugs);
+  const personas = [
+    ...(currentRoles.length > 0 || currentTeamSlugs.length > 0
+      ? [{ id: "current_actor", label: "현재 호출자", roles: currentRoles, teamSlugs: currentTeamSlugs }]
+      : []),
+    { id: "public_viewer", label: "공개 사용자", roles: [], teamSlugs: [] },
+    { id: "support_agent", label: "고객지원 담당자", roles: ["support_agent"], teamSlugs: [] },
+    { id: "payments_oncall", label: "결제 온콜", roles: ["support_agent", "oncall"], teamSlugs: ["payments"] },
+    { id: "ops_admin", label: "운영 관리자", roles: ["ops_admin"], teamSlugs: ["payments"] }
+  ].slice(0, 6);
+  const response = await fetch(`${API_BASE_URL}/retrieval/permission-diff`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    },
+    body: JSON.stringify({ question: input.question, personas, limit: input.limit })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<RetrievalPermissionDiffReport>;
+}
+
 export async function createIncidentPlan(input: {
   incident: string;
   teamSlugs?: string;
@@ -1732,4 +1822,11 @@ export async function getQuestionAuditBundle(input: {
   }
 
   return response.json() as Promise<QuestionAuditBundle>;
+}
+
+function splitCsv(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

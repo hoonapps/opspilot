@@ -21,6 +21,7 @@
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
     "retrieval-robustness:smoke": "ts-node src/cli/retrieval-robustness-smoke.ts",
+    "retrieval-permission-diff:smoke": "ts-node src/cli/retrieval-permission-diff-smoke.ts",
     "index-explain:smoke": "ts-node src/cli/index-explain-smoke.ts",
     "index-quality:smoke": "ts-node src/cli/index-quality-smoke.ts",
     "document-impact:smoke": "ts-node src/cli/document-impact-smoke.ts",

@@ -6,6 +6,7 @@ import { AskIdempotencyService } from "./ask-idempotency.service";
 import { AskDto } from "./dto/ask.dto";
 import { IncidentPlanDto } from "./dto/incident-plan.dto";
 import { RateLimitService } from "./rate-limit.service";
+import { RetrievalPermissionDiffDto } from "./dto/retrieval-permission-diff.dto";
 import { RetrievalPreviewDto } from "./dto/retrieval-preview.dto";
 import { RetrievalRobustnessDto } from "./dto/retrieval-robustness.dto";
 import { IncidentResponsePlanService } from "./incident-response-plan.service";
@@ -57,6 +58,14 @@ export class AgentController {
   @Post("retrieval/robustness")
   analyzeRetrievalRobustness(@Body() body: RetrievalRobustnessDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.agentService.analyzeRetrievalRobustness(body.question, parseRequestContext(headers), body.variants, body.limit);
+  }
+
+  @Post("retrieval/permission-diff")
+  analyzeRetrievalPermissionDiff(
+    @Body() body: RetrievalPermissionDiffDto,
+    @Headers() headers: Record<string, string | string[] | undefined>
+  ) {
+    return this.agentService.analyzeRetrievalPermissionDiff(body.question, parseRequestContext(headers), body.personas, body.limit);
   }
 
   @Post("incidents/plan")

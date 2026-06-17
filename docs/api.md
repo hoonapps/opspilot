@@ -17,6 +17,7 @@ GET /docs-json
 - `POST /ask`: RAG 답변 생성
 - `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
 - `POST /retrieval/robustness`: 질문 변형별 1순위 출처 안정성, 출처 겹침, 점수 흔들림, 권한 경계 재검사
+- `POST /retrieval/permission-diff`: public/support/payments/ops_admin 페르소나별 검색 후보와 권한 차단 결과 비교
 - `POST /incidents/plan`: 런북 기반 장애 대응 플랜, 심각도, 승인 경계, 커뮤니케이션, 복구 검증 생성
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
@@ -92,6 +93,28 @@ pnpm retrieval-robustness:smoke
 ```
 
 이 smoke는 테스트 문서를 색인한 뒤 질문 표현을 바꿔도 같은 근거 문서로 수렴하는지 검증합니다. RAG가 “한 번 맞았다”가 아니라 “표현이 바뀌어도 운영 의도를 안정적으로 찾는다”는 점을 보여주기 위한 포트폴리오 증거입니다.
+
+## 권한별 검색 비교
+
+```txt
+POST /retrieval/permission-diff
+```
+
+같은 질문을 여러 actor 페르소나로 실행해 검색 후보가 어떻게 달라지는지 비교합니다.
+
+- `personas[]`: public viewer, support agent, payments on-call, ops admin 같은 비교 대상
+- `summary.unprivilegedRestrictedCandidateCount`: 권한 없는 페르소나에 restricted 후보가 노출됐는지
+- `summary.privilegedRestrictedCandidateCount`: 관리자 페르소나가 restricted 후보를 볼 수 있는지
+- `personas[].topSourcePath`: 페르소나별 1순위 출처
+- `personas[].deniedCandidateCount`: 후보 창에서 권한으로 차단된 수
+- `comparisons[]`: 인접 페르소나 사이의 1순위 변경, 차단 수 변화, 새로 보이는 path
+- `checks`: restricted 격리, 팀 범위 격리, 관리자 가시성, 출처 차이, 후보 창 감사
+
+검증:
+
+```bash
+pnpm retrieval-permission-diff:smoke
+```
 
 ## 색인 품질 리포트
 

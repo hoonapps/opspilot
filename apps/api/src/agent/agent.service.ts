@@ -111,6 +111,63 @@ export type RetrievalRobustnessRun = {
   queryTerms: string[];
 };
 
+export type RetrievalPermissionDiffReport = {
+  schemaVersion: "opspilot.retrieval_permission_diff.v1";
+  generatedAt: string;
+  query: string;
+  status: "isolated" | "review";
+  summary: {
+    personaCount: number;
+    uniqueTopSourceCount: number;
+    maxDeniedCandidateCount: number;
+    unprivilegedRestrictedCandidateCount: number;
+    privilegedRestrictedCandidateCount: number;
+    topSourceChangedCount: number;
+  };
+  checks: Array<{
+    id: "restricted_isolation" | "team_scope" | "privileged_visibility" | "top_source_diff" | "candidate_window";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    message: string;
+  }>;
+  personas: RetrievalPermissionPersonaRun[];
+  comparisons: Array<{
+    from: string;
+    to: string;
+    topSourceChanged: boolean;
+    deniedCandidateDelta: number;
+    newlyVisiblePaths: string[];
+    noLongerVisiblePaths: string[];
+  }>;
+};
+
+export type RetrievalPermissionPersonaRun = {
+  id: string;
+  label: string;
+  roles: string[];
+  teamSlugs: string[];
+  diagnosticsStatus: RetrievalDiagnostics["status"];
+  recommendedAction: RetrievalDiagnostics["recommendedAction"];
+  allowedCandidateCount: number;
+  deniedCandidateCount: number;
+  deniedByVisibility: Record<string, number>;
+  topSourcePath: string | null;
+  topSourceTitle: string | null;
+  topSourceVisibility: string | null;
+  topSourceScore: number;
+  candidates: Array<{
+    rank: number;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    score: number;
+    reasonCodes: string[];
+  }>;
+};
+
 export type RetrievalDiagnostics = {
   status: "ready" | "review" | "blocked";
   recommendedAction: "answer" | "answer_with_context_review" | "human_review" | "clarify_or_expand_sources";
@@ -428,6 +485,50 @@ export class AgentService {
     };
   }
 
+  async analyzeRetrievalPermissionDiff(
+    question: string,
+    context: RequestContext,
+    personas: Array<{ id: string; label: string; roles?: string[]; teamSlugs?: string[] }> = [],
+    limit = 5
+  ): Promise<RetrievalPermissionDiffReport> {
+    const safeLimit = Math.max(1, Math.min(limit, 10));
+    const normalizedPersonas = normalizePermissionDiffPersonas(context, personas);
+    const previews = await Promise.all(
+      normalizedPersonas.map((persona) =>
+        this.previewRetrieval(question, { roles: persona.roles, teamSlugs: persona.teamSlugs }, safeLimit)
+      )
+    );
+    const runs = previews.map((preview, index) => toPermissionPersonaRun(normalizedPersonas[index], preview));
+    const comparisons = buildPermissionComparisons(runs);
+    const unprivilegedRestrictedCandidateCount = runs
+      .filter((run) => !hasPrivilegedRole(run.roles))
+      .reduce((sum, run) => sum + run.candidates.filter((candidate) => candidate.visibility === "restricted").length, 0);
+    const privilegedRestrictedCandidateCount = runs
+      .filter((run) => hasPrivilegedRole(run.roles))
+      .reduce((sum, run) => sum + run.candidates.filter((candidate) => candidate.visibility === "restricted").length, 0);
+    const topSourceChangedCount = comparisons.filter((comparison) => comparison.topSourceChanged).length;
+    const summary = {
+      personaCount: runs.length,
+      uniqueTopSourceCount: new Set(runs.map((run) => run.topSourcePath).filter(Boolean)).size,
+      maxDeniedCandidateCount: Math.max(0, ...runs.map((run) => run.deniedCandidateCount)),
+      unprivilegedRestrictedCandidateCount,
+      privilegedRestrictedCandidateCount,
+      topSourceChangedCount
+    };
+    const checks = buildPermissionDiffChecks(runs, summary);
+
+    return {
+      schemaVersion: "opspilot.retrieval_permission_diff.v1",
+      generatedAt: new Date().toISOString(),
+      query: question,
+      status: checks.some((check) => check.status === "fail") ? "review" : "isolated",
+      summary,
+      checks,
+      personas: runs,
+      comparisons
+    };
+  }
+
 }
 
 function buildRankingExplanation(
@@ -458,6 +559,176 @@ function buildRankingExplanation(
     },
     reasonCodes
   };
+}
+
+function normalizePermissionDiffPersonas(
+  context: RequestContext,
+  personas: Array<{ id: string; label: string; roles?: string[]; teamSlugs?: string[] }>
+): Array<{ id: string; label: string; roles: string[]; teamSlugs: string[] }> {
+  if (personas.length > 0) {
+    return personas.slice(0, 6).map((persona) => ({
+      id: sanitizePersonaId(persona.id),
+      label: persona.label,
+      roles: [...new Set(persona.roles ?? [])],
+      teamSlugs: [...new Set(persona.teamSlugs ?? [])]
+    }));
+  }
+
+  const currentActor =
+    context.roles.length > 0 || context.teamSlugs.length > 0
+      ? [
+          {
+            id: "current_actor",
+            label: "현재 호출자",
+            roles: context.roles,
+            teamSlugs: context.teamSlugs
+          }
+        ]
+      : [];
+
+  return [
+    ...currentActor,
+    { id: "public_viewer", label: "공개 사용자", roles: [], teamSlugs: [] },
+    { id: "support_agent", label: "고객지원 담당자", roles: ["support_agent"], teamSlugs: [] },
+    { id: "payments_oncall", label: "결제 온콜", roles: ["support_agent", "oncall"], teamSlugs: ["payments"] },
+    { id: "ops_admin", label: "운영 관리자", roles: ["ops_admin"], teamSlugs: ["payments"] }
+  ].slice(0, 6);
+}
+
+function toPermissionPersonaRun(
+  persona: { id: string; label: string; roles: string[]; teamSlugs: string[] },
+  preview: RetrievalPreviewResponse
+): RetrievalPermissionPersonaRun {
+  const topCandidate = preview.candidates[0];
+
+  return {
+    id: persona.id,
+    label: persona.label,
+    roles: persona.roles,
+    teamSlugs: persona.teamSlugs,
+    diagnosticsStatus: preview.diagnostics.status,
+    recommendedAction: preview.diagnostics.recommendedAction,
+    allowedCandidateCount: preview.permissionAudit.allowedCandidateCount,
+    deniedCandidateCount: preview.permissionAudit.deniedCandidateCount,
+    deniedByVisibility: preview.permissionAudit.deniedByVisibility,
+    topSourcePath: topCandidate?.path ?? null,
+    topSourceTitle: topCandidate?.title ?? null,
+    topSourceVisibility: topCandidate?.visibility ?? null,
+    topSourceScore: topCandidate?.score ?? 0,
+    candidates: preview.candidates.slice(0, 5).map((candidate) => ({
+      rank: candidate.rank,
+      path: candidate.path,
+      title: candidate.title,
+      visibility: candidate.visibility,
+      teamSlug: candidate.teamSlug,
+      score: candidate.score,
+      reasonCodes: candidate.rankingExplanation.reasonCodes
+    }))
+  };
+}
+
+function buildPermissionComparisons(
+  runs: RetrievalPermissionPersonaRun[]
+): RetrievalPermissionDiffReport["comparisons"] {
+  const comparisons: RetrievalPermissionDiffReport["comparisons"] = [];
+  for (let index = 1; index < runs.length; index += 1) {
+    const previous = runs[index - 1];
+    const current = runs[index];
+    const previousPaths = new Set(previous.candidates.map((candidate) => candidate.path));
+    const currentPaths = new Set(current.candidates.map((candidate) => candidate.path));
+
+    comparisons.push({
+      from: previous.id,
+      to: current.id,
+      topSourceChanged: previous.topSourcePath !== current.topSourcePath,
+      deniedCandidateDelta: current.deniedCandidateCount - previous.deniedCandidateCount,
+      newlyVisiblePaths: [...currentPaths].filter((path) => !previousPaths.has(path)).slice(0, 6),
+      noLongerVisiblePaths: [...previousPaths].filter((path) => !currentPaths.has(path)).slice(0, 6)
+    });
+  }
+
+  return comparisons;
+}
+
+function buildPermissionDiffChecks(
+  runs: RetrievalPermissionPersonaRun[],
+  summary: RetrievalPermissionDiffReport["summary"]
+): RetrievalPermissionDiffReport["checks"] {
+  const teamScopedLeakCount = runs.reduce(
+    (sum, run) =>
+      sum +
+      run.candidates.filter(
+        (candidate) =>
+          candidate.visibility === "team" && Boolean(candidate.teamSlug) && !run.teamSlugs.includes(candidate.teamSlug ?? "")
+      ).length,
+    0
+  );
+  const allCandidateWindowsAudited = runs.every((run) => run.allowedCandidateCount + run.deniedCandidateCount > 0);
+
+  return [
+    {
+      id: "restricted_isolation",
+      label: "제한 문서 격리",
+      status: summary.unprivilegedRestrictedCandidateCount === 0 ? "pass" : "fail",
+      metric: summary.unprivilegedRestrictedCandidateCount,
+      threshold: 0,
+      message:
+        summary.unprivilegedRestrictedCandidateCount === 0
+          ? "권한 없는 페르소나의 후보 목록에 restricted 문서가 노출되지 않았습니다."
+          : `권한 없는 페르소나에 restricted 후보 ${summary.unprivilegedRestrictedCandidateCount}개가 노출됐습니다.`
+    },
+    {
+      id: "team_scope",
+      label: "팀 범위 격리",
+      status: teamScopedLeakCount === 0 ? "pass" : "fail",
+      metric: teamScopedLeakCount,
+      threshold: 0,
+      message:
+        teamScopedLeakCount === 0
+          ? "팀 권한이 없는 페르소나에는 team 문서가 노출되지 않았습니다."
+          : `팀 권한 없는 페르소나에 team 후보 ${teamScopedLeakCount}개가 노출됐습니다.`
+    },
+    {
+      id: "privileged_visibility",
+      label: "관리자 가시성",
+      status: summary.privilegedRestrictedCandidateCount > 0 ? "pass" : "warn",
+      metric: summary.privilegedRestrictedCandidateCount,
+      threshold: 1,
+      message:
+        summary.privilegedRestrictedCandidateCount > 0
+          ? "관리자 페르소나가 질문 의도에 맞는 restricted 후보를 볼 수 있습니다."
+          : "이번 질문에서는 관리자 페르소나에도 restricted 후보가 상위권에 오르지 않았습니다."
+    },
+    {
+      id: "top_source_diff",
+      label: "출처 차이",
+      status: summary.topSourceChangedCount > 0 ? "pass" : "warn",
+      metric: summary.topSourceChangedCount,
+      threshold: 1,
+      message:
+        summary.topSourceChangedCount > 0
+          ? "권한 차이에 따라 1순위 출처가 달라지는 것을 확인했습니다."
+          : "모든 페르소나의 1순위 출처가 같습니다."
+    },
+    {
+      id: "candidate_window",
+      label: "후보 창 감사",
+      status: allCandidateWindowsAudited ? "pass" : "fail",
+      metric: runs.length,
+      threshold: runs.length,
+      message: allCandidateWindowsAudited
+        ? "모든 페르소나에서 허용/차단 후보 창이 계산됐습니다."
+        : "일부 페르소나의 후보 창 감사가 비어 있습니다."
+    }
+  ];
+}
+
+function hasPrivilegedRole(roles: string[]): boolean {
+  return roles.includes("ops_admin") || roles.includes("security_admin");
+}
+
+function sanitizePersonaId(id: string): string {
+  return id.toLowerCase().replace(/[^a-z0-9_-]+/g, "_").slice(0, 40) || "persona";
 }
 
 function buildScoreContributions(source: SearchResult): RankingExplanation["scoreContributions"] {

@@ -162,29 +162,29 @@ function buildPermissionPersonas(documents: PermissionDocumentRow[]): Permission
   const primaryTeamSlug = teamSlugs[0] ?? "payments";
 
   return [
-    { id: "anonymous", label: "Anonymous", roles: [], teamSlugs: [] },
-    { id: `${primaryTeamSlug}_oncall`, label: `${primaryTeamSlug} on-call`, roles: ["support_agent"], teamSlugs: [primaryTeamSlug] },
-    { id: "ops_admin", label: "Ops admin", roles: ["ops_admin"], teamSlugs: [primaryTeamSlug] },
-    { id: "security_admin", label: "Security admin", roles: ["security_admin"], teamSlugs: [] }
+    { id: "anonymous", label: "익명 사용자", roles: [], teamSlugs: [] },
+    { id: `${primaryTeamSlug}_oncall`, label: `${primaryTeamSlug} 온콜`, roles: ["support_agent"], teamSlugs: [primaryTeamSlug] },
+    { id: "ops_admin", label: "운영 관리자", roles: ["ops_admin"], teamSlugs: [primaryTeamSlug] },
+    { id: "security_admin", label: "보안 관리자", roles: ["security_admin"], teamSlugs: [] }
   ];
 }
 
 function explainDocumentDecision(persona: PermissionPersona, document: PermissionDocumentRow, allowed: boolean): string {
   if (document.visibility === DocumentVisibility.Public) {
-    return "public document";
+    return "공개 문서";
   }
 
   if (document.visibility === DocumentVisibility.Team) {
     return allowed
-      ? `team match: ${document.teamSlug}`
-      : `team mismatch: requires ${document.teamSlug ?? "team"}, actor has ${persona.teamSlugs.join("|") || "none"}`;
+      ? `팀 일치: ${document.teamSlug}`
+      : `팀 불일치: ${document.teamSlug ?? "팀"} 필요, 호출자 팀 ${persona.teamSlugs.join("|") || "없음"}`;
   }
 
   if (document.visibility === DocumentVisibility.Restricted) {
     return allowed
-      ? `privileged role: ${persona.roles.find((role) => role === "ops_admin" || role === "security_admin")}`
-      : "requires ops_admin or security_admin";
+      ? `관리 권한 역할: ${persona.roles.find((role) => role === "ops_admin" || role === "security_admin")}`
+      : "ops_admin 또는 security_admin 필요";
   }
 
-  return "unknown visibility";
+  return "알 수 없는 공개 범위";
 }

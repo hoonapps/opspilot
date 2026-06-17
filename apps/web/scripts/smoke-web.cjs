@@ -197,6 +197,13 @@ async function main() {
     await page.getByRole("button", { name: "검색 미리보기" }).click();
     await page.locator(".retrievalPanel").getByText("차단", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".opsBreakdown").getByText("제한", { exact: false }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "권한별 검색 비교" }).click();
+    await page.locator(".permissionDiffPanel").getByText("격리 정상", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".permissionDiffPanel").getByText("제한 문서 격리", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".permissionDiffPanel").getByText("운영 관리자", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".permissionDiffPanel").getByText("restricted/production-db-policy.md", { exact: true }).waitFor({
+      timeout: 10000
+    });
     const retrievalPreviewVisible = await page.locator(".candidateList").getByText("종합", { exact: true }).first().isVisible();
     const retrievalScoreVisible = await page.locator(".scoreBars").getByText("키워드", { exact: true }).first().isVisible();
     const rankingExplanationVisible =
@@ -213,6 +220,10 @@ async function main() {
       (await page.locator(".retrievalRobustnessPanel").getByText("검색 강건성 리포트", { exact: true }).isVisible()) &&
       (await page.locator(".retrievalRobustnessPanel").getByText("1순위 안정성", { exact: true }).isVisible()) &&
       (await page.locator(".robustnessRuns").getByText("기준 질문", { exact: true }).isVisible());
+    const retrievalPermissionDiffVisible =
+      (await page.locator(".permissionDiffPanel").getByText("격리 정상", { exact: true }).isVisible()) &&
+      (await page.locator(".permissionDiffPanel").getByText("제한 문서 격리", { exact: true }).isVisible()) &&
+      (await page.locator(".permissionDiffPanel").getByText("restricted/production-db-policy.md", { exact: true }).isVisible());
 
     await page.locator(".railNav").getByRole("button", { name: /^대응 / }).click();
     await page.getByRole("heading", { name: "장애 대응 플랜" }).waitFor({ timeout: 10000 });
@@ -441,6 +452,7 @@ async function main() {
         retrievalBoundaryVisible &&
         retrievalDiagnosticsVisible &&
         retrievalRobustnessVisible &&
+        retrievalPermissionDiffVisible &&
         incidentPlanVisible &&
         evaluationVisible &&
         documentMatchVisible &&
@@ -508,6 +520,7 @@ async function main() {
         retrievalBoundaryVisible,
         retrievalDiagnosticsVisible,
         retrievalRobustnessVisible,
+        retrievalPermissionDiffVisible,
         incidentPlanVisible,
         evaluationVisible,
         documentMatchVisible,

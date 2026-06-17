@@ -17,12 +17,16 @@ async function main() {
     const restrictedDenied = response.permissionAudit.deniedByVisibility.restricted ?? 0;
     const restrictedDocument = matrix.documents.find((document) => document.visibility === "restricted");
     const publicDocument = matrix.documents.find((document) => document.visibility === "public");
-    const teamDocument = matrix.documents.find((document) => document.visibility === "team");
+    const teamPersona = matrix.policy.personas.find((persona) => persona.id.endsWith("_oncall"));
+    const teamDocument = teamPersona
+      ? matrix.documents.find(
+          (document) => document.visibility === "team" && Boolean(document.teamSlug) && teamPersona.teamSlugs.includes(document.teamSlug ?? "")
+        )
+      : undefined;
     const anonymousRestrictedDecision = restrictedDocument?.decisions.find((decision) => decision.persona === "anonymous");
     const opsAdminRestrictedDecision = restrictedDocument?.decisions.find((decision) => decision.persona === "ops_admin");
     const securityAdminRestrictedDecision = restrictedDocument?.decisions.find((decision) => decision.persona === "security_admin");
     const anonymousPublicDecision = publicDocument?.decisions.find((decision) => decision.persona === "anonymous");
-    const teamPersona = matrix.policy.personas.find((persona) => persona.id.endsWith("_oncall"));
     const teamDecision = teamPersona
       ? teamDocument?.decisions.find((decision) => decision.persona === teamPersona.id)
       : undefined;

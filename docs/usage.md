@@ -139,6 +139,8 @@ pnpm index-quality:smoke
 
 이 화면은 답변을 생성하지 않고 검색만 실행합니다. 따라서 어떤 청크가 프롬프트 후보가 되는지, 어떤 후보가 권한 때문에 차단되는지 안전하게 볼 수 있습니다.
 
+같은 화면의 `권한별 검색 비교`를 누르면 같은 질문을 public viewer, support agent, payments on-call, ops admin 페르소나로 다시 실행합니다. 이 리포트는 페르소나별 1순위 출처, 차단 후보 수, restricted 후보 노출 여부, 새로 보이는 문서를 비교해 권한 경계가 검색 단계에서 적용되는지 보여줍니다.
+
 각 후보 카드의 `랭킹 설명`에서는 다음을 확인합니다.
 
 - 질문에서 실제로 매칭된 검색어
@@ -166,6 +168,7 @@ pnpm index-quality:smoke
 CLI로는 같은 흐름을 아래 명령으로 검증합니다.
 
 ```bash
+pnpm retrieval-permission-diff:smoke
 pnpm retrieval-robustness:smoke
 ```
 
