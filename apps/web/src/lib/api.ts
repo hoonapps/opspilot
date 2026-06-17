@@ -125,6 +125,39 @@ export type RetrievalPreviewResponse = {
   }>;
 };
 
+export type PermissionBoundaryMatrix = {
+  generatedAt: string;
+  policy: {
+    visibilityLevels: Array<{
+      visibility: "public" | "team" | "restricted";
+      rule: string;
+    }>;
+    personas: Array<{
+      id: string;
+      label: string;
+      roles: string[];
+      teamSlugs: string[];
+    }>;
+  };
+  documents: Array<{
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    decisions: Array<{
+      persona: string;
+      allowed: boolean;
+      reason: string;
+    }>;
+  }>;
+  summary: Array<{
+    persona: string;
+    allowed: number;
+    denied: number;
+  }>;
+};
+
 export type EvaluationReport = {
   suiteName: string;
   createdAt: string;
@@ -421,6 +454,16 @@ export async function listDocuments(): Promise<DocumentInventoryItem[]> {
 
   const data = (await response.json()) as { documents: DocumentInventoryItem[] };
   return data.documents;
+}
+
+export async function getPermissionBoundaryMatrix(): Promise<PermissionBoundaryMatrix> {
+  const response = await fetch(`${API_BASE_URL}/permission-boundary/matrix`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<PermissionBoundaryMatrix>;
 }
 
 export async function getLatestEvaluation(): Promise<EvaluationReport | null> {

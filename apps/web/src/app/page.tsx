@@ -12,12 +12,14 @@ import {
   getAnswerTrace,
   getLatestEvaluation,
   getObservabilitySummary,
+  getPermissionBoundaryMatrix,
   GithubSyncResponse,
   IngestResponse,
   listDocuments,
   listRecentToolCalls,
   listApprovals,
   ObservabilitySummary,
+  PermissionBoundaryMatrix,
   previewRetrieval,
   RetrievalPreviewResponse,
   syncGithubDocuments,
@@ -126,6 +128,7 @@ export default function Home() {
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
+  const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
@@ -136,6 +139,7 @@ export default function Home() {
     | "verify"
     | "github"
     | "documents"
+    | "matrix"
     | "approval"
     | "audit"
     | "evaluation"
@@ -322,6 +326,18 @@ export default function Home() {
       );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Document inventory request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadPermissionMatrix() {
+    setError(null);
+    setLoading("matrix");
+    try {
+      setPermissionMatrix(await getPermissionBoundaryMatrix());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Permission matrix request failed");
     } finally {
       setLoading(null);
     }
@@ -939,6 +955,70 @@ export default function Home() {
             )}
           </section>
 
+          <section className="permissionMatrixPanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Boundary Matrix</p>
+                <h2>Document access simulator</h2>
+              </div>
+              {permissionMatrix ? <span className="badge">{permissionMatrix.documents.length} docs</span> : null}
+              <button className="smallButton" disabled={loading === "matrix"} onClick={loadPermissionMatrix} type="button">
+                {loading === "matrix" ? "Loading..." : "Load matrix"}
+              </button>
+            </div>
+
+            {permissionMatrix ? (
+              <>
+                <div className="matrixSummary">
+                  {permissionMatrix.summary.map((summary) => (
+                    <Metric
+                      key={summary.persona}
+                      label={formatPersonaLabel(permissionMatrix, summary.persona)}
+                      value={`${summary.allowed}/${summary.allowed + summary.denied} allowed`}
+                    />
+                  ))}
+                </div>
+                <div className="matrixTable" aria-label="permission boundary matrix">
+                  <div className="matrixHeader">
+                    <span>Document</span>
+                    {permissionMatrix.policy.personas.map((persona) => (
+                      <span key={persona.id}>{persona.label}</span>
+                    ))}
+                  </div>
+                  {permissionMatrix.documents.slice(0, 8).map((document) => (
+                    <article className="matrixRow" key={document.id}>
+                      <div>
+                        <strong>{document.title}</strong>
+                        <p>
+                          {document.path} · {document.visibility}
+                          {document.teamSlug ? `:${document.teamSlug}` : ""}
+                        </p>
+                      </div>
+                      {permissionMatrix.policy.personas.map((persona) => {
+                        const decision = document.decisions.find((item) => item.persona === persona.id);
+                        return (
+                          <span className={decision?.allowed ? "allow" : "deny"} key={`${document.id}-${persona.id}`} title={decision?.reason}>
+                            {decision?.allowed ? "Allow" : "Deny"}
+                          </span>
+                        );
+                      })}
+                    </article>
+                  ))}
+                </div>
+                <div className="policyRules">
+                  {permissionMatrix.policy.visibilityLevels.map((level) => (
+                    <p key={level.visibility}>
+                      <strong>{level.visibility}</strong>
+                      {level.rule}
+                    </p>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="empty">Load the matrix to verify public, team, and restricted document access across demo personas.</p>
+            )}
+          </section>
+
           <form onSubmit={submitMarkdown} className="indexPanel" id="index">
             <div className="sectionHeader compact">
               <div>
@@ -1140,6 +1220,10 @@ function formatDeniedVisibility(deniedByVisibility: Record<string, number>): str
   }
 
   return entries.map(([visibility, count]) => `${visibility}:${count}`).join(" ");
+}
+
+function formatPersonaLabel(matrix: PermissionBoundaryMatrix, personaId: string): string {
+  return matrix.policy.personas.find((persona) => persona.id === personaId)?.label ?? personaId;
 }
 
 function formatCountMap(values: Record<string, number>): string {

@@ -41,11 +41,18 @@ async function main() {
     await page.locator(".indexProof").getByText("Indexed doc is retrievable", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("Source hit", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "Load matrix" }).click();
+    await page.locator(".permissionMatrixPanel").getByText("Document access simulator", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".matrixTable").getByText("Production Database Access Policy", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".matrixTable").getByText("Allow", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".matrixTable").getByText("Deny", { exact: true }).first().waitFor({ timeout: 10000 });
     const inventoryVisible = await page.locator(".inventoryStats").getByText("Documents", { exact: true }).isVisible();
     const chunkPreviewVisible = await page.locator(".chunkInspector").getByText("publish the first status page notice", { exact: false }).isVisible();
     const securitySummaryVisible = await page.locator(".securityLine").getByText("redacted:", { exact: false }).isVisible();
     const indexProofVisible = await page.locator(".indexProof").getByText("Indexed doc is retrievable", { exact: true }).isVisible();
     const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("Source hit", { exact: true }).isVisible();
+    const permissionMatrixVisible = await page.locator(".permissionMatrixPanel").getByText("Document access simulator", { exact: true }).isVisible();
+    const permissionMatrixDenyVisible = await page.locator(".matrixTable").getByText("Deny", { exact: true }).first().isVisible();
 
     await page.getByRole("button", { name: /Retrieval/ }).click();
     await page.getByLabel("Query").fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
@@ -146,6 +153,8 @@ async function main() {
         securitySummaryVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
+        permissionMatrixVisible &&
+        permissionMatrixDenyVisible &&
         retrievalPreviewVisible &&
         retrievalScoreVisible &&
         retrievalBoundaryVisible &&
@@ -176,6 +185,8 @@ async function main() {
         securitySummaryVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
+        permissionMatrixVisible,
+        permissionMatrixDenyVisible,
         retrievalPreviewVisible,
         retrievalScoreVisible,
         retrievalBoundaryVisible,

@@ -319,6 +319,7 @@ h2 {
 .answerPanel,
 .indexPanel,
 .knowledgePanel,
+.permissionMatrixPanel,
 .retrievalPanel,
 .retrievalResults,
 .errorPanel {
@@ -925,6 +926,126 @@ pre {
   box-shadow: none;
 }
 
+.permissionMatrixPanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-top: 3px solid #7c3aed;
+  box-shadow: none;
+}
+
+.matrixSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.matrixSummary .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.matrixTable {
+  display: grid;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.matrixHeader,
+.matrixRow {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) repeat(4, minmax(86px, 0.28fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 820px;
+}
+
+.matrixHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.matrixRow {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.matrixRow:last-child {
+  border-bottom: 0;
+}
+
+.matrixRow strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrixRow p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrixRow > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.matrixRow > span.allow {
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  background: #e6f6f2;
+  color: var(--accent-strong);
+}
+
+.matrixRow > span.deny {
+  border: 1px solid rgba(155, 28, 43, 0.18);
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.policyRules {
+  display: grid;
+  gap: 8px;
+}
+
+.policyRules p {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.policyRules strong {
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
 .inventoryStats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1424,6 +1545,8 @@ pre {
   .fieldGrid,
   .quickGrid,
   .inventoryStats,
+  .matrixSummary,
+  .policyRules p,
   .proofGrid,
   .proofDetails,
   .inventoryGrid,

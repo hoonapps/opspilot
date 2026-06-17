@@ -1,9 +1,55 @@
 import { Injectable } from "@nestjs/common";
+import { MikroORM } from "@mikro-orm/core";
 import { DocumentVisibility } from "../database/entities/types";
 import { RequestContext } from "../shared/request-context";
 
+export type PermissionBoundaryMatrix = {
+  generatedAt: string;
+  policy: {
+    visibilityLevels: Array<{
+      visibility: DocumentVisibility;
+      rule: string;
+    }>;
+    personas: Array<PermissionPersona>;
+  };
+  documents: Array<{
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    decisions: Array<{
+      persona: string;
+      allowed: boolean;
+      reason: string;
+    }>;
+  }>;
+  summary: Array<{
+    persona: string;
+    allowed: number;
+    denied: number;
+  }>;
+};
+
+type PermissionPersona = {
+  id: string;
+  label: string;
+  roles: string[];
+  teamSlugs: string[];
+};
+
+type PermissionDocumentRow = {
+  id: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+};
+
 @Injectable()
 export class AuthzService {
+  constructor(private readonly orm: MikroORM) {}
+
   canAccessDocument(context: RequestContext, visibility: string, teamSlug?: string | null): boolean {
     if (visibility === DocumentVisibility.Public) {
       return true;
@@ -42,4 +88,103 @@ export class AuthzService {
   isSensitiveAction(question: string): boolean {
     return /(직접\s*(수정|변경|삭제|실행)|delete|update|drop|권한\s*부여|운영\s*db|production|prod\s*db|강제\s*환불)/i.test(question);
   }
+
+  async getPermissionBoundaryMatrix(limit = 100): Promise<PermissionBoundaryMatrix> {
+    const connection = this.orm.em.fork().getConnection();
+    const documents = (await connection.execute<PermissionDocumentRow[]>(
+      `
+        select
+          id,
+          path,
+          title,
+          visibility,
+          team_slug as "teamSlug"
+        from documents
+        order by
+          case visibility
+            when 'restricted' then 1
+            when 'team' then 2
+            else 3
+          end,
+          path asc
+        limit ?;
+      `,
+      [limit]
+    )) as PermissionDocumentRow[];
+
+    const personas = buildPermissionPersonas(documents);
+    const matrixDocuments = documents.map((document) => ({
+      id: document.id,
+      path: document.path,
+      title: document.title,
+      visibility: document.visibility,
+      teamSlug: document.teamSlug,
+      decisions: personas.map((persona) => {
+        const allowed = this.canAccessDocument(persona, document.visibility, document.teamSlug);
+        return {
+          persona: persona.id,
+          allowed,
+          reason: explainDocumentDecision(persona, document, allowed)
+        };
+      })
+    }));
+
+    return {
+      generatedAt: new Date().toISOString(),
+      policy: {
+        visibilityLevels: [
+          { visibility: DocumentVisibility.Public, rule: "Visible to every actor before prompt construction." },
+          { visibility: DocumentVisibility.Team, rule: "Visible only when actor.teamSlugs contains the document team slug." },
+          {
+            visibility: DocumentVisibility.Restricted,
+            rule: "Visible only to actors with ops_admin or security_admin role."
+          }
+        ],
+        personas
+      },
+      documents: matrixDocuments,
+      summary: personas.map((persona) => {
+        const decisions = matrixDocuments.flatMap((document) =>
+          document.decisions.filter((decision) => decision.persona === persona.id)
+        );
+        return {
+          persona: persona.id,
+          allowed: decisions.filter((decision) => decision.allowed).length,
+          denied: decisions.filter((decision) => !decision.allowed).length
+        };
+      })
+    };
+  }
+}
+
+function buildPermissionPersonas(documents: PermissionDocumentRow[]): PermissionPersona[] {
+  const teamSlugs = [...new Set(documents.map((document) => document.teamSlug).filter((teamSlug): teamSlug is string => Boolean(teamSlug)))];
+  const primaryTeamSlug = teamSlugs[0] ?? "payments";
+
+  return [
+    { id: "anonymous", label: "Anonymous", roles: [], teamSlugs: [] },
+    { id: `${primaryTeamSlug}_oncall`, label: `${primaryTeamSlug} on-call`, roles: ["support_agent"], teamSlugs: [primaryTeamSlug] },
+    { id: "ops_admin", label: "Ops admin", roles: ["ops_admin"], teamSlugs: [primaryTeamSlug] },
+    { id: "security_admin", label: "Security admin", roles: ["security_admin"], teamSlugs: [] }
+  ];
+}
+
+function explainDocumentDecision(persona: PermissionPersona, document: PermissionDocumentRow, allowed: boolean): string {
+  if (document.visibility === DocumentVisibility.Public) {
+    return "public document";
+  }
+
+  if (document.visibility === DocumentVisibility.Team) {
+    return allowed
+      ? `team match: ${document.teamSlug}`
+      : `team mismatch: requires ${document.teamSlug ?? "team"}, actor has ${persona.teamSlugs.join("|") || "none"}`;
+  }
+
+  if (document.visibility === DocumentVisibility.Restricted) {
+    return allowed
+      ? `privileged role: ${persona.roles.find((role) => role === "ops_admin" || role === "security_admin")}`
+      : "requires ops_admin or security_admin";
+  }
+
+  return "unknown visibility";
 }

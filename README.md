@@ -20,7 +20,7 @@ The screenshot above is generated from the working Next.js console by `pnpm web:
 - upsert a new Markdown document, inspect index inventory and chunk previews, and verify the indexed document through retrieval preview plus a grounded answer
 - preview retrieval ranking before answer generation with vector/lexical scores and permission-denied candidate counts
 - ask a sensitive operations question and force human approval
-- show permission audit counts, review reasons, answer trace, source grounding coverage, tool calls, feedback, and approval queue state
+- show permission audit counts, role/team boundary matrix, review reasons, answer trace, source grounding coverage, tool calls, feedback, and approval queue state
 
 Design and demo assets are tracked in [docs/design.md](docs/design.md).
 
@@ -30,6 +30,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 
 - Can the agent answer with traceable document sources?
 - Can restricted documents be excluded before prompt construction?
+- Can role/team policy decisions be simulated per document without asking the LLM?
 - Can sensitive operations be separated into human approval?
 - Can tool calls be audited after the answer is generated?
 - Can new or changed documents be re-indexed, retrieved as top evidence, and evaluated?
@@ -317,6 +318,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Markdown secret redaction before document version storage, chunk storage, embedding, and Elasticsearch indexing
 - Liveness and readiness endpoints for PostgreSQL, Redis, and optional Elasticsearch
 - Permission-aware retrieval filtering
+- Permission boundary matrix API for simulating document access across anonymous, team, ops admin, and security admin personas
 - Permission boundary audit counts for denied retrieval candidates
 - Per-answer document agreement score
 - Sensitive action detection
@@ -330,7 +332,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
 - Latest evaluation API and web quality gate panel
 - New document indexing smoke test
-- Next.js web console with separate Ask, Retrieval, Documents, Quality, Review, and Audit screens for asking questions, previewing retrieval ranking, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, verifying indexed documents through retrieval and answer agreement, reviewing index inventory and chunk previews, saving feedback, and resolving approval requests
+- Next.js web console with separate Ask, Retrieval, Documents, Quality, Review, and Audit screens for asking questions, previewing retrieval ranking, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, verifying indexed documents through retrieval and answer agreement, reviewing permission boundary matrix, index inventory, and chunk previews, saving feedback, and resolving approval requests
 - Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
 
 ## Implementation Status
@@ -354,6 +356,7 @@ Done:
 - Optional signed actor token authentication boundary
 - `/health` liveness and `/health/ready` dependency readiness checks
 - Permission-aware retrieval filtering
+- Permission boundary matrix endpoint and web simulator for public/team/restricted policy decisions
 - Permission boundary smoke test and web audit summary
 - Signed actor token smoke test for missing, tampered, expired, and valid tokens
 - Secret redaction smoke test proving raw tokens do not appear in stored chunks, document versions, answers, or answer trace previews
@@ -378,7 +381,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, index inventory, chunk preview, indexed-document proof, security summary, evaluation metrics, operational telemetry, answer-level document match, source grounding coverage, permission audit, answer trace timeline, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, chunk preview, indexed-document proof, security summary, evaluation metrics, operational telemetry, answer-level document match, source grounding coverage, permission audit, answer trace timeline, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
@@ -452,6 +455,14 @@ The queue path stores a BullMQ job in Redis. `pnpm worker:indexing` processes jo
 
 The web console also exposes a GitHub Markdown sync form for syncing repository docs into the same RAG index.
 The Documents screen's Markdown flow runs the same proof as the smoke test: upsert Markdown, refresh indexed chunks, call retrieval preview, call `/ask`, and show whether the new document became the top source with answer agreement and confidence.
+
+Permission boundary matrix endpoint:
+
+```txt
+GET /permission-boundary/matrix
+```
+
+This returns the current document list evaluated against demo personas such as anonymous, team on-call, ops admin, and security admin. The Documents screen renders it as an allow/deny matrix so reviewers can inspect role/team policy decisions without relying on an LLM answer.
 
 Details: [docs/indexing.md](docs/indexing.md)
 

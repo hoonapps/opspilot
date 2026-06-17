@@ -18,6 +18,7 @@ GET /docs-json
 
 - `POST /ask`
 - `POST /retrieval/preview`
+- `GET /permission-boundary/matrix`
 - `GET /documents`
 - `POST /documents/markdown`
 - `POST /documents/github/sync`
@@ -41,5 +42,7 @@ It also verifies request schemas for the main write paths and confirms the `x-op
 This keeps the public API contract from silently drifting while the RAG agent grows. A reviewer can inspect `/docs` for manual testing, while CI proves that key operations and DTO schemas still exist.
 
 `POST /retrieval/preview` is intentionally part of the public contract because the portfolio demo needs to prove retrieval behavior before answer generation. It returns ranked candidates, vector/lexical/fused score details, content previews, actor context, and aggregate permission audit while avoiding question persistence and raw embedding exposure.
+
+`GET /permission-boundary/matrix` is intentionally part of the public contract because the portfolio demo needs to prove access policy independently from answer generation. It evaluates indexed documents against demo personas using the same authorization function as retrieval.
 
 `GET /documents` is intentionally part of the public contract because the portfolio demo needs to prove indexing state, not just final answers. It exposes document inventory and chunk previews for verification while keeping raw embeddings internal.
