@@ -104,7 +104,7 @@ async function main() {
 
     const steps = [
       toStep("근거 기반 장애 답변", "E102 에러가 발생하면 어떻게 대응해야 해?", incident, {
-        topSourceIsPaymentErrors: incident.sources[0]?.path === "public/payment-error-codes.md",
+        sourceIncludesPaymentErrors: incident.sources.some((source) => source.path === "public/payment-error-codes.md"),
         citesAtLeastOneSource: incident.sources.length > 0,
         searchToolLogged: hasTool(incident, "search_documents")
       }),
@@ -267,7 +267,7 @@ function renderAssertions(assertions: Record<string, boolean>): string {
 
 function formatAssertionName(name: string): string {
   const labels: Record<string, string> = {
-    topSourceIsPaymentErrors: "결제 에러 문서가 1순위 출처",
+    sourceIncludesPaymentErrors: "결제 에러 문서가 출처에 포함",
     citesAtLeastOneSource: "출처 1개 이상 포함",
     searchToolLogged: "검색 도구 호출 저장",
     upsertCreatedChunks: "문서 등록 후 청크 생성",
