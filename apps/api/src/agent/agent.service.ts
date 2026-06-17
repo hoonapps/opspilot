@@ -75,6 +75,7 @@ export type RetrievalDiagnostics = {
   topScore: number;
   scoreGap: number;
   queryTerms: string[];
+  queryPlan: RetrievalQueryPlan;
   sourceDiversity: {
     uniqueDocumentCount: number;
     uniquePathCount: number;
@@ -88,6 +89,26 @@ export type RetrievalDiagnostics = {
     metric?: number;
     threshold?: number;
     message: string;
+  }>;
+};
+
+export type RetrievalQueryPlan = {
+  mode: "vector" | "hybrid";
+  scoreFormula: string;
+  candidateWindow: number;
+  thresholds: {
+    confidence: number;
+    topScore: number;
+    contextTokenBudget: number;
+    maxContextChunks: number;
+  };
+  stages: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    input: string;
+    output: string;
+    evidence: string;
   }>;
 };
 
@@ -447,6 +468,15 @@ function buildRetrievalDiagnostics(
     topScore,
     scoreGap,
     queryTerms: extractQueryTerms(question),
+    queryPlan: buildRetrievalQueryPlan({
+      question,
+      sources,
+      permissionAudit,
+      contextPackage,
+      checks,
+      confidenceThreshold,
+      topScoreThreshold
+    }),
     sourceDiversity: {
       uniqueDocumentCount,
       uniquePathCount,
@@ -455,6 +485,101 @@ function buildRetrievalDiagnostics(
     contextPackage,
     checks
   };
+}
+
+function buildRetrievalQueryPlan(input: {
+  question: string;
+  sources: SearchResult[];
+  permissionAudit: PermissionBoundaryAudit;
+  contextPackage: ContextPackage;
+  checks: RetrievalDiagnostics["checks"];
+  confidenceThreshold: number;
+  topScoreThreshold: number;
+}): RetrievalQueryPlan {
+  const mode: RetrievalQueryPlan["mode"] = input.sources.some((source) => source.retrieval.mode === "hybrid") ? "hybrid" : "vector";
+  const statusById = new Map(input.checks.map((check) => [check.id, check.status]));
+  const queryTerms = extractQueryTerms(input.question);
+  const includedPaths = input.contextPackage.chunks.filter((chunk) => chunk.included).map((chunk) => chunk.path);
+
+  return {
+    mode,
+    scoreFormula:
+      mode === "hybrid"
+        ? "reciprocal_rank_fusion(k=60) over pgvector and Elasticsearch, then PostgreSQL permission recheck"
+        : "score = vector_score * 0.45 + lexical_score * 0.55",
+    candidateWindow: input.permissionAudit.candidateWindow,
+    thresholds: {
+      confidence: input.confidenceThreshold,
+      topScore: input.topScoreThreshold,
+      contextTokenBudget: input.contextPackage.tokenBudget,
+      maxContextChunks: Number(process.env.CONTEXT_MAX_CHUNKS ?? 4)
+    },
+    stages: [
+      {
+        id: "normalize_query",
+        label: "질문 정규화",
+        status: queryTerms.length > 0 ? "pass" : "warn",
+        input: "사용자 질문",
+        output: queryTerms.length > 0 ? queryTerms.join(", ") : "검색어 없음",
+        evidence: `${queryTerms.length}개 검색어를 추출해 벡터/키워드 검색에 사용합니다.`
+      },
+      {
+        id: "candidate_generation",
+        label: "후보 생성",
+        status: statusById.get("candidate_presence") ?? "fail",
+        input: mode === "hybrid" ? "pgvector + Elasticsearch" : "PostgreSQL pgvector",
+        output: `허용 후보 ${input.sources.length}개`,
+        evidence: `상위 후보 점수 ${normalizeRetrievalScore(input.sources[0]).toFixed(3)} / 후보 창 ${input.permissionAudit.candidateWindow}개`
+      },
+      {
+        id: "permission_boundary",
+        label: "권한 경계",
+        status: statusById.get("permission_boundary") ?? "pass",
+        input: `${input.permissionAudit.actor.roles.join("|") || "역할 없음"} / ${input.permissionAudit.actor.teamSlugs.join("|") || "팀 없음"}`,
+        output: `허용 ${input.permissionAudit.allowedCandidateCount}개, 차단 ${input.permissionAudit.deniedCandidateCount}개`,
+        evidence: formatDeniedByVisibility(input.permissionAudit.deniedByVisibility)
+      },
+      {
+        id: "score_fusion",
+        label: "점수 결합",
+        status: statusById.get("top_score") ?? "warn",
+        input: mode === "hybrid" ? "벡터 순위와 키워드 순위" : "벡터 점수와 키워드 점수",
+        output: input.sources[0] ? `${input.sources[0].path} (${input.sources[0].score.toFixed(3)})` : "상위 후보 없음",
+        evidence: mode === "hybrid" ? "RRF 점수로 정렬 후 PostgreSQL에서 청크를 다시 로드합니다." : "가중 합산 점수로 후보를 정렬합니다."
+      },
+      {
+        id: "context_packaging",
+        label: "컨텍스트 패키징",
+        status: statusById.get("context_budget") ?? "pass",
+        input: `${input.sources.length}개 검색 후보`,
+        output: `포함 ${input.contextPackage.includedChunkCount}개 / ${input.contextPackage.estimatedTokenCount}토큰`,
+        evidence: includedPaths.length > 0 ? includedPaths.join(", ") : "포함된 청크 없음"
+      },
+      {
+        id: "review_decision",
+        label: "리뷰 판단",
+        status: statusById.get("confidence_estimate") ?? "warn",
+        input: `신뢰도 기준 ${input.confidenceThreshold}, 최고 점수 기준 ${input.topScoreThreshold}`,
+        output: input.checks.some((check) => check.status === "fail")
+          ? "근거 보강 필요"
+          : input.checks.some((check) => check.status === "warn")
+            ? "담당자 검토 권고"
+            : "자동 답변 가능",
+        evidence: input.checks
+          .filter((check) => check.status !== "pass")
+          .map((check) => check.label)
+          .join(", ") || "모든 검색 품질 체크 통과"
+      }
+    ]
+  };
+}
+
+function formatDeniedByVisibility(deniedByVisibility: Record<string, number>): string {
+  const entries = Object.entries(deniedByVisibility);
+  if (entries.length === 0) {
+    return "차단된 후보 없음";
+  }
+  return entries.map(([visibility, count]) => `${visibility}:${count}`).join(", ");
 }
 
 function thresholdStatus(value: number, threshold: number): "pass" | "warn" | "fail" {

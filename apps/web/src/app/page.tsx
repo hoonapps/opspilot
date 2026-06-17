@@ -1030,6 +1030,36 @@ export default function Home() {
                     <span>분리된 검색어 없음</span>
                   )}
                 </div>
+                <div className="queryPlanPanel" aria-label="검색 실행 계획">
+                  <div className="queryPlanHeader">
+                    <div>
+                      <span>검색 실행 계획</span>
+                      <strong>{formatRetrievalMode(retrievalPreview.diagnostics.queryPlan.mode)}</strong>
+                    </div>
+                    <code>{retrievalPreview.diagnostics.queryPlan.scoreFormula}</code>
+                  </div>
+                  <div className="queryPlanMeta">
+                    <Metric label="후보 창" value={String(retrievalPreview.diagnostics.queryPlan.candidateWindow)} />
+                    <Metric label="신뢰도 기준" value={formatPercent(retrievalPreview.diagnostics.queryPlan.thresholds.confidence)} />
+                    <Metric label="최고 점수 기준" value={formatPercent(retrievalPreview.diagnostics.queryPlan.thresholds.topScore)} />
+                    <Metric label="최대 청크" value={String(retrievalPreview.diagnostics.queryPlan.thresholds.maxContextChunks)} />
+                  </div>
+                  <div className="queryPlanStages">
+                    {retrievalPreview.diagnostics.queryPlan.stages.map((stage, index) => (
+                      <article className="queryPlanStage" key={stage.id}>
+                        <span className={`statusDot ${stage.status}`} />
+                        <div>
+                          <strong>
+                            {index + 1}. {stage.label}
+                          </strong>
+                          <p>{stage.input}</p>
+                        </div>
+                        <code>{stage.output}</code>
+                        <small>{stage.evidence}</small>
+                      </article>
+                    ))}
+                  </div>
+                </div>
                 <div className="diagnosticChecks">
                   {retrievalPreview.diagnostics.checks.map((check) => (
                     <article className="diagnosticCheck" key={check.id}>

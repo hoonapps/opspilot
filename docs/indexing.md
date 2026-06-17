@@ -36,4 +36,4 @@ pnpm github:smoke
 
 ## 청킹 확인 위치
 
-실제 chunk preview는 `GET /documents` 응답과 웹 콘솔 `문서` 화면에서 확인합니다. 검색 전 ranking은 `POST /retrieval/preview`와 웹 콘솔 `검색` 화면에서 확인합니다.
+실제 chunk preview는 `GET /documents` 응답과 웹 콘솔 `문서` 화면에서 확인합니다. 검색 전 ranking은 `POST /retrieval/preview`와 웹 콘솔 `검색` 화면에서 확인합니다. 이 응답은 검색 실행 계획도 함께 반환해 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 컨텍스트 패키징, 리뷰 판단 단계를 확인할 수 있습니다.

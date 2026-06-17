@@ -1815,6 +1815,98 @@ pre {
   color: #312e81;
 }
 
+.queryPlanPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.queryPlanHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  gap: 10px;
+  align-items: start;
+}
+
+.queryPlanHeader span {
+  display: block;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.queryPlanHeader strong {
+  display: block;
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.queryPlanHeader code {
+  white-space: normal;
+  color: #1e3a8a;
+  text-align: right;
+}
+
+.queryPlanMeta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.queryPlanMeta .metric {
+  min-height: 68px;
+  padding: 10px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.queryPlanStages {
+  display: grid;
+  gap: 8px;
+}
+
+.queryPlanStage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(120px, auto);
+  gap: 8px 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.queryPlanStage strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.queryPlanStage p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.queryPlanStage code {
+  max-width: 260px;
+  white-space: normal;
+  text-align: right;
+}
+
+.queryPlanStage small {
+  grid-column: 2 / -1;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .diagnosticChecks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2799,6 +2891,9 @@ pre {
   .inventoryGrid,
   .retrievalStats,
   .diagnosticStats,
+  .queryPlanHeader,
+  .queryPlanMeta,
+  .queryPlanStage,
   .diagnosticChecks,
   .scoreBars,
   .evalGrid,
@@ -2837,6 +2932,16 @@ pre {
   .timelineItem,
   .feedbackBar {
     grid-template-columns: 1fr;
+  }
+
+  .queryPlanHeader code,
+  .queryPlanStage code {
+    max-width: none;
+    text-align: left;
+  }
+
+  .queryPlanStage small {
+    grid-column: 1;
   }
 
   .workspace.documents .sidePanel,

@@ -185,6 +185,25 @@ export type RetrievalPreviewResponse = {
     topScore: number;
     scoreGap: number;
     queryTerms: string[];
+    queryPlan: {
+      mode: "vector" | "hybrid";
+      scoreFormula: string;
+      candidateWindow: number;
+      thresholds: {
+        confidence: number;
+        topScore: number;
+        contextTokenBudget: number;
+        maxContextChunks: number;
+      };
+      stages: Array<{
+        id: string;
+        label: string;
+        status: "pass" | "warn" | "fail";
+        input: string;
+        output: string;
+        evidence: string;
+      }>;
+    };
     sourceDiversity: {
       uniqueDocumentCount: number;
       uniquePathCount: number;
