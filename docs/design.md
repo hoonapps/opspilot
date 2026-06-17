@@ -5,7 +5,7 @@ OpsPilot keeps its product proof close to the code. The checked-in design artifa
 ## Assets
 
 - `docs/assets/opspilot-dashboard.svg`: editable SVG product board showing the target operating model for a permission-aware RAG agent console.
-- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, retrieval lab, evidence panel, answer proof packet, operations telemetry, quality gates, approval queue, Slack thread reply proof, audit feed, and a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection.
+- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current Korean console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, retrieval lab, evidence panel, answer proof packet, operations telemetry, quality gates, approval queue, Slack thread reply proof, audit feed, a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection, plus a Usage screen for the local demo flow.
 
 The PNG is refreshed by `pnpm web:smoke` after the API and web console are running. This makes the README image a runtime artifact, not a static marketing mockup.
 
@@ -21,7 +21,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Show the agent tool registry beside runtime tool logs so side effects and approval policy are visible before inspecting individual executions.
 - Show Slack simulation trace in Audit so actor mapping, sources, tool calls, and thread reply metadata are visible without live Slack credentials.
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
-- Split the console into Ask, Retrieval, Documents, Quality, Review, and Audit screens so retrieval debugging and document management are first-class workflows.
+- Split the console into Korean Ask, Retrieval, Documents, Quality, Review, Audit, and Usage screens so retrieval debugging, document management, and onboarding are first-class workflows.
 - Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
 - Show a release gate in the Quality screen so readiness, eval, SLO, audit, approval backlog, and feedback evidence collapse into one operator decision.
 - Render SLO guardrails in the Quality screen so answer grounding, review load, tool audit coverage, and eval gate state are visible as operating objectives.
@@ -34,19 +34,20 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 ## Portfolio Demo Path
 
 1. Run the local stack and ingest seed documents.
-2. Open the Quality screen and load release gate, telemetry, SLO guardrails, and the latest evaluation report, then inspect regression history and the case explorer for expected and actual sources.
-3. Open the Documents screen and upsert the sample status-page Markdown document.
-4. Verify that the inventory count, selected document, content hash, version diff, redaction summary, and generated chunk previews update before asking a question.
-5. Update the Markdown sample again and verify the version diff shows the added line.
-6. Load the permission boundary matrix and verify public/team/restricted allow-deny behavior across personas.
-7. Open the Retrieval screen and preview ranking for the status-page and production DB questions.
-8. Verify vector/lexical score bars, ranked chunks, and denied restricted candidates.
-9. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
-10. Ask the production DB write question and verify human approval is required and the proof packet shows the approval boundary.
-11. Open the Review screen and inspect the approval queue.
-12. Open the Audit screen, run the Slack simulator, and inspect the dry-run thread reply trace.
-13. Inspect the tool registry plus persisted tool-call trail.
-14. Save feedback and refresh the answer trace timeline, proof packet, and source grounding coverage.
+2. Open the Usage screen and follow the local demo order for infrastructure, seed indexing, document upsert, asking, quality gates, and portfolio reports.
+3. Open the Quality screen and load release gate, telemetry, SLO guardrails, and the latest evaluation report, then inspect regression history and the case explorer for expected and actual sources.
+4. Open the Documents screen and upsert the sample status-page Markdown document.
+5. Verify that the inventory count, selected document, content hash, version diff, redaction summary, and generated chunk previews update before asking a question.
+6. Update the Markdown sample again and verify the version diff shows the added line.
+7. Load the permission boundary matrix and verify public/team/restricted allow-deny behavior across personas.
+8. Open the Retrieval screen and preview ranking for the status-page and production DB questions.
+9. Verify vector/lexical score bars, ranked chunks, and denied restricted candidates.
+10. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
+11. Ask the production DB write question and verify human approval is required and the proof packet shows the approval boundary.
+12. Open the Review screen and inspect the approval queue.
+13. Open the Audit screen, run the Slack simulator, and inspect the dry-run thread reply trace.
+14. Inspect the tool registry plus persisted tool-call trail.
+15. Save feedback and refresh the answer trace timeline, proof packet, and source grounding coverage.
 
 This is the same path covered by the Playwright web smoke test.
 

@@ -293,7 +293,8 @@ h2 {
 .workspace.retrieval,
 .workspace.quality,
 .workspace.review,
-.workspace.audit {
+.workspace.audit,
+.workspace.help {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -314,6 +315,10 @@ h2 {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.workspace.help .sidePanel {
+  display: none;
+}
+
 .queryPanel,
 .sidePanel,
 .answerPanel,
@@ -322,6 +327,7 @@ h2 {
 .permissionMatrixPanel,
 .retrievalPanel,
 .retrievalResults,
+.usagePanel,
 .errorPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -337,6 +343,81 @@ h2 {
 .sidePanel {
   display: grid;
   gap: 14px;
+}
+
+.usagePanel {
+  padding: 20px;
+}
+
+.usageGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.usageGrid article {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 190px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.usageGrid article > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #061b31;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.usageGrid strong,
+.usageChecklist strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.usageGrid p,
+.usageChecklist p {
+  margin: 7px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.usageGrid code {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #273951;
+  padding: 7px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.usageChecklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.usageChecklist > div {
+  padding: 16px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f2fbf8;
 }
 
 .sectionHeader {
@@ -2286,6 +2367,8 @@ pre {
   .opsGrid,
   .releaseGateList,
   .releaseGateItem,
+  .usageGrid,
+  .usageChecklist,
   .sloList,
   .sloItem,
   .toolRegistryItem,
@@ -2331,7 +2414,8 @@ pre {
   }
 
   .queryPanel,
-  .sidePanel {
+  .sidePanel,
+  .usagePanel {
     padding: 14px;
   }
 
