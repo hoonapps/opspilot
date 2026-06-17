@@ -128,9 +128,9 @@ async function main() {
     await page.locator(".contextPanel").getByText("Context budget", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextPanel").getByText("ranked_context_budget_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("Proof packet", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".proofPanel").getByText("checks passed", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("Source access rechecked", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("Approval boundary", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".proofPanel").getByText("review_required", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("Question persisted", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("Answer generated", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
@@ -142,8 +142,9 @@ async function main() {
     const contextPackageVisible = await page.locator(".contextPanel").getByText("Context budget", { exact: true }).isVisible();
     const proofPacketVisible =
       (await page.locator(".proofPanel").getByText("Proof packet", { exact: true }).isVisible()) &&
+      (await page.locator(".proofPanel").getByText("checks passed", { exact: false }).isVisible()) &&
       (await page.locator(".proofPanel").getByText("Approval boundary", { exact: true }).isVisible()) &&
-      (await page.locator(".proofPanel").getByText("review_required", { exact: true }).isVisible());
+      (await page.locator(".proofPanel").getByText("Feedback captured", { exact: true }).isVisible());
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
