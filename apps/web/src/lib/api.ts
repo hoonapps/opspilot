@@ -762,6 +762,84 @@ export type AnswerEvidenceBundle = {
   };
 };
 
+export type QuestionAuditBundle = {
+  schemaVersion: "opspilot.question_audit_bundle.v1";
+  questionId: string;
+  generatedAt: string;
+  actorBoundary: {
+    roles: string[];
+    teamSlugs: string[];
+    sourceAccessRechecked: true;
+  };
+  question: {
+    id: string;
+    text: string;
+    channel: string | null;
+    actor: Record<string, unknown>;
+    createdAt: string;
+  };
+  summary: {
+    status: "verified" | "review_required" | "policy_violation" | "insufficient_evidence";
+    answerCount: number;
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    pendingApprovalCount: number;
+    feedbackCount: number;
+    policyCheckCount: number;
+    passedPolicyCheckCount: number;
+    needsHumanReview: boolean;
+    documentAgreementAverage: number;
+    deniedCandidateCount: number;
+  };
+  policyChecks: Array<{
+    toolCallId: string;
+    toolName: string;
+    category: string;
+    sideEffect: string;
+    approvalPolicy: string;
+    expectedStatus: string;
+    actualStatus: string;
+    status: "pass" | "fail";
+    evidence: string;
+  }>;
+  evidence: {
+    sources: Array<{
+      answerId: string | null;
+      rank: number;
+      score: number;
+      documentId: string | null;
+      chunkId: string | null;
+      title: string;
+      path: string;
+      visibility: string;
+      teamSlug: string | null;
+      contentPreview: string | null;
+    }>;
+    toolCalls: Array<{
+      id: string;
+      toolName: string;
+      status: string;
+      input: Record<string, unknown>;
+      output: Record<string, unknown>;
+      createdAt: string;
+    }>;
+  };
+  decisionPath: Array<{
+    order: number;
+    kind: "question" | "answer" | "source" | "tool" | "approval" | "feedback" | "policy";
+    title: string;
+    status: string;
+    at: string;
+    detail: Record<string, unknown>;
+  }>;
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+};
+
 export type ObservabilitySummary = {
   generatedAt: string;
   questions: {
@@ -1280,4 +1358,24 @@ export async function getAnswerEvidenceBundle(input: {
   }
 
   return response.json() as Promise<AnswerEvidenceBundle>;
+}
+
+export async function getQuestionAuditBundle(input: {
+  questionId: string;
+  teamSlugs: string;
+  roles: string;
+}): Promise<QuestionAuditBundle> {
+  const response = await fetch(`${API_BASE_URL}/questions/${input.questionId}/audit-bundle`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<QuestionAuditBundle>;
 }

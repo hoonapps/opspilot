@@ -185,14 +185,19 @@ async function main() {
     await page.locator(".incidentComms").getByText("#payments-oncall", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".incidentVerify").getByText("settlement.dlq.count", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".incidentAudit").getByText("create_incident_response_plan", { exact: false }).waitFor({ timeout: 10000 });
-    await page.locator(".incidentPlanPanel").scrollIntoViewIfNeeded();
+    await page.locator(".questionAuditBundle").getByText("질문 단위 실행 증거", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".questionAuditBundle").getByText("create_incident_response_plan", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".questionAuditBundle").getByText("정책", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".questionAuditBundle").scrollIntoViewIfNeeded();
     await page.screenshot({ path: incidentPlanScreenshotPath, fullPage: false });
     const incidentPlanVisible =
       (await page.locator(".incidentSummary").getByText("SEV1", { exact: true }).isVisible()) &&
       (await page.locator(".incidentPlanGrid").getByText("완화 조치", { exact: true }).isVisible()) &&
       (await page.locator(".incidentGate").getByText("사람 승인 필요", { exact: true }).first().isVisible()) &&
       (await page.locator(".incidentComms").getByText("#payments-oncall", { exact: true }).isVisible()) &&
-      (await page.locator(".incidentAudit").getByText("create_incident_response_plan", { exact: false }).isVisible());
+      (await page.locator(".incidentAudit").getByText("create_incident_response_plan", { exact: false }).isVisible()) &&
+      (await page.locator(".questionAuditBundle").getByText("create_incident_response_plan", { exact: false }).first().isVisible()) &&
+      (await page.locator(".questionAuditBundle").getByText("출처 계보", { exact: true }).isVisible());
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
     await page

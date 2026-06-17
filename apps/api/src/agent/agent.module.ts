@@ -9,6 +9,8 @@ import { AskIdempotencyService } from "./ask-idempotency.service";
 import { ElasticsearchService } from "./elasticsearch.service";
 import { EmbeddingService } from "./embedding.service";
 import { IncidentResponsePlanService } from "./incident-response-plan.service";
+import { QuestionAuditBundleController } from "./question-audit-bundle.controller";
+import { QuestionAuditBundleService } from "./question-audit-bundle.service";
 import { RateLimitService } from "./rate-limit.service";
 import { RunbookChecklistService } from "./runbook-checklist.service";
 import { SearchService } from "./search.service";
@@ -17,7 +19,7 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
 
 @Module({
   imports: [AuthzModule],
-  controllers: [AgentController, AnswerTraceController, ToolCallAuditController],
+  controllers: [AgentController, AnswerTraceController, ToolCallAuditController, QuestionAuditBundleController],
   providers: [
     AgentService,
     AnswerTraceService,
@@ -26,6 +28,7 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
     EmbeddingService,
     ElasticsearchService,
     IncidentResponsePlanService,
+    QuestionAuditBundleService,
     RateLimitService,
     SearchService,
     RunbookChecklistService,
@@ -35,6 +38,7 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
     EmbeddingService,
     ElasticsearchService,
     IncidentResponsePlanService,
+    QuestionAuditBundleService,
     RateLimitService,
     SearchService,
     AgentService,

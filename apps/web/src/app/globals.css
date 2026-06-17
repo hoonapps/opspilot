@@ -1503,6 +1503,133 @@ pre {
   gap: 8px;
 }
 
+.questionAuditBundle {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.questionAuditBundle button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.questionAuditBundle button:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.questionAuditSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.questionAuditSummary div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.questionAuditSummary span,
+.questionAuditColumn > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.questionAuditSummary strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.questionAuditGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.questionAuditColumn {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.questionAuditItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.questionAuditItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.questionAuditItem p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.questionAuditItem code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.questionAuditItem code.ok {
+  border-color: rgba(26, 127, 55, 0.2);
+  background: #effaf3;
+  color: #1a7f37;
+}
+
+.questionAuditItem code.warn {
+  border-color: rgba(154, 75, 19, 0.2);
+  background: #fff7ed;
+  color: #9a4b13;
+}
+
+.questionAuditTimeline {
+  display: grid;
+  gap: 8px;
+}
+
 .indexPanel {
   display: grid;
   gap: 12px;
@@ -3345,6 +3472,9 @@ pre {
   .incidentStep,
   .incidentOpsGrid,
   .incidentAudit,
+  .questionAuditSummary,
+  .questionAuditGrid,
+  .questionAuditItem,
   .qualityHead,
   .qualitySummary,
   .qualityGateList,

@@ -81,7 +81,7 @@ const checklist = [
   },
   {
     title: "도구 호출은 어떻게 증명하나?",
-    body: "감사 화면에서 search_documents, create_runbook_checklist, create_incident_response_plan, request_human_approval 호출 이력과 상태를 확인하고, 증거 번들에서 같은 내용을 다시 검증합니다."
+    body: "감사 화면에서 도구 레지스트리를 확인하고, 대응 화면의 감사 번들에서 search_documents, create_runbook_checklist, create_incident_response_plan의 정책 통과 여부와 출처 계보를 다시 검증합니다."
   }
 ];
 

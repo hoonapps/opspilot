@@ -32,6 +32,7 @@ import {
   getObservabilitySlo,
   getObservabilitySummary,
   getPermissionBoundaryMatrix,
+  getQuestionAuditBundle,
   GithubSyncResponse,
   IngestResponse,
   IndexingJobStatus,
@@ -46,6 +47,7 @@ import {
   ObservabilitySloReport,
   ObservabilitySummary,
   PermissionBoundaryMatrix,
+  QuestionAuditBundle,
   previewRetrieval,
   RetrievalPreviewResponse,
   simulateSlackMention,
@@ -178,6 +180,7 @@ export default function Home() {
     "정산 배치가 30분 이상 지연되고 settlement.dlq.count가 120이면 어떻게 대응해야 해?"
   );
   const [incidentPlan, setIncidentPlan] = useState<IncidentResponsePlan | null>(null);
+  const [questionAuditBundle, setQuestionAuditBundle] = useState<QuestionAuditBundle | null>(null);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
@@ -208,6 +211,7 @@ export default function Home() {
     | "observability"
     | "feedback"
     | "trace"
+    | "question-audit"
     | "tools"
     | "slack"
     | null
@@ -271,9 +275,18 @@ export default function Home() {
   async function submitIncidentPlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setQuestionAuditBundle(null);
     setLoading("incident");
     try {
-      setIncidentPlan(await createIncidentPlan({ incident: incidentDescription, teamSlugs, roles, limit: 5 }));
+      const plan = await createIncidentPlan({ incident: incidentDescription, teamSlugs, roles, limit: 5 });
+      setIncidentPlan(plan);
+      try {
+        setQuestionAuditBundle(
+          await getQuestionAuditBundle({ questionId: plan.audit.persistedQuestionId, teamSlugs, roles })
+        );
+      } catch (auditError) {
+        setError(auditError instanceof Error ? `플랜은 생성됐지만 감사 번들 조회에 실패했습니다: ${auditError.message}` : "플랜은 생성됐지만 감사 번들 조회에 실패했습니다.");
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "장애 대응 플랜 생성에 실패했습니다.");
     } finally {
@@ -576,6 +589,22 @@ export default function Home() {
       setEvidenceBundle(nextEvidenceBundle);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "답변 추적 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadQuestionAuditBundle(questionId = incidentPlan?.audit.persistedQuestionId) {
+    if (!questionId) {
+      return;
+    }
+
+    setError(null);
+    setLoading("question-audit");
+    try {
+      setQuestionAuditBundle(await getQuestionAuditBundle({ questionId, teamSlugs, roles }));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "질문 감사 번들 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1111,6 +1140,84 @@ export default function Home() {
                     <p>{incidentPlan.sources.length}개 근거</p>
                   </div>
                 </div>
+
+                <section className="questionAuditBundle" aria-label="질문 감사 번들">
+                  <div className="sectionHeader compact">
+                    <div>
+                      <p className="eyebrow">감사 번들</p>
+                      <h2>질문 단위 실행 증거</h2>
+                    </div>
+                    <button disabled={loading === "question-audit"} onClick={() => loadQuestionAuditBundle()} type="button">
+                      {loading === "question-audit" ? "검증 중..." : "감사 번들 재검증"}
+                    </button>
+                  </div>
+                  {questionAuditBundle ? (
+                    <>
+                      <div className="questionAuditSummary">
+                        <div>
+                          <span>판정</span>
+                          <strong>{formatQuestionAuditStatus(questionAuditBundle.summary.status)}</strong>
+                        </div>
+                        <div>
+                          <span>정책</span>
+                          <strong>
+                            {questionAuditBundle.summary.passedPolicyCheckCount}/{questionAuditBundle.summary.policyCheckCount}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>출처</span>
+                          <strong>{questionAuditBundle.summary.sourceCount}개</strong>
+                        </div>
+                        <div>
+                          <span>무결성</span>
+                          <strong>{shortHash(questionAuditBundle.integrity.hash)}</strong>
+                        </div>
+                      </div>
+                      <div className="questionAuditGrid">
+                        <div className="questionAuditColumn">
+                          <span>도구 정책 검사</span>
+                          {questionAuditBundle.policyChecks.map((check) => (
+                            <article className="questionAuditItem" key={check.toolCallId}>
+                              <div>
+                                <strong>{check.toolName}</strong>
+                                <p>
+                                  기대 {formatRuntimeStatus(check.expectedStatus)} · 실제 {formatRuntimeStatus(check.actualStatus)}
+                                </p>
+                              </div>
+                              <code className={check.status === "pass" ? "ok" : "warn"}>{formatGateStatus(check.status)}</code>
+                            </article>
+                          ))}
+                        </div>
+                        <div className="questionAuditColumn">
+                          <span>출처 계보</span>
+                          {questionAuditBundle.evidence.sources.slice(0, 4).map((source, index) => (
+                            <article className="questionAuditItem" key={`${source.path}-${index}`}>
+                              <div>
+                                <strong>{source.title}</strong>
+                                <p>{source.path}</p>
+                              </div>
+                              <code>{formatDocumentVisibility(source.visibility)}</code>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="questionAuditTimeline">
+                        {questionAuditBundle.decisionPath.slice(0, 6).map((event) => (
+                          <article className="timelineItem" key={`${event.order}-${event.kind}-${event.title}`}>
+                            <span>{formatQuestionAuditKind(event.kind)}</span>
+                            <div>
+                              <strong>{event.title}</strong>
+                              <p>{formatDateTime(event.at)}</p>
+                            </div>
+                            <code>{formatRuntimeStatus(event.status)}</code>
+                          </article>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="empty">플랜 생성 후 저장된 질문 ID로 도구 호출, 권한 재검사, 출처 계보, 무결성 해시를 묶어 표시합니다.</p>
+                  )}
+                </section>
               </div>
             ) : (
               <p className="empty">장애 상황을 입력하면 근거 문서 기반 대응 단계, 승인 경계, 커뮤니케이션, 복구 검증 조건이 생성됩니다.</p>
@@ -2224,6 +2331,16 @@ function formatShortDate(value: string): string {
   }).format(new Date(value));
 }
 
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
 function shortId(value: string): string {
   return value.slice(0, 8);
 }
@@ -2429,6 +2546,29 @@ function formatReplayStatus(status: string): string {
   return labels[status] ?? status;
 }
 
+function formatQuestionAuditStatus(status: string): string {
+  const labels: Record<string, string> = {
+    verified: "검증됨",
+    review_required: "검토 필요",
+    policy_violation: "정책 위반",
+    insufficient_evidence: "근거 부족"
+  };
+  return labels[status] ?? status;
+}
+
+function formatQuestionAuditKind(kind: string): string {
+  const labels: Record<string, string> = {
+    question: "질문",
+    answer: "답변",
+    source: "출처",
+    tool: "도구",
+    approval: "승인",
+    feedback: "피드백",
+    policy: "정책"
+  };
+  return labels[kind] ?? kind;
+}
+
 function formatRuntimeStatus(status: string): string {
   const labels: Record<string, string> = {
     allowed: "허용",
@@ -2511,6 +2651,10 @@ function formatVisibility(visibility: string): string {
     restricted: "제한"
   };
   return labels[visibility] ?? visibility;
+}
+
+function formatDocumentVisibility(visibility: string): string {
+  return formatVisibility(visibility);
 }
 
 function formatPermissionEnforcement(enforcement: string): string {

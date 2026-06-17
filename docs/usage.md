@@ -164,11 +164,13 @@ pnpm index-quality:smoke
 - `#payments-oncall` 같은 알림 채널
 - 복구 검증 조건
 - `search_documents`, `create_runbook_checklist`, `create_incident_response_plan` 도구 호출 감사
+- 질문 단위 감사 번들의 정책 검사, 출처 계보, 권한 재검사, SHA-256 해시
 
 CLI 검증:
 
 ```bash
 pnpm incident-plan:smoke
+pnpm question-audit:smoke
 ```
 
 ## 8. 권한 경계 확인
@@ -243,11 +245,14 @@ pnpm agreement:smoke
 pnpm trace:smoke
 pnpm replay:smoke
 pnpm evidence-bundle:smoke
+pnpm question-audit:smoke
 ```
 
 `pnpm eval`은 출처 적중, 1순위 출처 정확도, 사람 검토 정확도, 문서 일치율, 인용 정확도를 기준값과 비교합니다.
 
 웹 콘솔 `질문` 화면에서는 근거 커버리지에 출처별 근거 스니펫이 표시되고, 증명 패킷 아래에 `증거 번들`이 표시됩니다. 이 영역은 추적, 증명, 재실행 결과를 한 번에 묶은 감사용 결과이며, `opspilot.answer_evidence_bundle.v1` 스키마와 `sha256` 해시를 함께 보여줍니다. 민감 작업 질문을 실행하면 출처 수, 도구 호출 수, 승인 수, 피드백 수, 권한 경계 재검사 결과까지 같이 확인할 수 있습니다.
+
+웹 콘솔 `대응` 화면에서는 장애 대응 플랜 아래 `감사 번들`이 표시됩니다. 이 영역은 저장된 질문 ID를 기준으로 `opspilot.question_audit_bundle.v1`을 조회해 답변 row가 없는 workflow도 감사합니다. `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`의 기대 상태와 실제 상태가 일치하는지, 출처 계보가 어떤 문서로 이어지는지, 현재 호출자 권한으로 출처 접근이 다시 확인됐는지, 번들 해시가 무엇인지 확인할 수 있습니다.
 
 ## 11. Slack 봇 로컬 검증
 

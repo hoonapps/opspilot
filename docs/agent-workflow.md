@@ -64,8 +64,11 @@ POST /incidents/plan
 - `GET /answers/:id/proof`: trace를 운영자용 pass/warn/fail checklist로 요약합니다.
 - `GET /answers/:id/replay`: 현재 문서 기준으로 이전 답변의 source drift를 확인합니다.
 - `GET /answers/:id/evidence-bundle`: trace, proof, replay를 하나로 묶고 actor 권한 재검사와 SHA-256 무결성 해시를 함께 반환합니다.
+- `GET /questions/:id/audit-bundle`: 답변 row가 없는 incident workflow까지 질문 기준으로 묶어 tool calling 정책 검사, 출처 계보, 승인/피드백, actor 권한 재검사, SHA-256 무결성 해시를 반환합니다.
 
 면접 데모에서는 민감 작업 질문을 한 뒤 evidence bundle을 보여주면 좋습니다. 한 응답 안에서 “어떤 문서가 근거였는지”, “출처 문서의 어떤 문장이 답변 토큰을 지지하는지”, “어떤 tool이 호출됐는지”, “사람 승인이 왜 필요했는지”, “현재 문서와 여전히 일치하는지”, “호출자가 같은 출처를 볼 권한이 있는지”를 모두 설명할 수 있습니다.
+
+장애 대응 데모에서는 incident plan 아래의 질문 감사 번들을 보여주면 좋습니다. `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`이 레지스트리 정책대로 호출됐는지, 자동 허용 tool과 사람 승인 필요 tool의 경계가 어떻게 다른지, 검색 tool output이 어떤 문서 출처로 이어지는지 설명할 수 있습니다.
 
 ## Guardrail
 

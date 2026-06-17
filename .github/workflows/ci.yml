@@ -155,6 +155,9 @@ jobs:
       - name: Answer evidence bundle smoke
         run: pnpm evidence-bundle:smoke
 
+      - name: Question audit bundle smoke
+        run: pnpm question-audit:smoke
+
       - name: Answer replay drift smoke
         run: pnpm replay:smoke
 

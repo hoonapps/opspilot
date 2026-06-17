@@ -29,6 +29,7 @@ GET /docs-json
 - `GET /answers/{id}/proof`: 답변 증명 패킷
 - `GET /answers/{id}/replay`: 현재 문서 기준 답변 변경 감지
 - `GET /answers/{id}/evidence-bundle`: 추적, 증명, 재실행, 권한 재검사, SHA-256 무결성 해시를 묶은 감사용 증거 번들
+- `GET /questions/{id}/audit-bundle`: 질문 기준 출처 계보, tool calling 정책 검사, 승인/피드백, 권한 재검사, SHA-256 해시를 묶은 감사 번들
 - `GET /tool-calls/registry`: 에이전트 도구 계약 확인
 - `GET /tool-calls/recent`: 최근 도구 호출 감사 로그
 - `GET /approvals`: 승인 대기열
@@ -102,7 +103,10 @@ POST /incidents/plan
 
 ```bash
 pnpm incident-plan:smoke
+pnpm question-audit:smoke
 ```
+
+장애 대응 플랜은 일반 답변 row를 만들지 않지만, `audit.persistedQuestionId`로 `GET /questions/{id}/audit-bundle`을 호출하면 같은 실행을 질문 단위로 검증할 수 있습니다. 응답은 `opspilot.question_audit_bundle.v1` 스키마를 사용하며, 도구 레지스트리 기준 기대 상태와 실제 tool call 상태가 일치하는지, 호출자 권한으로 출처 접근을 다시 확인했는지, 어떤 문서 경로가 근거로 쓰였는지, 번들 무결성 해시가 무엇인지 반환합니다.
 
 ## `/ask` 멱등성
 
@@ -140,4 +144,25 @@ GET /answers/{id}/evidence-bundle
 
 ```bash
 pnpm evidence-bundle:smoke
+```
+
+## 질문 감사 번들
+
+```txt
+GET /questions/{id}/audit-bundle
+```
+
+응답은 답변이 생성된 `/ask` 질문뿐 아니라 `POST /incidents/plan`처럼 구조화된 workflow만 만든 질문도 감사할 수 있게 설계했습니다.
+
+- `summary.status`: 검증됨, 검토 필요, 정책 위반, 근거 부족
+- `policyChecks`: `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`, `request_human_approval`의 기대 상태와 실제 상태 비교
+- `evidence.sources`: answer source 또는 search tool output에서 복원한 출처 계보
+- `decisionPath`: 질문 저장, 도구 호출, 답변/출처/승인/피드백, 정책 검사 타임라인
+- `actorBoundary`: 현재 호출자의 역할/팀과 출처 접근 재검사 여부
+- `integrity.hash`: 안정 JSON 기반 SHA-256 해시
+
+검증:
+
+```bash
+pnpm question-audit:smoke
 ```
