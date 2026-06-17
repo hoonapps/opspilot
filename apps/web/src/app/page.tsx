@@ -20,6 +20,7 @@ import {
   DocumentIndexExplainReport,
   DocumentInventoryItem,
   DocumentIndexQualityReport,
+  DocumentIndexSnapshotReport,
   DocumentRevalidationQueueReport,
   DocumentRevalidationRunHistoryReport,
   DocumentRevalidationRunReport,
@@ -39,6 +40,7 @@ import {
   getAnswerTrace,
   getDocumentImpact,
   getDocumentIndexExplain,
+  getDocumentIndexSnapshot,
   getDocumentRevalidationQueue,
   getDocumentRevalidationRuns,
   getDocumentVersionHistory,
@@ -240,6 +242,7 @@ export default function Home() {
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
   const [indexQuality, setIndexQuality] = useState<DocumentIndexQualityReport | null>(null);
+  const [indexSnapshot, setIndexSnapshot] = useState<DocumentIndexSnapshotReport | null>(null);
   const [queueHealth, setQueueHealth] = useState<IndexingQueueHealth | null>(null);
   const [queuedIndexingJob, setQueuedIndexingJob] = useState<IndexingJobStatus | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
@@ -268,6 +271,7 @@ export default function Home() {
     | "queue"
     | "versions"
     | "index-explain"
+    | "index-snapshot"
     | "impact"
     | "revalidation"
     | "revalidation-history"
@@ -508,6 +512,7 @@ export default function Home() {
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
       setIndexQuality(await getDocumentIndexQuality());
+      setIndexSnapshot(await getDocumentIndexSnapshot());
       const indexedDocument = nextDocuments.find((document) => document.path === nextIngest.path) ?? nextDocuments[0] ?? null;
       setSelectedDocumentId(indexedDocument?.id ?? null);
       if (indexedDocument) {
@@ -572,6 +577,7 @@ export default function Home() {
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
       setIndexQuality(await getDocumentIndexQuality());
+      setIndexSnapshot(await getDocumentIndexSnapshot());
       setSelectedDocumentId(
         nextDocuments.find((document) => document.path.startsWith(result.source))?.id ?? nextDocuments[0]?.id ?? null
       );
@@ -615,6 +621,7 @@ export default function Home() {
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
       setIndexQuality(await getDocumentIndexQuality());
+      setIndexSnapshot(await getDocumentIndexSnapshot());
       setDocumentRevalidationQueue(await getDocumentRevalidationQueue());
       setDocumentRevalidationRuns(await getDocumentRevalidationRuns());
       setSelectedDocumentId((currentId) =>
@@ -634,6 +641,18 @@ export default function Home() {
       setIndexQuality(await getDocumentIndexQuality());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "색인 품질 리포트 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadIndexSnapshot() {
+    setError(null);
+    setLoading("index-snapshot");
+    try {
+      setIndexSnapshot(await getDocumentIndexSnapshot());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "색인 스냅샷 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -2702,6 +2721,77 @@ export default function Home() {
 	              <Metric label="주입 격리" value={String(documentStats.promptRisks)} />
             </div>
 
+            <section className="indexSnapshotPanel" aria-label="색인 스냅샷">
+              <div className="qualityHead">
+                <div>
+                  <p className="eyebrow">스냅샷</p>
+                  <h2>지식 베이스 스냅샷</h2>
+                </div>
+                {indexSnapshot ? (
+                  <span className={indexSnapshot.status === "ready" ? "badge" : "badge review"}>
+                    {formatIndexSnapshotStatus(indexSnapshot.status)}
+                  </span>
+                ) : null}
+                <button className="smallButton" disabled={loading === "index-snapshot"} onClick={loadIndexSnapshot} type="button">
+                  {loading === "index-snapshot" ? "생성 중..." : "스냅샷 생성"}
+                </button>
+              </div>
+
+              {indexSnapshot ? (
+                <>
+                  <div className="indexSnapshotSummary">
+                    <Metric label="스냅샷 해시" value={shortHash(indexSnapshot.snapshotHash)} />
+                    <Metric label="임베딩" value={formatPercent(indexSnapshot.summary.embeddingCoverageRatio)} />
+                    <Metric label="버전 문서" value={`${indexSnapshot.summary.versionedDocuments}/${indexSnapshot.summary.totalDocuments}`} />
+                    <Metric label="품질 점수" value={formatPercent(indexSnapshot.summary.qualityScore)} />
+                    <Metric
+                      label="최근 갱신"
+                      value={indexSnapshot.summary.latestDocumentUpdatedAt ? formatShortDate(indexSnapshot.summary.latestDocumentUpdatedAt) : "없음"}
+                    />
+                    <Metric label="청크" value={`${indexSnapshot.summary.totalChunks}개`} />
+                  </div>
+                  <div className="indexSnapshotMeta">
+                    <span>
+                      <strong>청크 매니페스트</strong>
+                      <code>{indexSnapshot.pipeline.snapshot}</code>
+                    </span>
+                    <span>
+                      <strong>정규화</strong>
+                      <code>{indexSnapshot.integrity.canonicalization}</code>
+                    </span>
+                    <span>
+                      <strong>검증 필드</strong>
+                      <code>{indexSnapshot.integrity.includedFields.join(", ")}</code>
+                    </span>
+                  </div>
+                  <div className="indexSnapshotDocuments">
+                    {[...indexSnapshot.documents]
+                      .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime() || left.path.localeCompare(right.path))
+                      .slice(0, 4)
+                      .map((document) => (
+                        <article className="indexSnapshotDocument" key={document.id}>
+                          <div>
+                            <strong>{document.title}</strong>
+                            <p>{document.path}</p>
+                          </div>
+                          <code>chunk {document.chunkCount} · v{document.latestVersion}</code>
+                          <small>
+                            문서 {shortHash(document.contentHash)} · 청크 {shortHash(document.chunkSetHash)}
+                          </small>
+                        </article>
+                      ))}
+                  </div>
+                  <div className="indexSnapshotRecommendations">
+                    {indexSnapshot.recommendations.map((recommendation) => (
+                      <p key={recommendation}>{recommendation}</p>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="empty">스냅샷을 생성하면 문서, 청크, 버전, 임베딩 커버리지, 보안 메타데이터가 하나의 해시로 증명됩니다.</p>
+              )}
+            </section>
+
             <section className="indexQualityPanel" aria-label="색인 품질 리포트">
               <div className="qualityHead">
                 <div>
@@ -3592,7 +3682,8 @@ function formatLedgerEventType(type: string): string {
     answer: "답변",
     tool_call: "도구 호출",
     approval: "승인",
-    feedback: "피드백"
+    feedback: "피드백",
+    revalidation_run: "재검증 실행"
   };
   return labels[type] ?? type;
 }
@@ -3713,6 +3804,15 @@ function formatIndexQualityStatus(status: string): string {
   return labels[status] ?? status;
 }
 
+function formatIndexSnapshotStatus(status: DocumentIndexSnapshotReport["status"]): string {
+  const labels: Record<DocumentIndexSnapshotReport["status"], string> = {
+    ready: "재현 가능",
+    degraded: "검토 필요",
+    empty: "비어 있음"
+  };
+  return labels[status];
+}
+
 function formatPipelineKey(key: string): string {
   const labels: Record<string, string> = {
     source: "소스",
@@ -3721,7 +3821,8 @@ function formatPipelineKey(key: string): string {
     chunking: "청킹",
     embedding: "임베딩",
     vectorStore: "벡터 저장소",
-    lexicalMirror: "검색 미러"
+    lexicalMirror: "검색 미러",
+    snapshot: "스냅샷"
   };
   return labels[key] ?? key;
 }

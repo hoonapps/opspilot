@@ -89,12 +89,15 @@ http://localhost:3001/usage
 - 청킹
 - 임베딩 저장
 - 문서 목록 새로고침
+- 색인 스냅샷 갱신
 - 검색 미리보기 실행
 - `/ask` 실행
 - 신규 문서가 1순위 출처인지 확인
 - 답변의 문서 일치율 계산
 
 같은 문서를 다시 수정해 등록한 뒤 문서 상세의 `색인 설명`을 누르면 이 문서가 어떤 파이프라인으로 청킹/임베딩됐는지, 헤딩 아웃라인과 검색 힌트가 무엇인지, 64차원 임베딩이 모든 청크에 저장됐는지 확인할 수 있습니다.
+
+문서 화면의 `지식 베이스 스냅샷`은 전체 색인 상태를 SHA-256 해시로 보여줍니다. `스냅샷 생성`을 누르면 현재 문서 수, 청크 수, 버전 문서 수, 임베딩 커버리지, 문서별 `contentHash`, `chunkSetHash`, `document_chunk_manifest_v1` 매니페스트가 표시됩니다. 새 문서를 넣거나 같은 문서를 수정하면 스냅샷 해시가 바뀌어야 합니다.
 
 문서 상세의 `영향 분석`을 누르면 이 문서를 근거로 사용한 과거 답변, 문서 변경 이후 오래된 답변, 1순위 근거 여부, 재실행 검증 권고를 확인할 수 있습니다.
 
@@ -121,6 +124,7 @@ CLI로 같은 검증을 하려면:
 
 ```bash
 pnpm index-explain:smoke
+pnpm index-snapshot:smoke
 pnpm index-quality:smoke
 pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
@@ -131,6 +135,7 @@ pnpm revalidation-run:smoke
 청킹 결과는 웹 콘솔 `문서` 화면에서 확인합니다.
 
 - `색인 인벤토리`: 문서별 청크 수와 보안 메타데이터
+- `지식 베이스 스냅샷`: 전체 문서/청크/버전 매니페스트 해시와 문서별 청크 집합 해시
 - `색인 품질 리포트`: 전체 문서/청크 커버리지와 문서별 개선 권고
 - `문서 재검증 큐`: 문서 변경 이후 오래된 답변의 우선순위와 재검증 액션
 - `재검증 실행`: 큐 항목을 replay, 품질 게이트, 계보 해시로 즉시 판정하고 실행 이력 저장
@@ -363,6 +368,7 @@ pnpm eval
 pnpm indexing:smoke
 pnpm queue:smoke
 pnpm github:smoke
+pnpm index-snapshot:smoke
 pnpm permission:smoke
 pnpm authn:smoke
 pnpm redaction:smoke

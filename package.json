@@ -24,6 +24,7 @@
     "retrieval-permission-diff:smoke": "pnpm --filter @opspilot/api retrieval-permission-diff:smoke",
     "index-explain:smoke": "pnpm --filter @opspilot/api index-explain:smoke",
     "index-quality:smoke": "pnpm --filter @opspilot/api index-quality:smoke",
+    "index-snapshot:smoke": "pnpm --filter @opspilot/api index-snapshot:smoke",
     "document-impact:smoke": "pnpm --filter @opspilot/api document-impact:smoke",
     "revalidation-queue:smoke": "pnpm --filter @opspilot/api revalidation-queue:smoke",
     "revalidation-run:smoke": "pnpm --filter @opspilot/api revalidation-run:smoke",

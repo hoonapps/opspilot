@@ -24,6 +24,7 @@
     "retrieval-permission-diff:smoke": "ts-node src/cli/retrieval-permission-diff-smoke.ts",
     "index-explain:smoke": "ts-node src/cli/index-explain-smoke.ts",
     "index-quality:smoke": "ts-node src/cli/index-quality-smoke.ts",
+    "index-snapshot:smoke": "ts-node src/cli/index-snapshot-smoke.ts",
     "document-impact:smoke": "ts-node src/cli/document-impact-smoke.ts",
     "revalidation-queue:smoke": "ts-node src/cli/revalidation-queue-smoke.ts",
     "revalidation-run:smoke": "ts-node src/cli/revalidation-run-smoke.ts",

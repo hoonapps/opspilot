@@ -20,6 +20,7 @@ GET /docs-json
 - `POST /retrieval/permission-diff`: 공개 사용자/support/payments/ops_admin 페르소나별 검색 후보와 권한 차단 결과 비교
 - `POST /incidents/plan`: 런북 기반 장애 대응 플랜, 심각도, 승인 경계, 커뮤니케이션, 복구 검증 생성
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
+- `GET /documents/index-snapshot`: 전체 지식 베이스의 문서/청크/버전/임베딩/보안 메타데이터 스냅샷 해시 확인
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: 마스킹된 문서 버전과 변경 차이 확인
@@ -120,6 +121,28 @@ POST /retrieval/permission-diff
 ```bash
 pnpm retrieval-permission-diff:smoke
 ```
+
+## 색인 스냅샷
+
+```txt
+GET /documents/index-snapshot
+```
+
+응답은 현재 지식 베이스가 어떤 입력 조합으로 만들어졌는지 재현 가능한 매니페스트로 반환합니다. `generatedAt`은 응답 시각이므로 스냅샷 해시 계산에서 제외하고, 문서 경로, 가시성, 팀, 문서 본문 해시, 청크 집합 해시, 최신 버전, 버전 수, 청크 수, 임베딩 커버리지, 보안 메타데이터를 정규화해 `snapshotHash`를 계산합니다.
+
+- `snapshotHash`: 현재 색인 상태를 대표하는 SHA-256 해시
+- `pipeline.snapshot`: `document_chunk_manifest_v1`
+- `summary`: 전체 문서/청크 수, 버전 문서 수, 공개/팀/제한 문서 분포, 임베딩/헤딩 커버리지, 품질 점수
+- `documents[]`: 문서별 `contentHash`, `chunkSetHash`, 최신 버전, 청크 수, 보안 메타데이터
+- `integrity`: 해시 알고리즘, 정규화 방식, 해시에 포함된 필드
+
+검증:
+
+```bash
+pnpm index-snapshot:smoke
+```
+
+이 스모크는 같은 상태에서 스냅샷 해시가 안정적으로 유지되는지, 새 Markdown 문서를 넣으면 스냅샷 해시와 청크 매니페스트가 바뀌는지 확인합니다.
 
 ## 색인 품질 리포트
 

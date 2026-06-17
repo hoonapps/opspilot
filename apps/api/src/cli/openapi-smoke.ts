@@ -19,6 +19,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/incidents/plan", method: "post", operationId: "AgentController_createIncidentPlan" },
   { path: "/permission-boundary/matrix", method: "get", operationId: "AuthzController_getPermissionBoundaryMatrix" },
   { path: "/documents", method: "get", operationId: "DocumentsController_listDocuments" },
+  { path: "/documents/index-snapshot", method: "get", operationId: "DocumentsController_getIndexSnapshot" },
   { path: "/documents/revalidation-queue", method: "get", operationId: "DocumentsController_getRevalidationQueue" },
   { path: "/documents/revalidation-runs", method: "get", operationId: "DocumentsController_getRevalidationRuns" },
   { path: "/documents/revalidation-runs", method: "post", operationId: "DocumentsController_runRevalidation" },

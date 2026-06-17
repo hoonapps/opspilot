@@ -83,6 +83,24 @@ type IndexQualityRow = {
   latestContentLength: number | string;
 };
 
+type DocumentIndexSnapshotRow = {
+  id: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+  contentHash: string;
+  metadata: Record<string, unknown>;
+  updatedAt: Date | string;
+  chunkCount: number | string;
+  embeddingChunkCount: number | string;
+  totalContentLength: number | string;
+  headingChunkCount: number | string;
+  chunkSetHash: string;
+  latestVersion: number | string;
+  versionCount: number | string;
+};
+
 type DocumentImpactRow = {
   answerId: string;
   questionId: string;
@@ -304,6 +322,57 @@ export type DocumentIndexQualityReport = {
     }>;
     recommendations: string[];
   }>;
+};
+
+export type DocumentIndexSnapshotReport = {
+  schemaVersion: "opspilot.document_index_snapshot.v1";
+  generatedAt: string;
+  status: "ready" | "degraded" | "empty";
+  snapshotHash: string;
+  pipeline: DocumentIndexExplainReport["pipeline"] & {
+    snapshot: "document_chunk_manifest_v1";
+  };
+  summary: {
+    totalDocuments: number;
+    totalChunks: number;
+    versionedDocuments: number;
+    publicDocuments: number;
+    teamDocuments: number;
+    restrictedDocuments: number;
+    totalContentLength: number;
+    embeddingCoverageRatio: number;
+    headingCoverageRatio: number;
+    redactionCount: number;
+    promptInjectionRiskCount: number;
+    latestDocumentUpdatedAt: string | null;
+    qualityStatus: DocumentIndexQualityReport["status"];
+    qualityScore: number;
+  };
+  documents: Array<{
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    contentHash: string;
+    chunkSetHash: string;
+    latestVersion: number;
+    versionCount: number;
+    chunkCount: number;
+    embeddingChunkCount: number;
+    totalContentLength: number;
+    headingChunkCount: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+    updatedAt: string;
+  }>;
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+    includedFields: string[];
+  };
+  recommendations: string[];
 };
 
 export type DocumentImpactReport = {
@@ -934,6 +1003,142 @@ export class DocumentsService {
       summary,
       gates,
       documents
+    };
+  }
+
+  async getIndexSnapshot(): Promise<DocumentIndexSnapshotReport> {
+    const connection = this.orm.em.fork().getConnection();
+    const [quality, rows] = await Promise.all([
+      this.getIndexQualityReport(),
+      connection.execute<DocumentIndexSnapshotRow[]>(`
+        with chunk_stats as (
+          select
+            c.document_id,
+            count(*)::int as chunk_count,
+            count(*) filter (where c.embedding is not null)::int as embedding_chunk_count,
+            coalesce(sum(char_length(c.content)), 0)::int as total_content_length,
+            count(*) filter (where coalesce(c.metadata ->> 'heading', '') <> '')::int as heading_chunk_count,
+            encode(
+              digest(
+                coalesce(
+                  string_agg(
+                    c.chunk_index::text || ':' || encode(digest(coalesce(c.content, ''), 'sha256'), 'hex'),
+                    '|' order by c.chunk_index
+                  ),
+                  ''
+                ),
+                'sha256'
+              ),
+              'hex'
+            ) as chunk_set_hash
+          from document_chunks c
+          group by c.document_id
+        ),
+        version_stats as (
+          select
+            v.document_id,
+            coalesce(max(v.version), 0)::int as latest_version,
+            count(*)::int as version_count
+          from document_versions v
+          group by v.document_id
+        )
+        select
+          d.id::text as id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.content_hash as "contentHash",
+          d.metadata,
+          d.updated_at as "updatedAt",
+          coalesce(cs.chunk_count, 0)::int as "chunkCount",
+          coalesce(cs.embedding_chunk_count, 0)::int as "embeddingChunkCount",
+          coalesce(cs.total_content_length, 0)::int as "totalContentLength",
+          coalesce(cs.heading_chunk_count, 0)::int as "headingChunkCount",
+          coalesce(cs.chunk_set_hash, encode(digest('', 'sha256'), 'hex')) as "chunkSetHash",
+          coalesce(vs.latest_version, 0)::int as "latestVersion",
+          coalesce(vs.version_count, 0)::int as "versionCount"
+        from documents d
+        left join chunk_stats cs on cs.document_id = d.id
+        left join version_stats vs on vs.document_id = d.id
+        order by d.path asc;
+      `)
+    ]);
+    const documents = (rows as DocumentIndexSnapshotRow[]).map((row) => ({
+      id: row.id,
+      path: row.path,
+      title: row.title,
+      visibility: row.visibility,
+      teamSlug: row.teamSlug,
+      contentHash: row.contentHash,
+      chunkSetHash: row.chunkSetHash,
+      latestVersion: Number(row.latestVersion),
+      versionCount: Number(row.versionCount),
+      chunkCount: Number(row.chunkCount),
+      embeddingChunkCount: Number(row.embeddingChunkCount),
+      totalContentLength: Number(row.totalContentLength),
+      headingChunkCount: Number(row.headingChunkCount),
+      redactionCount: getSecurityNumber(row.metadata, "redactionCount"),
+      promptInjectionRisk: getSecurityBoolean(row.metadata, "promptInjectionRisk"),
+      updatedAt: toIsoString(row.updatedAt)
+    }));
+    const totalChunks = documents.reduce((sum, document) => sum + document.chunkCount, 0);
+    const embeddingChunks = documents.reduce((sum, document) => sum + document.embeddingChunkCount, 0);
+    const headingChunks = documents.reduce((sum, document) => sum + document.headingChunkCount, 0);
+    const latestDocumentUpdatedAt = documents
+      .map((document) => document.updatedAt)
+      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+    const summary = {
+      totalDocuments: documents.length,
+      totalChunks,
+      versionedDocuments: documents.filter((document) => document.versionCount > 0).length,
+      publicDocuments: documents.filter((document) => document.visibility === "public").length,
+      teamDocuments: documents.filter((document) => document.visibility === "team").length,
+      restrictedDocuments: documents.filter((document) => document.visibility === "restricted").length,
+      totalContentLength: documents.reduce((sum, document) => sum + document.totalContentLength, 0),
+      embeddingCoverageRatio: totalChunks === 0 ? 0 : embeddingChunks / totalChunks,
+      headingCoverageRatio: totalChunks === 0 ? 0 : headingChunks / totalChunks,
+      redactionCount: documents.reduce((sum, document) => sum + document.redactionCount, 0),
+      promptInjectionRiskCount: documents.filter((document) => document.promptInjectionRisk).length,
+      latestDocumentUpdatedAt,
+      qualityStatus: quality.status,
+      qualityScore: quality.score
+    };
+    const pipeline = {
+      source: "markdown" as const,
+      parser: "frontmatter_markdown_v1" as const,
+      redaction: "security_redaction_v1" as const,
+      chunking: "heading_paragraph_window_v1" as const,
+      embedding: "local_hash_embedding_64d" as const,
+      vectorStore: "pgvector_hnsw" as const,
+      lexicalMirror: "optional_elasticsearch" as const,
+      snapshot: "document_chunk_manifest_v1" as const
+    };
+    const status = documents.length === 0 ? "empty" : quality.status === "critical" ? "degraded" : "ready";
+    const hashBasis = {
+      schemaVersion: "opspilot.document_index_snapshot.v1",
+      status,
+      pipeline,
+      summary,
+      documents
+    };
+    const snapshotHash = sha256(stableStringify(hashBasis));
+
+    return {
+      schemaVersion: "opspilot.document_index_snapshot.v1",
+      generatedAt: new Date().toISOString(),
+      status,
+      snapshotHash,
+      pipeline,
+      summary,
+      documents,
+      integrity: {
+        algorithm: "sha256",
+        canonicalization: "stable_json_v1",
+        hash: snapshotHash,
+        includedFields: ["status", "pipeline", "summary", "documents.contentHash", "documents.chunkSetHash", "documents.latestVersion"]
+      },
+      recommendations: buildIndexSnapshotRecommendations({ status, summary })
     };
   }
 
@@ -1832,6 +2037,36 @@ function buildQualityGates(summary: DocumentIndexQualityReport["summary"]): Docu
           : `프롬프트 주입 위험 문서 ${summary.promptInjectionRiskCount}개가 격리 메타데이터로 표시됐습니다.`
     }
   ];
+}
+
+function buildIndexSnapshotRecommendations(input: {
+  status: DocumentIndexSnapshotReport["status"];
+  summary: DocumentIndexSnapshotReport["summary"];
+}): string[] {
+  const recommendations: string[] = [];
+  if (input.summary.totalDocuments === 0) {
+    recommendations.push("먼저 seed 문서나 Markdown 문서를 색인해 지식 베이스 스냅샷을 생성하세요.");
+  }
+  if (input.summary.totalChunks === 0) {
+    recommendations.push("검색 가능한 청크가 없으므로 문서 색인 작업을 다시 실행하세요.");
+  }
+  if (input.summary.embeddingCoverageRatio < 1 && input.summary.totalChunks > 0) {
+    recommendations.push("임베딩 커버리지가 100%가 아니므로 누락 청크를 재색인하세요.");
+  }
+  if (input.summary.versionedDocuments < input.summary.totalDocuments) {
+    recommendations.push("버전 이력이 없는 문서가 있으므로 Markdown upsert 경로로 재등록하세요.");
+  }
+  if (input.summary.qualityStatus === "critical") {
+    recommendations.push("색인 품질 게이트가 실패 상태이므로 배포 전 색인 품질 리포트를 먼저 해결하세요.");
+  }
+  if (input.summary.promptInjectionRiskCount > 0) {
+    recommendations.push("프롬프트 주입 위험 문서는 권한 범위와 운영 검토 상태를 확인하세요.");
+  }
+  if (input.status === "ready" && recommendations.length === 0) {
+    recommendations.push("현재 지식 베이스 스냅샷은 재현 가능한 배포 증거로 사용할 수 있습니다.");
+  }
+
+  return recommendations;
 }
 
 function buildImpactRiskLevel(input: {

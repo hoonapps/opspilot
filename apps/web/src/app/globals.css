@@ -2185,6 +2185,16 @@ pre {
   background: #f7fffc;
 }
 
+.indexSnapshotPanel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d8dde6;
+  border-top: 3px solid var(--ink);
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
 .qualityHead,
 .qualityDocumentTitle {
   display: flex;
@@ -2207,6 +2217,96 @@ pre {
   min-height: 72px;
   padding: 12px;
   box-shadow: none;
+}
+
+.indexSnapshotSummary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.indexSnapshotSummary .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.indexSnapshotMeta {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 2fr;
+  gap: 8px;
+}
+
+.indexSnapshotMeta span,
+.indexSnapshotDocument {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.indexSnapshotMeta strong,
+.indexSnapshotDocument strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indexSnapshotMeta code,
+.indexSnapshotDocument code,
+.indexSnapshotDocument small {
+  display: block;
+  overflow: hidden;
+  margin-top: 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fcfdff;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indexSnapshotDocuments {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.indexSnapshotDocument {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.indexSnapshotDocument p,
+.indexSnapshotRecommendations p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.indexSnapshotDocument small {
+  grid-column: 1 / -1;
+}
+
+.indexSnapshotRecommendations {
+  display: grid;
+  gap: 6px;
+}
+
+.indexSnapshotRecommendations p {
+  margin: 0;
+  border-left: 3px solid var(--accent);
+  padding: 8px 10px;
+  background: #f7fffc;
 }
 
 .qualityGateList {
@@ -5224,6 +5324,10 @@ pre {
   .questionAuditItem,
   .qualityHead,
   .qualitySummary,
+  .indexSnapshotSummary,
+  .indexSnapshotMeta,
+  .indexSnapshotDocuments,
+  .indexSnapshotDocument,
   .qualityGateList,
   .qualityGateItem,
   .qualityDocumentList,

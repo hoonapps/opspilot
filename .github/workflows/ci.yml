@@ -122,6 +122,9 @@ jobs:
       - name: Index quality report smoke
         run: pnpm index-quality:smoke
 
+      - name: Index snapshot smoke
+        run: pnpm index-snapshot:smoke
+
       - name: Document impact smoke
         run: pnpm document-impact:smoke
 

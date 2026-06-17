@@ -34,6 +34,11 @@ export class DocumentsController {
     return this.documentsService.getIndexQualityReport();
   }
 
+  @Get("index-snapshot")
+  getIndexSnapshot() {
+    return this.documentsService.getIndexSnapshot();
+  }
+
   @Get("revalidation-queue")
   getRevalidationQueue(@Query("limit") limit?: string) {
     const parsedLimit = limit ? Number(limit) : undefined;

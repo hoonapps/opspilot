@@ -23,6 +23,11 @@ const indexQualityScreenshotPath = process.env.INDEX_QUALITY_SCREENSHOT_PATH
     ? process.env.INDEX_QUALITY_SCREENSHOT_PATH
     : join(repoRoot, process.env.INDEX_QUALITY_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-index-quality.png");
+const indexSnapshotScreenshotPath = process.env.INDEX_SNAPSHOT_SCREENSHOT_PATH
+  ? isAbsolute(process.env.INDEX_SNAPSHOT_SCREENSHOT_PATH)
+    ? process.env.INDEX_SNAPSHOT_SCREENSHOT_PATH
+    : join(repoRoot, process.env.INDEX_SNAPSHOT_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-index-snapshot.png");
 const documentImpactScreenshotPath = process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH
   ? isAbsolute(process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH)
     ? process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH
@@ -124,6 +129,14 @@ async function main() {
     await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("출처 적중", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexSnapshotPanel").getByText("지식 베이스 스냅샷", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexSnapshotPanel").getByText("스냅샷 해시", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexSnapshotPanel").getByText("document_chunk_manifest_v1", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexSnapshotDocuments").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({
+      timeout: 10000
+    });
+    await page.locator(".indexSnapshotPanel").scrollIntoViewIfNeeded();
+    await page.locator(".indexSnapshotPanel").screenshot({ path: indexSnapshotScreenshotPath });
     await page.locator(".indexQualityPanel").getByText("색인 품질 리포트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexQualityPanel").getByText("게이트 통과율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".qualityGateList").getByText("청크 커버리지", { exact: true }).waitFor({ timeout: 10000 });
@@ -185,6 +198,11 @@ async function main() {
       (await page.locator(".indexQualityPanel").getByText("게이트 통과율", { exact: true }).isVisible()) &&
       (await page.locator(".qualityGateList").getByText("청크 커버리지", { exact: true }).isVisible()) &&
       (await page.locator(".qualityDocumentList").getByText("public/status-page-policy.md", { exact: false }).first().isVisible());
+    const indexSnapshotVisible =
+      (await page.locator(".indexSnapshotPanel").getByText("지식 베이스 스냅샷", { exact: true }).isVisible()) &&
+      (await page.locator(".indexSnapshotPanel").getByText("스냅샷 해시", { exact: true }).isVisible()) &&
+      (await page.locator(".indexSnapshotPanel").getByText("document_chunk_manifest_v1", { exact: true }).isVisible()) &&
+      (await page.locator(".indexSnapshotDocuments").getByText("public/status-page-policy.md", { exact: false }).first().isVisible());
     const versionHistoryVisible = await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).isVisible();
     const versionDiffVisible = await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).isVisible();
     const indexExplainVisible =
@@ -563,6 +581,7 @@ async function main() {
         promptInjectionSummaryVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
+        indexSnapshotVisible &&
         indexQualityVisible &&
         versionHistoryVisible &&
         versionDiffVisible &&
@@ -620,6 +639,7 @@ async function main() {
       retrievalScreenshotPath,
       groundingScreenshotPath,
       indexQualityScreenshotPath,
+      indexSnapshotScreenshotPath,
       documentImpactScreenshotPath,
       incidentPlanScreenshotPath,
       portfolioReadinessScreenshotPath,
@@ -642,6 +662,7 @@ async function main() {
         promptInjectionSummaryVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
+        indexSnapshotVisible,
         indexQualityVisible,
         versionHistoryVisible,
         versionDiffVisible,

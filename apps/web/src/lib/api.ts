@@ -482,6 +482,64 @@ export type DocumentIndexQualityReport = {
   }>;
 };
 
+export type DocumentIndexSnapshotReport = {
+  schemaVersion: "opspilot.document_index_snapshot.v1";
+  generatedAt: string;
+  status: "ready" | "degraded" | "empty";
+  snapshotHash: string;
+  pipeline: {
+    source: "markdown";
+    parser: "frontmatter_markdown_v1";
+    redaction: "security_redaction_v1";
+    chunking: "heading_paragraph_window_v1";
+    embedding: "local_hash_embedding_64d";
+    vectorStore: "pgvector_hnsw";
+    lexicalMirror: "optional_elasticsearch";
+    snapshot: "document_chunk_manifest_v1";
+  };
+  summary: {
+    totalDocuments: number;
+    totalChunks: number;
+    versionedDocuments: number;
+    publicDocuments: number;
+    teamDocuments: number;
+    restrictedDocuments: number;
+    totalContentLength: number;
+    embeddingCoverageRatio: number;
+    headingCoverageRatio: number;
+    redactionCount: number;
+    promptInjectionRiskCount: number;
+    latestDocumentUpdatedAt: string | null;
+    qualityStatus: DocumentIndexQualityReport["status"];
+    qualityScore: number;
+  };
+  documents: Array<{
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    contentHash: string;
+    chunkSetHash: string;
+    latestVersion: number;
+    versionCount: number;
+    chunkCount: number;
+    embeddingChunkCount: number;
+    totalContentLength: number;
+    headingChunkCount: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+    updatedAt: string;
+  }>;
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+    includedFields: string[];
+  };
+  recommendations: string[];
+};
+
 export type RetrievalPreviewResponse = {
   query: string;
   limit: number;
@@ -1864,6 +1922,16 @@ export async function getDocumentIndexExplain(documentId: string): Promise<Docum
   }
 
   return response.json() as Promise<DocumentIndexExplainReport>;
+}
+
+export async function getDocumentIndexSnapshot(): Promise<DocumentIndexSnapshotReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/index-snapshot`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentIndexSnapshotReport>;
 }
 
 export async function getDocumentImpact(documentId: string): Promise<DocumentImpactReport> {
