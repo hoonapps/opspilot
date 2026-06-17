@@ -30,6 +30,7 @@ import {
   EvaluationCaseReport,
   EvaluationHistory,
   EvaluationReport,
+  EvaluationRegressionReport,
   getApiRequestObservability,
   getAuditLedger,
   getAnswerLineage,
@@ -48,6 +49,7 @@ import {
   getErrorBudget,
   getEvaluationCases,
   getEvaluationHistory,
+  getEvaluationRegression,
   getIndexingQueueHealth,
   getLatestEvaluation,
   getObservabilityReleaseGate,
@@ -219,6 +221,7 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
   const [evaluationCases, setEvaluationCases] = useState<EvaluationCaseReport | null>(null);
+  const [evaluationRegression, setEvaluationRegression] = useState<EvaluationRegressionReport | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [apiRequests, setApiRequests] = useState<ApiRequestObservabilityReport | null>(null);
   const [errorBudget, setErrorBudget] = useState<ErrorBudgetReport | null>(null);
@@ -783,10 +786,16 @@ export default function Home() {
     setError(null);
     setLoading("evaluation");
     try {
-      const [latest, history, cases] = await Promise.all([getLatestEvaluation(), getEvaluationHistory(), getEvaluationCases()]);
+      const [latest, history, cases, regression] = await Promise.all([
+        getLatestEvaluation(),
+        getEvaluationHistory(),
+        getEvaluationCases(),
+        getEvaluationRegression()
+      ]);
       setEvaluation(latest);
       setEvaluationHistory(history);
       setEvaluationCases(cases);
+      setEvaluationRegression(regression);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "평가 요청에 실패했습니다.");
     } finally {
@@ -2481,6 +2490,58 @@ export default function Home() {
 	                  {evaluation.suiteName} · 케이스 {evaluation.total}개 · 적중 {evaluation.rows.filter((row) => row.hit).length}개 ·{" "}
 	                  일치율 {formatPercent(evaluation.metrics.documentAgreementScore)} · 인용 {formatPercent(evaluation.metrics.citationAccuracy)}
                 </p>
+                {evaluationRegression ? (
+                  <section className={`evalRegression evalRegression--${evaluationRegression.status}`} aria-label="평가 회귀 릴리즈 리포트">
+                    <div className="evalHistoryHead">
+                      <div>
+                        <span>회귀 릴리즈 리포트</span>
+                        <p>
+                          {evaluationRegression.releaseDecision.reason} · 현재 {shortId(evaluationRegression.current.runId)}
+                          {evaluationRegression.previous ? ` · 직전 ${shortId(evaluationRegression.previous.runId)}` : " · 직전 실행 없음"}
+                        </p>
+                      </div>
+                      <span className={evaluationRegression.status === "promote" ? "badge" : "badge review"}>
+                        {formatEvaluationRegressionStatus(evaluationRegression.status)}
+                      </span>
+                    </div>
+                    <div className="evalRegressionSummary">
+                      <Metric label="실패 게이트" value={`${evaluationRegression.summary.failedGateCount}개`} />
+                      <Metric label="하락 메트릭" value={`${evaluationRegression.summary.degradedMetricCount}개`} />
+                      <Metric label="고위험 케이스" value={`${evaluationRegression.summary.highRiskCaseCount}개`} />
+                      <Metric label="최저 일치율" value={formatPercent(evaluationRegression.summary.lowestDocumentAgreement)} />
+                      <Metric label="리포트 해시" value={shortHash(evaluationRegression.integrity.reportHash)} />
+                    </div>
+                    <div className="evalRegressionDecision">
+                      <strong>{evaluationRegression.releaseDecision.label}</strong>
+                      <p>{evaluationRegression.releaseDecision.requiredAction}</p>
+                    </div>
+                    <div className="evalRegressionDeltas">
+                      {evaluationRegression.metricDeltas.map((delta) => (
+                        <article className={`evalRegressionDelta evalRegressionDelta--${delta.status}`} key={delta.metric}>
+                          <span>{formatEvaluationMetricName(delta.metric)}</span>
+                          <strong>{formatPercent(delta.current)}</strong>
+                          <p>
+                            Δ {formatDeltaPercent(delta.delta)} · 기준 {formatPercent(delta.threshold)} ·{" "}
+                            {formatEvaluationRegressionDelta(delta.status)}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="evalRegressionActions">
+                      {evaluationRegression.actionItems.slice(0, 4).map((item) => (
+                        <article className="evalRegressionAction" key={item.id}>
+                          <div>
+                            <strong>
+                              {item.priority} · {item.title}
+                            </strong>
+                            <p>{item.evidence}</p>
+                          </div>
+                          <code>{item.command}</code>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
                 {evaluationHistory && evaluationHistory.items.length > 0 ? (
                   <div className="evalHistory" aria-label="평가 이력">
                     <div className="evalHistoryHead">
@@ -3870,6 +3931,36 @@ function formatEvaluationCheckLabel(id: string, fallback: string): string {
     citation: "출처 인용"
   };
   return labels[id] ?? fallback;
+}
+
+function formatEvaluationMetricName(metric: keyof EvaluationReport["metrics"]): string {
+  const labels: Record<keyof EvaluationReport["metrics"], string> = {
+    sourceHitRate: "출처 적중",
+    topSourceAccuracy: "1순위 출처",
+    humanReviewAccuracy: "사람 검토",
+    documentAgreementScore: "문서 일치율",
+    citationAccuracy: "출처 인용"
+  };
+  return labels[metric];
+}
+
+function formatEvaluationRegressionStatus(status: EvaluationRegressionReport["status"]): string {
+  const labels: Record<EvaluationRegressionReport["status"], string> = {
+    promote: "배포 가능",
+    watch: "관찰 필요",
+    block: "배포 차단"
+  };
+  return labels[status];
+}
+
+function formatEvaluationRegressionDelta(status: EvaluationRegressionReport["metricDeltas"][number]["status"]): string {
+  const labels: Record<EvaluationRegressionReport["metricDeltas"][number]["status"], string> = {
+    improved: "개선",
+    stable: "유지",
+    degraded: "하락",
+    new: "신규 기준선"
+  };
+  return labels[status];
 }
 
 function formatIndexQualityStatus(status: string): string {

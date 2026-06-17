@@ -191,7 +191,10 @@ CLI로는 같은 흐름을 아래 명령으로 검증합니다.
 pnpm retrieval-profile:smoke
 pnpm retrieval-permission-diff:smoke
 pnpm retrieval-robustness:smoke
+pnpm eval:regression-smoke
 ```
+
+품질 화면에서 `평가 불러오기`를 누르면 최신 평가, 회귀 이력, 케이스 상세 리포트와 함께 `회귀 릴리즈 리포트`가 표시됩니다. 이 리포트는 직전 평가 대비 하락한 메트릭, 실패 게이트, 고위험 케이스, 릴리즈 판단, 리포트 해시, 재검증 명령을 한 화면에 묶습니다.
 
 ## 7. 장애 대응 플랜 확인
 
@@ -375,6 +378,7 @@ pnpm typecheck
 pnpm build
 pnpm test
 pnpm eval
+pnpm eval:regression-smoke
 pnpm indexing:smoke
 pnpm queue:smoke
 pnpm github:smoke

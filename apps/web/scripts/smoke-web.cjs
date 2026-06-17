@@ -80,9 +80,13 @@ async function main() {
     await page.locator(".evalGrid").getByText("문서 일치율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalGrid").getByText("인용", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalPanel .sectionHeader").getByText("통과", { exact: true }).waitFor({ timeout: 10000 });
-    await page.getByText("seed-ops-wiki", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".evalPanel .ingestResult").getByText("seed-ops-wiki", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".evalHistory").getByText("회귀 이력", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalHistoryItem").first().getByText("Δ 일치", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".evalRegression").getByText("회귀 릴리즈 리포트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evalRegression").getByText("리포트 해시", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evalRegressionDecision").getByText(/배포 가능|관찰 후 배포|배포 차단/u).first().waitFor({ timeout: 10000 });
+    await page.locator(".evalRegressionAction").getByText(/pnpm eval|evaluations\/regression/u).first().waitFor({ timeout: 10000 });
     await page.locator(".evalCaseReport").getByText("케이스 상세 리포트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalCaseReport").getByText("기대 출처 적중", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".evalCaseExplorer").getByText("error-e102", { exact: true }).waitFor({ timeout: 10000 });
@@ -95,6 +99,11 @@ async function main() {
     const qualityGatePassed = await page.locator(".evalPanel .sectionHeader").getByText("통과", { exact: true }).isVisible();
     const evalHistoryVisible = await page.locator(".evalHistory").getByText("회귀 이력", { exact: true }).isVisible();
     const evalHistoryDeltaVisible = await page.locator(".evalHistoryItem").first().getByText("Δ 일치", { exact: false }).isVisible();
+    const evalRegressionVisible =
+      (await page.locator(".evalRegression").getByText("회귀 릴리즈 리포트", { exact: true }).isVisible()) &&
+      (await page.locator(".evalRegression").getByText("리포트 해시", { exact: true }).isVisible()) &&
+      (await page.locator(".evalRegressionDecision").getByText(/배포 가능|관찰 후 배포|배포 차단/u).first().isVisible()) &&
+      (await page.locator(".evalRegressionAction").getByText(/pnpm eval|evaluations\/regression/u).first().isVisible());
     const evalCaseDetailVisible =
       (await page.locator(".evalCaseReport").getByText("케이스 상세 리포트", { exact: true }).isVisible()) &&
       (await page.locator(".evalCaseReport").getByText("기대 출처 적중", { exact: true }).first().isVisible());
@@ -621,6 +630,7 @@ async function main() {
         qualityGatePassed &&
         evalHistoryVisible &&
         evalHistoryDeltaVisible &&
+        evalRegressionVisible &&
         evalCaseDetailVisible &&
         evalCaseExplorerVisible &&
         evalSourceCompareVisible &&
@@ -703,6 +713,7 @@ async function main() {
         qualityGatePassed,
         evalHistoryVisible,
         evalHistoryDeltaVisible,
+        evalRegressionVisible,
         evalCaseDetailVisible,
         evalCaseExplorerVisible,
         evalSourceCompareVisible,

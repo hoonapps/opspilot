@@ -969,6 +969,73 @@ export type EvaluationCaseReport = {
   }>;
 };
 
+export type EvaluationRegressionReport = {
+  schemaVersion: "opspilot.evaluation_regression.v1";
+  suiteName: string;
+  generatedAt: string;
+  status: "promote" | "watch" | "block";
+  releaseDecision: {
+    label: string;
+    reason: string;
+    requiredAction: string;
+  };
+  current: {
+    runId: string;
+    createdAt: string;
+    passed: boolean;
+    total: number;
+    metrics: EvaluationReport["metrics"];
+  };
+  previous: {
+    runId: string;
+    createdAt: string;
+    passed: boolean;
+    metrics: EvaluationReport["metrics"];
+  } | null;
+  summary: {
+    failedGateCount: number;
+    degradedMetricCount: number;
+    highRiskCaseCount: number;
+    failedCaseCount: number;
+    missingCitationCount: number;
+    lowestDocumentAgreement: number;
+  };
+  metricDeltas: Array<{
+    metric: keyof EvaluationReport["metrics"];
+    current: number;
+    previous: number | null;
+    delta: number | null;
+    status: "improved" | "stable" | "degraded" | "new";
+    threshold: number;
+    gatePassed: boolean;
+  }>;
+  failedGates: EvaluationReport["gates"];
+  highRiskCases: Array<{
+    id: string;
+    status: "pass" | "warn" | "fail";
+    riskLevel: "low" | "medium" | "high";
+    topSource: string | null;
+    expectedSources: string[];
+    actualSources: string[];
+    documentAgreement: number;
+    failedChecks: string[];
+    recommendations: string[];
+  }>;
+  actionItems: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2";
+    owner: "retrieval" | "prompt" | "security" | "evaluation";
+    title: string;
+    evidence: string;
+    command: string;
+  }>;
+  integrity: {
+    reportHash: string;
+    hashAlgorithm: "sha256";
+    includedFields: string[];
+  };
+};
+
 export type ToolCallAuditItem = {
   id: string;
   questionId: string | null;
@@ -2112,6 +2179,17 @@ export async function getEvaluationCases(): Promise<EvaluationCaseReport | null>
   }
 
   const data = (await response.json()) as { report: EvaluationCaseReport | null };
+  return data.report;
+}
+
+export async function getEvaluationRegression(): Promise<EvaluationRegressionReport | null> {
+  const response = await fetch(`${API_BASE_URL}/evaluations/regression`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { report: EvaluationRegressionReport | null };
   return data.report;
 }
 

@@ -3,6 +3,7 @@ import { MikroORM } from "@mikro-orm/core";
 import { randomUUID } from "node:crypto";
 import { AgentService } from "../agent/agent.service";
 import { calculateDocumentAgreement } from "../agent/document-agreement";
+import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 
 export type EvalQuestion = {
@@ -122,6 +123,73 @@ export type EvaluationCaseDetail = {
     evidence: string;
   }>;
   recommendations: string[];
+};
+
+export type EvaluationRegressionReport = {
+  schemaVersion: "opspilot.evaluation_regression.v1";
+  suiteName: string;
+  generatedAt: string;
+  status: "promote" | "watch" | "block";
+  releaseDecision: {
+    label: string;
+    reason: string;
+    requiredAction: string;
+  };
+  current: {
+    runId: string;
+    createdAt: string;
+    passed: boolean;
+    total: number;
+    metrics: EvaluationMetrics;
+  };
+  previous: {
+    runId: string;
+    createdAt: string;
+    passed: boolean;
+    metrics: EvaluationMetrics;
+  } | null;
+  summary: {
+    failedGateCount: number;
+    degradedMetricCount: number;
+    highRiskCaseCount: number;
+    failedCaseCount: number;
+    missingCitationCount: number;
+    lowestDocumentAgreement: number;
+  };
+  metricDeltas: Array<{
+    metric: keyof EvaluationMetrics;
+    current: number;
+    previous: number | null;
+    delta: number | null;
+    status: "improved" | "stable" | "degraded" | "new";
+    threshold: number;
+    gatePassed: boolean;
+  }>;
+  failedGates: EvaluationGate[];
+  highRiskCases: Array<{
+    id: string;
+    status: EvaluationCaseDetail["status"];
+    riskLevel: EvaluationCaseDetail["riskLevel"];
+    topSource: string | null;
+    expectedSources: string[];
+    actualSources: string[];
+    documentAgreement: number;
+    failedChecks: string[];
+    recommendations: string[];
+  }>;
+  actionItems: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2";
+    owner: "retrieval" | "prompt" | "security" | "evaluation";
+    title: string;
+    evidence: string;
+    command: string;
+  }>;
+  integrity: {
+    reportHash: string;
+    hashAlgorithm: "sha256";
+    includedFields: string[];
+  };
 };
 
 export type EvaluationMetrics = {
@@ -360,6 +428,97 @@ export class EvaluationService {
     };
   }
 
+  async regression(suiteName: string): Promise<{ report: EvaluationRegressionReport | null }> {
+    const [history, casesResult] = await Promise.all([this.history(suiteName, 2), this.cases(suiteName)]);
+    const current = history.items[0];
+    const cases = casesResult.report;
+
+    if (!current || !cases) {
+      return { report: null };
+    }
+
+    const previous = history.items[1] ?? null;
+    const metricDeltas = buildRegressionMetricDeltas(current, previous);
+    const failedGates = current.gates.filter((gate) => !gate.passed);
+    const highRiskCases = cases.cases
+      .filter((item) => item.riskLevel === "high" || item.status === "fail")
+      .map((item) => ({
+        id: item.id,
+        status: item.status,
+        riskLevel: item.riskLevel,
+        topSource: item.topSource,
+        expectedSources: item.expectedSources,
+        actualSources: item.actualSources,
+        documentAgreement: item.documentAgreement,
+        failedChecks: item.checks.filter((check) => check.status === "fail").map((check) => check.id),
+        recommendations: item.recommendations
+      }));
+    const degradedMetricCount = metricDeltas.filter((item) => item.status === "degraded").length;
+    const summary = {
+      failedGateCount: failedGates.length,
+      degradedMetricCount,
+      highRiskCaseCount: cases.summary.highRisk,
+      failedCaseCount: cases.summary.failed,
+      missingCitationCount: cases.summary.missingCitation,
+      lowestDocumentAgreement: cases.summary.lowestAgreement
+    };
+    const status: EvaluationRegressionReport["status"] =
+      failedGates.length > 0 || highRiskCases.length > 0 ? "block" : degradedMetricCount > 0 ? "watch" : "promote";
+    const actionItems = buildRegressionActionItems({
+      failedGates,
+      highRiskCases,
+      metricDeltas,
+      suiteName
+    });
+    const hashBasis = {
+      suiteName,
+      currentRunId: current.runId,
+      previousRunId: previous?.runId ?? null,
+      status,
+      summary,
+      metricDeltas,
+      failedGates,
+      highRiskCases,
+      actionItems
+    };
+    const reportHash = sha256(stableStringify(hashBasis));
+
+    return {
+      report: {
+        schemaVersion: "opspilot.evaluation_regression.v1",
+        suiteName,
+        generatedAt: new Date().toISOString(),
+        status,
+        releaseDecision: buildRegressionReleaseDecision(status, summary),
+        current: {
+          runId: current.runId,
+          createdAt: current.createdAt,
+          passed: current.passed,
+          total: current.total,
+          metrics: current.metrics
+        },
+        previous: previous
+          ? {
+              runId: previous.runId,
+              createdAt: previous.createdAt,
+              passed: previous.passed,
+              metrics: previous.metrics
+            }
+          : null,
+        summary,
+        metricDeltas,
+        failedGates,
+        highRiskCases,
+        actionItems,
+        integrity: {
+          reportHash,
+          hashAlgorithm: "sha256",
+          includedFields: ["suiteName", "runIds", "status", "summary", "metricDeltas", "failedGates", "highRiskCases", "actionItems"]
+        }
+      }
+    };
+  }
+
   private async loadSourceContents(chunkIds: string[]): Promise<string[]> {
     if (chunkIds.length === 0) {
       return [];
@@ -557,6 +716,151 @@ function buildMetricDeltas(
   );
 }
 
+function buildRegressionMetricDeltas(
+  current: EvaluationHistoryItem,
+  previous: EvaluationHistoryItem | null
+): EvaluationRegressionReport["metricDeltas"] {
+  return (Object.keys(current.metrics) as Array<keyof EvaluationMetrics>).map((metric) => {
+    const currentValue = current.metrics[metric];
+    const previousValue = previous?.metrics[metric] ?? null;
+    const delta = previousValue === null ? null : Number((currentValue - previousValue).toFixed(3));
+    const gate = current.gates.find((item) => item.metric === metric);
+    const status: EvaluationRegressionReport["metricDeltas"][number]["status"] =
+      delta === null ? "new" : delta < 0 ? "degraded" : delta > 0 ? "improved" : "stable";
+
+    return {
+      metric,
+      current: currentValue,
+      previous: previousValue,
+      delta,
+      status,
+      threshold: gate?.threshold ?? current.thresholds[metric],
+      gatePassed: gate?.passed ?? currentValue >= current.thresholds[metric]
+    };
+  });
+}
+
+function buildRegressionReleaseDecision(
+  status: EvaluationRegressionReport["status"],
+  summary: EvaluationRegressionReport["summary"]
+): EvaluationRegressionReport["releaseDecision"] {
+  if (status === "block") {
+    return {
+      label: "배포 차단",
+      reason: `실패 게이트 ${summary.failedGateCount}개, 고위험 케이스 ${summary.highRiskCaseCount}개가 남아 있습니다.`,
+      requiredAction: "실패 케이스를 수정하고 평가를 재실행한 뒤 회귀 리포트 해시를 갱신하세요."
+    };
+  }
+
+  if (status === "watch") {
+    return {
+      label: "관찰 후 배포",
+      reason: `품질 게이트는 통과했지만 ${summary.degradedMetricCount}개 메트릭이 직전 실행보다 하락했습니다.`,
+      requiredAction: "하락한 메트릭을 릴리즈 노트에 남기고 다음 평가에서 회복되는지 확인하세요."
+    };
+  }
+
+  return {
+    label: "배포 가능",
+    reason: "품질 게이트를 통과했고 직전 실행 대비 회귀가 없습니다.",
+    requiredAction: "현재 평가 run id와 리포트 해시를 릴리즈 증거로 기록하세요."
+  };
+}
+
+function buildRegressionActionItems(input: {
+  failedGates: EvaluationGate[];
+  highRiskCases: EvaluationRegressionReport["highRiskCases"];
+  metricDeltas: EvaluationRegressionReport["metricDeltas"];
+  suiteName: string;
+}): EvaluationRegressionReport["actionItems"] {
+  const items: EvaluationRegressionReport["actionItems"] = [];
+
+  for (const gate of input.failedGates) {
+    items.push({
+      id: `gate-${gate.metric}`,
+      priority: "P0",
+      owner: ownerForMetric(gate.metric),
+      title: `${formatMetricName(gate.metric)} 게이트 복구`,
+      evidence: `${formatMetricName(gate.metric)} ${formatPercent(gate.score)} < 기준 ${formatPercent(gate.threshold)}`,
+      command: "pnpm eval"
+    });
+  }
+
+  for (const item of input.highRiskCases.slice(0, 5)) {
+    items.push({
+      id: `case-${item.id}`,
+      priority: item.failedChecks.includes("source_hit") ? "P0" : "P1",
+      owner: item.failedChecks.includes("human_review") ? "security" : item.failedChecks.includes("citation") ? "prompt" : "retrieval",
+      title: `${item.id} 케이스 재현 및 수정`,
+      evidence: `실패 검사 ${item.failedChecks.join(", ") || "없음"} · 1순위 ${item.topSource ?? "출처 없음"}`,
+      command: "pnpm eval:cases-smoke"
+    });
+  }
+
+  for (const metric of input.metricDeltas.filter((item) => item.status === "degraded").slice(0, 3)) {
+    items.push({
+      id: `delta-${metric.metric}`,
+      priority: "P2",
+      owner: ownerForMetric(metric.metric),
+      title: `${formatMetricName(metric.metric)} 회귀 관찰`,
+      evidence: `직전 실행 대비 ${formatDelta(metric.delta)} 하락했습니다.`,
+      command: `curl http://localhost:3000/evaluations/regression?suiteName=${input.suiteName}`
+    });
+  }
+
+  if (items.length === 0) {
+    items.push({
+      id: "record-release-evidence",
+      priority: "P2",
+      owner: "evaluation",
+      title: "릴리즈 증거 기록",
+      evidence: "평가 게이트와 회귀 비교가 모두 통과했습니다.",
+      command: `curl http://localhost:3000/evaluations/regression?suiteName=${input.suiteName}`
+    });
+  }
+
+  return dedupeActionItems(items).slice(0, 8);
+}
+
+function ownerForMetric(metric: keyof EvaluationMetrics): EvaluationRegressionReport["actionItems"][number]["owner"] {
+  const owners: Record<keyof EvaluationMetrics, EvaluationRegressionReport["actionItems"][number]["owner"]> = {
+    sourceHitRate: "retrieval",
+    topSourceAccuracy: "retrieval",
+    humanReviewAccuracy: "security",
+    documentAgreementScore: "prompt",
+    citationAccuracy: "prompt"
+  };
+
+  return owners[metric];
+}
+
+function formatMetricName(metric: keyof EvaluationMetrics): string {
+  const labels: Record<keyof EvaluationMetrics, string> = {
+    sourceHitRate: "출처 적중률",
+    topSourceAccuracy: "1순위 출처 정확도",
+    humanReviewAccuracy: "사람 검토 경계",
+    documentAgreementScore: "문서 일치율",
+    citationAccuracy: "출처 인용률"
+  };
+
+  return labels[metric];
+}
+
+function formatDelta(value: number | null): string {
+  return value === null ? "신규" : `${Math.round(value * 100)}%p`;
+}
+
+function dedupeActionItems(items: EvaluationRegressionReport["actionItems"]): EvaluationRegressionReport["actionItems"] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+    seen.add(item.id);
+    return true;
+  });
+}
+
 function buildEvaluationCase(row: EvalReport["rows"][number], thresholds: EvaluationThresholds): EvaluationCaseDetail {
   const restrictedExpected = row.expectedSources.some((source) => source.includes("restricted/"));
   const topSource = row.actualSources[0] ?? null;
@@ -651,4 +955,19 @@ function buildCaseRecommendations(row: EvalReport["rows"][number], checks: Evalu
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
 }

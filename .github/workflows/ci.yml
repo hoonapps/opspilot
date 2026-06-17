@@ -107,6 +107,9 @@ jobs:
       - name: Evaluation case detail smoke
         run: pnpm eval:cases-smoke
 
+      - name: Evaluation regression smoke
+        run: pnpm eval:regression-smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

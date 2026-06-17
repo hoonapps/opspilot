@@ -49,6 +49,7 @@ GET /docs-json
 - `GET /evaluations/latest`: 최신 평가 결과
 - `GET /evaluations/history`: 평가 이력
 - `GET /evaluations/cases`: 최신 평가 실행의 케이스별 실패 원인, 위험도, 개선 권고
+- `GET /evaluations/regression`: 최신 평가와 직전 평가의 회귀 비교, 릴리즈 판단, 액션, 리포트 해시
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
 - `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, 오류 예산 소모율, 주요 실패 엔드포인트, 배포 권고
@@ -327,6 +328,28 @@ curl -X POST http://localhost:3000/ask \
 
 ```bash
 pnpm idempotency:smoke
+```
+
+## 평가 회귀 리포트
+
+```txt
+GET /evaluations/regression
+```
+
+응답은 최신 평가 실행과 직전 평가 실행을 비교해 지식 베이스를 릴리즈해도 되는지 판단합니다.
+
+- `status`: `promote`, `watch`, `block`
+- `releaseDecision`: 배포 가능, 관찰 후 배포, 배포 차단과 필요한 후속 조치
+- `metricDeltas`: 출처 적중, 1순위 출처, 사람 검토, 문서 일치율, 인용률의 직전 실행 대비 변화
+- `failedGates`: 현재 평가에서 기준값을 넘지 못한 게이트
+- `highRiskCases`: 실패 또는 고위험 케이스의 기대/실제 출처, 실패 체크, 권고
+- `actionItems`: 담당 영역, 우선순위, 근거, 재검증 명령
+- `integrity.reportHash`: 릴리즈 증거로 남길 SHA-256 리포트 해시
+
+검증:
+
+```bash
+pnpm eval:regression-smoke
 ```
 
 ## 답변 증거 번들

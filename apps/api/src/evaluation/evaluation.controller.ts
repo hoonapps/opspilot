@@ -21,4 +21,9 @@ export class EvaluationController {
   cases(@Query("suiteName") suiteName?: string) {
     return this.evaluationService.cases(suiteName ?? "seed-ops-wiki");
   }
+
+  @Get("regression")
+  regression(@Query("suiteName") suiteName?: string) {
+    return this.evaluationService.regression(suiteName ?? "seed-ops-wiki");
+  }
 }

@@ -34,10 +34,25 @@ EVAL_MIN_CITATION_ACCURACY=1
 ```bash
 pnpm eval:history-smoke
 pnpm eval:cases-smoke
+pnpm eval:regression-smoke
 pnpm freshness:smoke
 ```
 
 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지 확인합니다. 배포 게이트는 최신 평가가 없거나 문서 변경 이후 재평가가 없으면 검토/차단 상태로 내려갈 수 있습니다.
+
+## 회귀 릴리즈 리포트
+
+```txt
+GET /evaluations/regression
+```
+
+최신 평가와 직전 평가를 비교해 `promote`, `watch`, `block` 중 하나로 릴리즈 판단을 반환합니다.
+
+- 게이트 실패가 있거나 고위험 케이스가 남으면 `block`
+- 게이트는 통과했지만 직전 실행 대비 하락한 메트릭이 있으면 `watch`
+- 게이트 통과와 회귀 없음이 함께 만족되면 `promote`
+
+응답에는 메트릭별 delta, 실패 게이트, 고위험 케이스, 담당 영역별 액션 아이템, SHA-256 `reportHash`가 포함됩니다. 웹 콘솔 `품질` 화면의 `회귀 릴리즈 리포트`에서 같은 내용을 확인할 수 있습니다.
 
 ## 케이스 상세 리포트
 
