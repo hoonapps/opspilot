@@ -322,7 +322,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Sensitive action detection
 - Structured review reasons for low confidence, missing sources, and sensitive actions
 - Tool call logs and recent audit API
-- Permission-checked answer trace API for reconstructing a persisted answer's sources, tool calls, approvals, and feedback
+- Permission-checked answer trace API for reconstructing a persisted answer's timeline, sources, tool calls, approvals, and feedback
 - Operational observability summary API for questions, answers, document agreement, tool calls, approvals, feedback, and indexed knowledge size
 - Runbook checklist tool calling
 - Human approval request creation for sensitive work
@@ -364,7 +364,7 @@ Done:
 - Structured `reviewReasons` in `/ask`, answer metadata, Slack replies, and the web console
 - Approval list/update API and feedback create API
 - Tool call logging and recent audit API
-- `GET /answers/:id/trace` answer trace API with document access re-check
+- `GET /answers/:id/trace` answer trace API with timeline summary and document access re-check
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
 - Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, and negative gate smoke
@@ -378,7 +378,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, index inventory, chunk preview, security summary, evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, index inventory, chunk preview, security summary, evaluation metrics, operational telemetry, answer-level document match, permission audit, answer trace timeline, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow

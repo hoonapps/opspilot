@@ -174,6 +174,24 @@ export type ToolCallAuditItem = {
 };
 
 export type AnswerTrace = {
+  summary: {
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    feedbackCount: number;
+    needsHumanReview: boolean;
+    confidence: number;
+    documentAgreementScore: number;
+    durationMs: number;
+  };
+  timeline: Array<{
+    order: number;
+    kind: "question" | "retrieval" | "answer" | "tool" | "approval" | "feedback";
+    title: string;
+    status: string;
+    at: string;
+    detail: Record<string, unknown>;
+  }>;
   answer: {
     id: string;
     questionId: string;

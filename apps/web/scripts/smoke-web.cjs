@@ -72,8 +72,8 @@ async function main() {
     });
 
     await page.getByRole("button", { name: "Helpful" }).click();
-    await page.getByText("Feedback saved", { exact: false }).waitFor({ timeout: 10000 });
-    const feedbackSaved = await page.getByText("Feedback saved", { exact: false }).isVisible();
+    await page.locator(".inlineStatus").getByText("Feedback saved", { exact: false }).waitFor({ timeout: 10000 });
+    const feedbackSaved = await page.locator(".inlineStatus").getByText("Feedback saved", { exact: false }).isVisible();
 
     await page.getByRole("button", { name: "운영 DB에서 고객 정보를 바로 수정해도 돼?" }).click();
     await page.getByRole("button", { name: "Ask OpsPilot" }).click();
@@ -83,9 +83,13 @@ async function main() {
     await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("Trace", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("Approvals", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".traceTimeline").getByText("Question persisted", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".traceTimeline").getByText("Answer generated", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
     const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("pre_ranking_sql_filter", { exact: false }).isVisible();
     const reviewReasonVisible = await page.locator(".reviewReasons").getByText("sensitive action", { exact: false }).isVisible();
     const traceVisible = await page.locator(".tracePanel").getByText("Refresh trace", { exact: true }).isVisible();
+    const traceTimelineVisible = await page.locator(".traceTimeline").getByText("Answer generated", { exact: true }).isVisible();
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
@@ -141,6 +145,7 @@ async function main() {
         boundaryAuditVisible &&
         reviewReasonVisible &&
         traceVisible &&
+        traceTimelineVisible &&
         auditVisible &&
         observabilityVisible,
       baseUrl,
@@ -167,6 +172,7 @@ async function main() {
         boundaryAuditVisible,
         reviewReasonVisible,
         traceVisible,
+        traceTimelineVisible,
         auditVisible,
         observabilityVisible
       }

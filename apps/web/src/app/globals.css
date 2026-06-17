@@ -587,15 +587,20 @@ pre {
 
 .tracePanel {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
-  gap: 8px;
-  align-items: stretch;
+  gap: 10px;
   padding: 12px 14px;
   border-top: 1px solid var(--line);
   background: #f8fafc;
 }
 
-.tracePanel div {
+.traceSummary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.traceSummary div {
   min-height: 58px;
   padding: 10px;
   border: 1px solid var(--line);
@@ -603,13 +608,13 @@ pre {
   background: var(--panel);
 }
 
-.tracePanel span {
+.traceSummary span {
   display: block;
   color: var(--muted);
   font-size: 12px;
 }
 
-.tracePanel strong {
+.traceSummary strong {
   display: block;
   margin-top: 6px;
   color: var(--ink);
@@ -621,6 +626,65 @@ pre {
   background: var(--panel-soft);
   color: var(--ink);
   padding: 0 12px;
+}
+
+.traceTimeline {
+  display: grid;
+  gap: 8px;
+}
+
+.timelineItem {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.timelineItem > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 6px;
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.timelineItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timelineItem p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timelineItem code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fcfdff;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
 }
 
 .feedbackBar {
@@ -1221,7 +1285,8 @@ pre {
   .opsBreakdown,
   .boundaryAudit,
   .reasonItem,
-  .tracePanel,
+  .traceSummary,
+  .timelineItem,
   .feedbackBar {
     grid-template-columns: 1fr;
   }

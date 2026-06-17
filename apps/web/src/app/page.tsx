@@ -452,31 +452,45 @@ export default function Home() {
               </div>
             ) : null}
             {trace ? (
-              <div className="tracePanel">
-                <div>
-                  <span>Trace</span>
-                  <strong>{trace.sources.length} sources</strong>
+              <section className="tracePanel">
+                <div className="traceSummary">
+                  <div>
+                    <span>Trace</span>
+                    <strong>{trace.summary.sourceCount} sources</strong>
+                  </div>
+                  <div>
+                    <span>Match</span>
+                    <strong>{formatPercent(trace.summary.documentAgreementScore)}</strong>
+                  </div>
+                  <div>
+                    <span>Tools</span>
+                    <strong>{trace.summary.toolCallCount}</strong>
+                  </div>
+                  <div>
+                    <span>Approvals</span>
+                    <strong>{trace.summary.approvalCount}</strong>
+                  </div>
+                  <div>
+                    <span>Duration</span>
+                    <strong>{formatDuration(trace.summary.durationMs)}</strong>
+                  </div>
+                  <button disabled={loading === "trace"} onClick={() => loadTrace()} type="button">
+                    {loading === "trace" ? "Refreshing..." : "Refresh trace"}
+                  </button>
                 </div>
-                <div>
-                  <span>Match</span>
-                  <strong>{documentAgreementPercent}%</strong>
+                <div className="traceTimeline" aria-label="answer trace timeline">
+                  {trace.timeline.map((event) => (
+                    <article className="timelineItem" key={`${event.order}-${event.kind}-${event.title}-${event.at}`}>
+                      <span>{event.kind}</span>
+                      <div>
+                        <strong>{event.title}</strong>
+                        <p>{summarizeTraceEvent(event)}</p>
+                      </div>
+                      <code>{event.status}</code>
+                    </article>
+                  ))}
                 </div>
-                <div>
-                  <span>Tools</span>
-                  <strong>{trace.toolCalls.length}</strong>
-                </div>
-                <div>
-                  <span>Approvals</span>
-                  <strong>{trace.approvals.length}</strong>
-                </div>
-                <div>
-                  <span>Feedback</span>
-                  <strong>{trace.feedback.length}</strong>
-                </div>
-                <button disabled={loading === "trace"} onClick={() => loadTrace()} type="button">
-                  {loading === "trace" ? "Refreshing..." : "Refresh trace"}
-                </button>
-              </div>
+              </section>
             ) : null}
             <div className="feedbackBar">
               <input
@@ -955,6 +969,13 @@ function formatScore(value: number): string {
   return value.toFixed(3);
 }
 
+function formatDuration(value: number): string {
+  if (value < 1000) {
+    return `${value}ms`;
+  }
+  return `${(value / 1000).toFixed(1)}s`;
+}
+
 function summarizeToolOutput(output: Record<string, unknown>): string {
   if (typeof output.sourceCount === "number") {
     const permissionAudit = output.permissionAudit as { deniedCandidateCount?: unknown } | undefined;
@@ -971,6 +992,37 @@ function summarizeToolOutput(output: Record<string, unknown>): string {
     return `${output.itemCount} checklist items`;
   }
   return "logged";
+}
+
+function summarizeTraceEvent(event: AnswerTrace["timeline"][number]): string {
+  if (event.kind === "retrieval") {
+    const sourceCount = typeof event.detail.sourceCount === "number" ? event.detail.sourceCount : 0;
+    const topSource = typeof event.detail.topSource === "string" ? event.detail.topSource : "none";
+    return `${sourceCount} sources · top ${topSource}`;
+  }
+
+  if (event.kind === "answer") {
+    const confidence = typeof event.detail.confidence === "number" ? formatPercent(event.detail.confidence) : "n/a";
+    const match = typeof event.detail.documentAgreementScore === "number" ? formatPercent(event.detail.documentAgreementScore) : "n/a";
+    const duration = typeof event.detail.durationMs === "number" ? formatDuration(event.detail.durationMs) : "n/a";
+    return `confidence ${confidence} · match ${match} · ${duration}`;
+  }
+
+  if (event.kind === "tool") {
+    const output = event.detail.output && typeof event.detail.output === "object" ? (event.detail.output as Record<string, unknown>) : {};
+    return summarizeToolOutput(output);
+  }
+
+  if (event.kind === "approval") {
+    const reason = event.detail.reason && typeof event.detail.reason === "object" ? (event.detail.reason as Record<string, unknown>) : {};
+    return typeof reason.policy === "string" ? reason.policy : "human approval boundary";
+  }
+
+  if (event.kind === "feedback") {
+    return typeof event.detail.comment === "string" && event.detail.comment ? event.detail.comment : "rating recorded";
+  }
+
+  return typeof event.detail.question === "string" ? event.detail.question : "question received";
 }
 
 function formatDeniedVisibility(deniedByVisibility: Record<string, number>): string {

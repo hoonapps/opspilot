@@ -4,6 +4,24 @@ import { AuthzService } from "../authz/authz.service";
 import { RequestContext } from "../shared/request-context";
 
 export type AnswerTrace = {
+  summary: {
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    feedbackCount: number;
+    needsHumanReview: boolean;
+    confidence: number;
+    documentAgreementScore: number;
+    durationMs: number;
+  };
+  timeline: Array<{
+    order: number;
+    kind: "question" | "retrieval" | "answer" | "tool" | "approval" | "feedback";
+    title: string;
+    status: string;
+    at: string;
+    detail: Record<string, unknown>;
+  }>;
   answer: {
     id: string;
     questionId: string;
@@ -68,6 +86,7 @@ export class AnswerTraceService {
           q.text as question,
           q.channel,
           q.actor,
+          q.created_at as question_created_at,
           a.text,
           a.confidence,
           a.needs_human_review,
@@ -140,7 +159,61 @@ export class AnswerTraceService {
       throw new ForbiddenException("Answer trace contains sources that are not accessible to this actor");
     }
 
+    const questionCreatedAt = toIsoString(answer.question_created_at);
+    const answerCreatedAt = toIsoString(answer.created_at);
+    const mappedToolCalls = toolCalls.map((toolCall) => ({
+      id: toolCall.id,
+      toolName: toolCall.tool_name,
+      status: toolCall.status,
+      input: toolCall.input,
+      output: toolCall.output,
+      createdAt: toIsoString(toolCall.created_at)
+    }));
+    const mappedApprovals = approvals.map((approval) => ({
+      id: approval.id,
+      action: approval.action,
+      reason: approval.reason,
+      status: approval.status,
+      createdAt: toIsoString(approval.created_at)
+    }));
+    const mappedFeedback = feedback.map((item) => ({
+      id: item.id,
+      rating: item.rating,
+      comment: item.comment,
+      createdAt: toIsoString(item.created_at)
+    }));
+    const metadata = answer.metadata ?? {};
+    const documentAgreement = metadata.documentAgreement as { score?: unknown } | undefined;
+    const summary = {
+      sourceCount: sources.length,
+      toolCallCount: mappedToolCalls.length,
+      approvalCount: mappedApprovals.length,
+      feedbackCount: mappedFeedback.length,
+      needsHumanReview: answer.needs_human_review,
+      confidence: answer.confidence,
+      documentAgreementScore: typeof documentAgreement?.score === "number" ? documentAgreement.score : 0,
+      durationMs: calculateDurationMs(questionCreatedAt, [
+        answerCreatedAt,
+        ...mappedToolCalls.map((event) => event.createdAt),
+        ...mappedApprovals.map((event) => event.createdAt),
+        ...mappedFeedback.map((event) => event.createdAt)
+      ])
+    };
+
     return {
+      summary,
+      timeline: buildTimeline({
+        answerId: answer.id,
+        questionId: answer.question_id,
+        question: answer.question,
+        questionCreatedAt,
+        answerCreatedAt,
+        summary,
+        sources,
+        toolCalls: mappedToolCalls,
+        approvals: mappedApprovals,
+        feedback: mappedFeedback
+      }),
       answer: {
         id: answer.id,
         questionId: answer.question_id,
@@ -150,8 +223,8 @@ export class AnswerTraceService {
         text: answer.text,
         confidence: answer.confidence,
         needsHumanReview: answer.needs_human_review,
-        metadata: answer.metadata,
-        createdAt: toIsoString(answer.created_at)
+        metadata,
+        createdAt: answerCreatedAt
       },
       sources: sources.map((source) => ({
         rank: source.rank,
@@ -165,27 +238,9 @@ export class AnswerTraceService {
         chunkIndex: source.chunk_index,
         contentPreview: source.content_preview
       })),
-      toolCalls: toolCalls.map((toolCall) => ({
-        id: toolCall.id,
-        toolName: toolCall.tool_name,
-        status: toolCall.status,
-        input: toolCall.input,
-        output: toolCall.output,
-        createdAt: toIsoString(toolCall.created_at)
-      })),
-      approvals: approvals.map((approval) => ({
-        id: approval.id,
-        action: approval.action,
-        reason: approval.reason,
-        status: approval.status,
-        createdAt: toIsoString(approval.created_at)
-      })),
-      feedback: feedback.map((item) => ({
-        id: item.id,
-        rating: item.rating,
-        comment: item.comment,
-        createdAt: toIsoString(item.created_at)
-      }))
+      toolCalls: mappedToolCalls,
+      approvals: mappedApprovals,
+      feedback: mappedFeedback
     };
   }
 }
@@ -196,6 +251,7 @@ type AnswerTraceRow = {
   question: string;
   channel?: string | null;
   actor: Record<string, unknown>;
+  question_created_at: Date | string;
   text: string;
   confidence: number;
   needs_human_review: boolean;
@@ -242,4 +298,99 @@ type FeedbackTraceRow = {
 
 function toIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function calculateDurationMs(start: string, eventTimes: string[]): number {
+  const startMs = new Date(start).getTime();
+  const endMs = Math.max(startMs, ...eventTimes.map((value) => new Date(value).getTime()));
+  return Math.max(0, endMs - startMs);
+}
+
+function buildTimeline(input: {
+  answerId: string;
+  questionId: string;
+  question: string;
+  questionCreatedAt: string;
+  answerCreatedAt: string;
+  summary: AnswerTrace["summary"];
+  sources: SourceTraceRow[];
+  toolCalls: AnswerTrace["toolCalls"];
+  approvals: AnswerTrace["approvals"];
+  feedback: AnswerTrace["feedback"];
+}): AnswerTrace["timeline"] {
+  const events: AnswerTrace["timeline"] = [
+    {
+      order: 1,
+      kind: "question",
+      title: "Question persisted",
+      status: "created",
+      at: input.questionCreatedAt,
+      detail: {
+        questionId: input.questionId,
+        question: input.question
+      }
+    },
+    {
+      order: 2,
+      kind: "retrieval",
+      title: "Sources attached",
+      status: input.sources.length > 0 ? "grounded" : "empty",
+      at: input.answerCreatedAt,
+      detail: {
+        sourceCount: input.sources.length,
+        topSource: input.sources[0]?.path ?? null,
+        topScore: input.sources[0]?.score ?? null
+      }
+    },
+    {
+      order: 3,
+      kind: "answer",
+      title: "Answer generated",
+      status: input.summary.needsHumanReview ? "needs_review" : "auto",
+      at: input.answerCreatedAt,
+      detail: {
+        answerId: input.answerId,
+        confidence: input.summary.confidence,
+        documentAgreementScore: input.summary.documentAgreementScore,
+        durationMs: input.summary.durationMs
+      }
+    },
+    ...input.toolCalls.map((toolCall, index) => ({
+      order: 10 + index,
+      kind: "tool" as const,
+      title: toolCall.toolName,
+      status: toolCall.status,
+      at: toolCall.createdAt,
+      detail: {
+        input: toolCall.input,
+        output: toolCall.output
+      }
+    })),
+    ...input.approvals.map((approval, index) => ({
+      order: 100 + index,
+      kind: "approval" as const,
+      title: approval.action,
+      status: approval.status,
+      at: approval.createdAt,
+      detail: {
+        reason: approval.reason
+      }
+    })),
+    ...input.feedback.map((item, index) => ({
+      order: 200 + index,
+      kind: "feedback" as const,
+      title: "Feedback saved",
+      status: item.rating > 0 ? "helpful" : "needs_work",
+      at: item.createdAt,
+      detail: {
+        rating: item.rating,
+        comment: item.comment ?? null
+      }
+    }))
+  ];
+
+  return events.sort((a, b) => {
+    const timeDiff = new Date(a.at).getTime() - new Date(b.at).getTime();
+    return timeDiff === 0 ? a.order - b.order : timeDiff;
+  });
 }

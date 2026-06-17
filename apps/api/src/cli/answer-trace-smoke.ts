@@ -26,10 +26,23 @@ async function main() {
     const unauthorizedDenied = await rejectsTrace(traceService, answer.answerId);
     const sourcePaths = trace.sources.map((source) => source.path);
     const toolNames = trace.toolCalls.map((toolCall) => toolCall.toolName);
+    const timelineTitles = trace.timeline.map((event) => event.title);
     const reviewReasons = trace.answer.metadata.reviewReasons as Array<{ code?: string }> | undefined;
     const ok =
       trace.answer.id === answer.answerId &&
       trace.answer.questionId === answer.questionId &&
+      trace.summary.sourceCount === trace.sources.length &&
+      trace.summary.toolCallCount === trace.toolCalls.length &&
+      trace.summary.approvalCount === trace.approvals.length &&
+      trace.summary.feedbackCount === trace.feedback.length &&
+      trace.summary.needsHumanReview === true &&
+      trace.summary.documentAgreementScore >= 0 &&
+      trace.timeline.length >= 5 &&
+      timelineTitles.includes("Question persisted") &&
+      timelineTitles.includes("Sources attached") &&
+      timelineTitles.includes("Answer generated") &&
+      timelineTitles.includes("request_human_approval") &&
+      timelineTitles.includes("Feedback saved") &&
       sourcePaths.some((path) => path.startsWith("restricted/")) &&
       sourcePaths.length > 0 &&
       toolNames.includes("search_documents") &&
@@ -49,6 +62,8 @@ async function main() {
         toolCalls: toolNames,
         approvals: trace.approvals.map((approval) => approval.action),
         feedbackCount: trace.feedback.length,
+        summary: trace.summary,
+        timeline: timelineTitles,
         unauthorizedDenied,
         reviewReasons
       }
