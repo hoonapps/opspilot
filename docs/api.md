@@ -20,6 +20,7 @@ GET /docs-json
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
 - `POST /documents/github/sync`: GitHub Markdown sync
+- `GET /documents/indexing-jobs`: BullMQ 색인 큐 카운트, 최근 작업, 워커 상태 확인
 - `POST /documents/indexing-jobs/markdown`: BullMQ 색인 작업 생성
 - `GET /permission-boundary/matrix`: persona별 문서 접근 matrix
 - `GET /answers/{id}/trace`: 답변 실행 trace 복원

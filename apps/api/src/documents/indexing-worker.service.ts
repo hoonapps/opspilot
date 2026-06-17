@@ -12,12 +12,12 @@ import {
 @Injectable()
 export class IndexingWorkerService implements OnModuleDestroy {
   private worker?: Worker<IndexMarkdownJobData, IndexMarkdownJobResult>;
+  private readonly concurrency = Number(process.env.INDEXING_WORKER_CONCURRENCY ?? 2);
 
   constructor(private readonly documentsService: DocumentsService) {}
 
   start(): { queueName: string; running: boolean; concurrency: number } {
     if (!this.worker) {
-      const concurrency = Number(process.env.INDEXING_WORKER_CONCURRENCY ?? 2);
       this.worker = new Worker<IndexMarkdownJobData, IndexMarkdownJobResult>(
         INDEXING_QUEUE_NAME,
         async (job) => {
@@ -30,7 +30,7 @@ export class IndexingWorkerService implements OnModuleDestroy {
           await job.updateProgress({ stage: "indexed", path: result.path, chunks: result.chunks });
           return result;
         },
-        { connection: redisConnectionOptions(), concurrency }
+        { connection: redisConnectionOptions(), concurrency: this.concurrency }
       );
 
       this.worker.on("failed", (job, error) => {
@@ -39,9 +39,16 @@ export class IndexingWorkerService implements OnModuleDestroy {
     }
 
     return {
+      ...this.status(),
+      running: true
+    };
+  }
+
+  status(): { queueName: string; running: boolean; concurrency: number } {
+    return {
       queueName: INDEXING_QUEUE_NAME,
-      running: true,
-      concurrency: Number(process.env.INDEXING_WORKER_CONCURRENCY ?? 2)
+      running: Boolean(this.worker),
+      concurrency: this.concurrency
     };
   }
 

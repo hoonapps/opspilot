@@ -12,6 +12,7 @@ import {
   createFeedback,
   DocumentInventoryItem,
   DocumentVersionHistory,
+  enqueueMarkdownIndexingJob,
   EvaluationHistory,
   EvaluationReport,
   getAnswerProof,
@@ -20,6 +21,7 @@ import {
   getAnswerTrace,
   getDocumentVersionHistory,
   getEvaluationHistory,
+  getIndexingQueueHealth,
   getLatestEvaluation,
   getObservabilityReleaseGate,
   getObservabilitySlo,
@@ -27,6 +29,8 @@ import {
   getPermissionBoundaryMatrix,
   GithubSyncResponse,
   IngestResponse,
+  IndexingJobStatus,
+  IndexingQueueHealth,
   AgentToolDefinition,
   listDocuments,
   listAgentTools,
@@ -160,6 +164,8 @@ export default function Home() {
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
+  const [queueHealth, setQueueHealth] = useState<IndexingQueueHealth | null>(null);
+  const [queuedIndexingJob, setQueuedIndexingJob] = useState<IndexingJobStatus | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
   const [documentVersionHistory, setDocumentVersionHistory] = useState<DocumentVersionHistory | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
@@ -173,6 +179,7 @@ export default function Home() {
     | "verify"
     | "github"
     | "documents"
+    | "queue"
     | "versions"
     | "matrix"
     | "approval"
@@ -360,6 +367,32 @@ export default function Home() {
       );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "GitHub 동기화 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadIndexingQueueHealth() {
+    setError(null);
+    setLoading("queue");
+    try {
+      setQueueHealth(await getIndexingQueueHealth());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "색인 큐 상태 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function enqueueCurrentMarkdownIndexingJob() {
+    setError(null);
+    setLoading("queue");
+    try {
+      const job = await enqueueMarkdownIndexingJob({ path, markdown });
+      setQueuedIndexingJob(job);
+      setQueueHealth(await getIndexingQueueHealth());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "비동기 색인 작업 생성에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1437,6 +1470,79 @@ export default function Home() {
             )}
           </section>
 
+          <section className="queuePanel" aria-label="BullMQ 색인 큐 관제">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">비동기 색인</p>
+                <h2>BullMQ 큐 관제</h2>
+              </div>
+              <div className="headerActions">
+                {queueHealth ? (
+                  <span className={queueHealth.worker.running ? "badge" : "badge review"}>
+                    {queueHealth.worker.running ? "워커 실행 중" : "워커 미실행"}
+                  </span>
+                ) : null}
+                <button className="smallButton" disabled={loading === "queue"} onClick={loadIndexingQueueHealth} type="button">
+                  {loading === "queue" ? "불러오는 중..." : "큐 상태 불러오기"}
+                </button>
+              </div>
+            </div>
+
+            {queueHealth ? (
+              <>
+                <div className="queueStats">
+                  <Metric label="대기" value={String(queueHealth.counts.waiting)} />
+                  <Metric label="실행" value={String(queueHealth.counts.active)} />
+                  <Metric label="완료" value={String(queueHealth.counts.completed)} />
+                  <Metric label="실패" value={String(queueHealth.counts.failed)} />
+                  <Metric label="지연" value={String(queueHealth.counts.delayed)} />
+                  <Metric label="동시성" value={String(queueHealth.worker.concurrency)} />
+                </div>
+                <div className="queueMetaLine">
+                  <span>{queueHealth.queueName}</span>
+                  <span>생성 {formatShortDate(queueHealth.generatedAt)}</span>
+                  <button className="smallButton" disabled={loading === "queue"} onClick={enqueueCurrentMarkdownIndexingJob} type="button">
+                    현재 Markdown 큐 등록
+                  </button>
+                </div>
+                {queuedIndexingJob ? (
+                  <div className="queueNotice">
+                    <strong>{formatQueueState(queuedIndexingJob.state)}</strong>
+                    <span>{queuedIndexingJob.data.path}</span>
+                    <code>{shortId(queuedIndexingJob.id)}</code>
+                  </div>
+                ) : null}
+                <div className="queueJobList">
+                  {queueHealth.recent.length > 0 ? (
+                    queueHealth.recent.map((job) => (
+                      <article className="queueJobItem" key={job.id}>
+                        <div className="queueJobHead">
+                          <span className={job.state === "failed" ? "badge review" : "badge"}>{formatQueueState(job.state)}</span>
+                          <div>
+                            <strong>{job.data.path}</strong>
+                            <p>{job.name} · {formatQueueSource(job.data.source)} · {shortId(job.id)}</p>
+                          </div>
+                          <code>{formatQueueDuration(job.durationMs)}</code>
+                        </div>
+                        <div className="queueJobMeta">
+                          <span>요청 {formatShortDate(job.data.requestedAt)}</span>
+                          <span>시도 {job.attemptsMade}회</span>
+                          <span>{formatQueueProgress(job.progress)}</span>
+                          {job.result ? <span>청크 {job.result.chunks}개</span> : null}
+                        </div>
+                        {job.failedReason ? <p className="queueFailure">{job.failedReason}</p> : null}
+                      </article>
+                    ))
+                  ) : (
+                    <p className="empty">최근 색인 큐 작업이 없습니다.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="empty">큐 상태를 불러오면 대기, 실행, 완료, 실패 작업과 워커 상태가 표시됩니다.</p>
+            )}
+          </section>
+
           <section className="permissionMatrixPanel">
             <div className="sectionHeader compact">
               <div>
@@ -1844,6 +1950,58 @@ function formatRuntimeStatus(status: string): string {
     failed: "실패"
   };
   return labels[status] ?? status;
+}
+
+function formatQueueState(state: string): string {
+  const labels: Record<string, string> = {
+    waiting: "대기",
+    active: "실행",
+    completed: "완료",
+    failed: "실패",
+    delayed: "지연",
+    paused: "일시정지",
+    prioritized: "우선순위",
+    "waiting-children": "하위 작업 대기"
+  };
+  return labels[state] ?? state;
+}
+
+function formatQueueSource(source: string): string {
+  const labels: Record<string, string> = {
+    api: "API",
+    smoke: "스모크"
+  };
+  return labels[source] ?? source;
+}
+
+function formatQueueDuration(value: number | null | undefined): string {
+  if (typeof value !== "number") {
+    return "처리 전";
+  }
+  return formatDuration(value);
+}
+
+function formatQueueProgress(progress: IndexingJobStatus["progress"]): string {
+  if (typeof progress === "number") {
+    return `진행률 ${progress}%`;
+  }
+  if (typeof progress === "string") {
+    return progress;
+  }
+  if (typeof progress === "object" && progress !== null) {
+    const stage = "stage" in progress && typeof progress.stage === "string" ? progress.stage : "진행 중";
+    const chunks = "chunks" in progress && typeof progress.chunks === "number" ? ` · 청크 ${progress.chunks}개` : "";
+    return `${formatQueueStage(stage)}${chunks}`;
+  }
+  return "진행 정보 없음";
+}
+
+function formatQueueStage(stage: string): string {
+  const labels: Record<string, string> = {
+    ingesting: "색인 중",
+    indexed: "색인 완료"
+  };
+  return labels[stage] ?? stage;
 }
 
 function formatVisibility(visibility: string): string {

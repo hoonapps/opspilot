@@ -80,6 +80,38 @@ export type GithubSyncResponse = {
   documents: IngestResponse[];
 };
 
+export type IndexingJobStatus = {
+  id: string;
+  name: string;
+  queueName: string;
+  state: string;
+  data: {
+    path: string;
+    requestedAt: string;
+    source: "api" | "smoke";
+  };
+  progress: boolean | number | object | string;
+  attemptsMade: number;
+  timestamp: number;
+  processedOn?: number;
+  finishedOn?: number;
+  durationMs?: number | null;
+  failedReason?: string;
+  result?: IngestResponse | null;
+};
+
+export type IndexingQueueHealth = {
+  queueName: string;
+  generatedAt: string;
+  counts: Record<"waiting" | "active" | "completed" | "failed" | "delayed" | "paused", number>;
+  recent: IndexingJobStatus[];
+  worker: {
+    queueName: string;
+    running: boolean;
+    concurrency: number;
+  };
+};
+
 export type DocumentInventoryItem = {
   id: string;
   path: string;
@@ -741,6 +773,30 @@ export async function syncGithubDocuments(input: {
   }
 
   return response.json() as Promise<GithubSyncResponse>;
+}
+
+export async function enqueueMarkdownIndexingJob(input: { path: string; markdown: string }): Promise<IndexingJobStatus> {
+  const response = await fetch(`${API_BASE_URL}/documents/indexing-jobs/markdown`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<IndexingJobStatus>;
+}
+
+export async function getIndexingQueueHealth(): Promise<IndexingQueueHealth> {
+  const response = await fetch(`${API_BASE_URL}/documents/indexing-jobs`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<IndexingQueueHealth>;
 }
 
 export async function listDocuments(): Promise<DocumentInventoryItem[]> {

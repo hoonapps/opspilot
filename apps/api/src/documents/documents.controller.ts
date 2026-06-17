@@ -5,6 +5,7 @@ import { UpsertMarkdownDocumentDto } from "./dto/upsert-markdown-document.dto";
 import { DocumentsService } from "./documents.service";
 import { GithubSyncService } from "./github-sync.service";
 import { IndexingQueueService } from "./indexing-queue.service";
+import { IndexingWorkerService } from "./indexing-worker.service";
 
 @ApiTags("documents")
 @Controller("documents")
@@ -12,7 +13,8 @@ export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly githubSyncService: GithubSyncService,
-    private readonly indexingQueueService: IndexingQueueService
+    private readonly indexingQueueService: IndexingQueueService,
+    private readonly indexingWorkerService: IndexingWorkerService
   ) {}
 
   @Post("ingest")
@@ -47,6 +49,14 @@ export class DocumentsController {
   @Post("indexing-jobs/markdown")
   enqueueMarkdownIndexingJob(@Body() body: UpsertMarkdownDocumentDto) {
     return this.indexingQueueService.enqueueMarkdown({ path: body.path, markdown: body.markdown });
+  }
+
+  @Get("indexing-jobs")
+  async getIndexingQueue() {
+    return {
+      ...(await this.indexingQueueService.getQueueHealth()),
+      worker: this.indexingWorkerService.status()
+    };
   }
 
   @Get("indexing-jobs/:id")

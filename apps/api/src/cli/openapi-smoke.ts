@@ -19,6 +19,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/documents/{id}/versions", method: "get", operationId: "DocumentsController_getDocumentVersions" },
   { path: "/documents/markdown", method: "post", operationId: "DocumentsController_upsertMarkdownDocument" },
   { path: "/documents/github/sync", method: "post", operationId: "DocumentsController_syncGithubDocuments" },
+  { path: "/documents/indexing-jobs", method: "get" },
   { path: "/documents/indexing-jobs/markdown", method: "post" },
   { path: "/documents/indexing-jobs/{id}", method: "get" },
   { path: "/answers/{id}/trace", method: "get" },

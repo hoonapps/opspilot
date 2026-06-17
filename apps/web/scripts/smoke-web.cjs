@@ -57,6 +57,16 @@ async function main() {
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).waitFor({ timeout: 10000 });
     const githubSyncFormVisible = await page.getByRole("button", { name: "GitHub 문서 동기화" }).isVisible();
     const indexInventoryVisible = await page.getByText("색인 현황과 청크", { exact: true }).isVisible();
+    await page.getByRole("button", { name: "큐 상태 불러오기" }).click();
+    await page.locator(".queuePanel").getByText("BullMQ 큐 관제", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".queuePanel").getByText("opspilot.indexing", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".queuePanel").getByText("동시성", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "현재 Markdown 큐 등록" }).click();
+    await page.locator(".queueNotice").getByText("public/status-page-policy.md", { exact: false }).waitFor({ timeout: 10000 });
+    const queuePanelVisible =
+      (await page.locator(".queuePanel").getByText("BullMQ 큐 관제", { exact: true }).isVisible()) &&
+      (await page.locator(".queuePanel").getByText("opspilot.indexing", { exact: true }).isVisible()) &&
+      (await page.locator(".queueNotice").getByText("public/status-page-policy.md", { exact: false }).isVisible());
 
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).click();
     await page.getByText("상태 페이지 장애 공지 기준 문서가 청크", { exact: false }).waitFor({ timeout: 10000 });
@@ -265,6 +275,7 @@ async function main() {
         feedbackSaved &&
         githubSyncFormVisible &&
         indexInventoryVisible &&
+        queuePanelVisible &&
         inventoryVisible &&
         chunkPreviewVisible &&
         securitySummaryVisible &&
@@ -315,6 +326,7 @@ async function main() {
         feedbackSaved,
         githubSyncFormVisible,
         indexInventoryVisible,
+        queuePanelVisible,
         inventoryVisible,
         chunkPreviewVisible,
         securitySummaryVisible,

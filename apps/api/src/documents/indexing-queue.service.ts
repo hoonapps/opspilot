@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { Job, Queue, QueueEvents, type ConnectionOptions } from "bullmq";
+import { Job, Queue, QueueEvents, type ConnectionOptions, type JobType } from "bullmq";
 import { sha256 } from "../shared/hash";
 
 export const INDEXING_QUEUE_NAME = "opspilot.indexing";
@@ -24,10 +24,24 @@ export type IndexingJobStatus = {
   name: string;
   queueName: string;
   state: string;
+  data: Pick<IndexMarkdownJobData, "path" | "requestedAt" | "source">;
   progress: boolean | number | object | string;
   attemptsMade: number;
+  timestamp: number;
+  processedOn?: number;
+  finishedOn?: number;
+  durationMs?: number | null;
   failedReason?: string;
   result?: IndexMarkdownJobResult | null;
+};
+
+export type IndexingQueueCounts = Record<"waiting" | "active" | "completed" | "failed" | "delayed" | "paused", number>;
+
+export type IndexingQueueHealth = {
+  queueName: string;
+  generatedAt: string;
+  counts: IndexingQueueCounts;
+  recent: IndexingJobStatus[];
 };
 
 @Injectable()
@@ -65,6 +79,32 @@ export class IndexingQueueService implements OnModuleDestroy {
     return job ? serializeJob(job) : null;
   }
 
+  async getQueueHealth(limit = 10): Promise<IndexingQueueHealth> {
+    const safeLimit = Math.max(1, Math.min(limit, 50));
+    const trackedStates: JobType[] = ["waiting", "active", "completed", "failed", "delayed", "paused"];
+    const [counts, jobs] = await Promise.all([
+      this.queue.getJobCounts(...trackedStates),
+      this.queue.getJobs(trackedStates, 0, safeLimit - 1, false)
+    ]);
+
+    const recent = await Promise.all(jobs.map((job) => serializeJob(job)));
+    recent.sort((left, right) => jobSortTime(right) - jobSortTime(left));
+
+    return {
+      queueName: INDEXING_QUEUE_NAME,
+      generatedAt: new Date().toISOString(),
+      counts: {
+        waiting: counts.waiting ?? 0,
+        active: counts.active ?? 0,
+        completed: counts.completed ?? 0,
+        failed: counts.failed ?? 0,
+        delayed: counts.delayed ?? 0,
+        paused: counts.paused ?? 0
+      },
+      recent
+    };
+  }
+
   async waitForJob(id: string, timeoutMs = 15000): Promise<IndexMarkdownJobResult> {
     const job = await this.queue.getJob(id);
     if (!job) {
@@ -95,14 +135,30 @@ export function redisConnectionOptions(): ConnectionOptions {
 }
 
 async function serializeJob(job: Job<IndexMarkdownJobData, IndexMarkdownJobResult>): Promise<IndexingJobStatus> {
+  const durationMs =
+    typeof job.processedOn === "number" && typeof job.finishedOn === "number" ? job.finishedOn - job.processedOn : null;
+
   return {
     id: String(job.id),
     name: job.name,
     queueName: INDEXING_QUEUE_NAME,
     state: await job.getState(),
+    data: {
+      path: job.data.path,
+      requestedAt: job.data.requestedAt,
+      source: job.data.source
+    },
     progress: job.progress,
     attemptsMade: job.attemptsMade,
+    timestamp: job.timestamp,
+    processedOn: job.processedOn,
+    finishedOn: job.finishedOn,
+    durationMs,
     failedReason: job.failedReason,
     result: job.returnvalue ?? null
   };
+}
+
+function jobSortTime(job: IndexingJobStatus): number {
+  return job.finishedOn ?? job.processedOn ?? job.timestamp;
 }

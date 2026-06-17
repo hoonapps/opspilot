@@ -29,6 +29,7 @@ async function main() {
     const agent = app.get(AgentService);
 
     const workerStatus = worker.start();
+    const beforeHealth = await queue.getQueueHealth();
     const queued = await queue.enqueueMarkdown({
       path: QUEUE_DOCUMENT_PATH,
       markdown: QUEUE_DOCUMENT,
@@ -36,11 +37,19 @@ async function main() {
     });
     const result = await queue.waitForJob(queued.id, 20000);
     const status = await queue.getJobStatus(queued.id);
+    const afterHealth = await queue.getQueueHealth();
     const response = await agent.ask("QIDX-77 큐 색인 완료 증거는 무엇을 말해야 해?", { roles: [], teamSlugs: [] }, "queue-indexing-smoke");
     const topSource = response.sources[0];
+    const recentJob = afterHealth.recent.find((job) => job.id === queued.id);
     const ok =
+      workerStatus.running &&
       result.path === QUEUE_DOCUMENT_PATH &&
       status?.state === "completed" &&
+      status.data.path === QUEUE_DOCUMENT_PATH &&
+      typeof status.durationMs === "number" &&
+      afterHealth.counts.completed >= beforeHealth.counts.completed + 1 &&
+      recentJob?.state === "completed" &&
+      recentJob.data.path === QUEUE_DOCUMENT_PATH &&
       topSource?.path === QUEUE_DOCUMENT_PATH &&
       response.answer.includes("QIDX-77") &&
       /BullMQ|worker|워커/i.test(response.answer);
@@ -48,6 +57,16 @@ async function main() {
     const report = {
       ok,
       worker: workerStatus,
+      queueHealth: {
+        before: beforeHealth.counts,
+        after: afterHealth.counts,
+        recent: afterHealth.recent.slice(0, 3).map((job) => ({
+          id: job.id,
+          state: job.state,
+          path: job.data.path,
+          durationMs: job.durationMs
+        }))
+      },
       queued,
       completed: status,
       topSource: topSource
