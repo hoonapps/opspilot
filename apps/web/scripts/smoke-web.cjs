@@ -146,11 +146,20 @@ async function main() {
     await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("Human required", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "Simulate Slack" }).click();
+    await page.locator(".slackProof").getByText("dry_run", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".slackProof").getByText("UOPSDEMO", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".slackProof").getByText("search_documents", { exact: false }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "Load tools" }).click();
     await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".auditList").getByText("needs_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     const toolRegistryVisible = await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).isVisible();
     const toolRegistryApprovalVisible = await page.locator(".toolRegistry").getByText("Human required", { exact: true }).isVisible();
+    const slackProofVisible = await page.locator(".slackProof").getByText("dry_run", { exact: true }).isVisible();
+    const slackTraceVisible =
+      (await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).isVisible()) &&
+      (await page.locator(".slackProof").getByText("search_documents", { exact: false }).isVisible());
     const auditVisible = await page.locator(".auditList").getByText("search_documents", { exact: false }).first().isVisible();
 
     await page.getByRole("button", { name: /Quality/ }).click();
@@ -206,6 +215,8 @@ async function main() {
         contextPackageVisible &&
         toolRegistryVisible &&
         toolRegistryApprovalVisible &&
+        slackProofVisible &&
+        slackTraceVisible &&
         auditVisible &&
         observabilityVisible,
       baseUrl,
@@ -245,6 +256,8 @@ async function main() {
         contextPackageVisible,
         toolRegistryVisible,
         toolRegistryApprovalVisible,
+        slackProofVisible,
+        slackTraceVisible,
         auditVisible,
         observabilityVisible
       }

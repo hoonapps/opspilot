@@ -63,6 +63,7 @@ The trace timeline includes question persistence, source attachment, answer gene
 19. Expose recent tool calls through the audit API.
 20. Expose pending approval requests for human review.
 21. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
+22. For local Slack simulation, return a compact trace with actor mapping, persisted question and answer ids, source scores, tool calls, and reply post mode.
 
 ## Current Guardrail
 

@@ -5,6 +5,7 @@ import { RequestContext } from "../shared/request-context";
 import {
   SlackEventCallbackPayload,
   SlackEventPayload,
+  SlackEventTrace,
   SlackHandleResult,
   SlackThreadReply
 } from "./dto/slack-event.dto";
@@ -71,20 +72,31 @@ export class SlackService {
       answer
     });
 
-    await this.postReplyIfEnabled(reply);
+    const postMode = await this.postReplyIfEnabled(reply);
 
-    return { ok: true, reply };
+    return {
+      ok: true,
+      reply,
+      trace: buildTrace({
+        event,
+        question,
+        context,
+        answer,
+        reply,
+        postMode
+      })
+    };
   }
 
-  private async postReplyIfEnabled(reply: SlackThreadReply): Promise<void> {
+  private async postReplyIfEnabled(reply: SlackThreadReply): Promise<SlackEventTrace["reply"]["postMode"]> {
     if (process.env.SLACK_POST_REPLIES !== "true") {
-      return;
+      return "dry_run";
     }
 
     const token = process.env.SLACK_BOT_TOKEN;
     if (!token) {
       this.logger.warn("SLACK_POST_REPLIES=true but SLACK_BOT_TOKEN is empty");
-      return;
+      return "failed";
     }
 
     const response = await fetch("https://slack.com/api/chat.postMessage", {
@@ -106,7 +118,10 @@ export class SlackService {
     const json = (await response.json()) as { ok?: boolean; error?: string };
     if (!json.ok) {
       this.logger.warn(`Slack postMessage failed: ${json.error ?? response.statusText}`);
+      return "failed";
     }
+
+    return "posted";
   }
 }
 
@@ -194,6 +209,46 @@ function buildReply(input: {
         ]
       }
     ]
+  };
+}
+
+function buildTrace(input: {
+  event: SlackEventCallbackPayload["event"];
+  question: string;
+  context: RequestContext;
+  answer: Awaited<ReturnType<AgentService["ask"]>>;
+  reply: SlackThreadReply;
+  postMode: SlackEventTrace["reply"]["postMode"];
+}): SlackEventTrace {
+  return {
+    eventType: input.event.type,
+    channel: input.event.channel ?? "",
+    threadTs: input.event.thread_ts ?? input.event.ts ?? "",
+    user: input.event.user,
+    actor: {
+      actorId: input.context.actorId,
+      roles: input.context.roles,
+      teamSlugs: input.context.teamSlugs
+    },
+    question: input.question,
+    questionId: input.answer.questionId,
+    answerId: input.answer.answerId,
+    needsHumanReview: input.answer.needsHumanReview,
+    reviewReasons: input.answer.reviewReasons.map((reason) => reason.code),
+    sources: input.answer.sources.map((source) => ({
+      title: source.title,
+      path: source.path,
+      score: source.score
+    })),
+    toolCalls: input.answer.toolCalls.map((toolCall) => ({
+      toolName: toolCall.toolName,
+      status: toolCall.status
+    })),
+    reply: {
+      postMode: input.postMode,
+      blockCount: input.reply.blocks.length,
+      textLength: input.reply.text.length
+    }
   };
 }
 

@@ -36,6 +36,7 @@ GET /docs-json
 - `GET /health`
 - `GET /health/ready`
 - `POST /slack/events`
+- `POST /slack/simulate`
 
 It also verifies request schemas for the main write paths and confirms the `x-opspilot-actor-token` API key security scheme is present.
 
@@ -52,3 +53,5 @@ This keeps the public API contract from silently drifting while the RAG agent gr
 `GET /documents/{id}/versions` is intentionally part of the public contract because changed operational docs need an audit trail. It exposes redacted version previews, hashes, and line-level diff summaries without exposing embeddings.
 
 `GET /tool-calls/registry` is intentionally part of the public contract because the portfolio demo needs to prove tool-calling structure, not only log rows. It exposes tool side effects, approval policy, and compact input/output schemas.
+
+`POST /slack/simulate` is intentionally part of the public contract because the portfolio demo needs a reproducible Slack flow without live Slack credentials. It runs the same app mention handling path as `POST /slack/events`, returns the thread reply payload, and exposes a trace with actor mapping, persisted question/answer ids, sources, tool calls, and reply post mode.

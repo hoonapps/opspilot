@@ -29,4 +29,9 @@ export class SlackController {
 
     return this.slackService.handlePayload(body);
   }
+
+  @Post("simulate")
+  simulate(@Body() body: SlackEventPayload) {
+    return this.slackService.handlePayload(body);
+  }
 }

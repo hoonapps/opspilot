@@ -5,7 +5,7 @@ OpsPilot keeps its product proof close to the code. The checked-in design artifa
 ## Assets
 
 - `docs/assets/opspilot-dashboard.svg`: editable SVG product board showing the target operating model for a permission-aware RAG agent console.
-- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, retrieval lab, evidence panel, operations telemetry, quality gates, approval queue, audit feed, and a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection.
+- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, retrieval lab, evidence panel, operations telemetry, quality gates, approval queue, Slack thread reply proof, audit feed, and a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection.
 
 The PNG is refreshed by `pnpm web:smoke` after the API and web console are running. This makes the README image a runtime artifact, not a static marketing mockup.
 
@@ -18,6 +18,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Show the answer, confidence, document match, context budget, grounding coverage, tool calls, and sources in one scan.
 - Render answer trace as a compact timeline with context budget and source-level grounding coverage so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
 - Show the agent tool registry beside runtime tool logs so side effects and approval policy are visible before inspecting individual executions.
+- Show Slack simulation trace in Audit so actor mapping, sources, tool calls, and thread reply metadata are visible without live Slack credentials.
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
 - Split the console into Ask, Retrieval, Documents, Quality, Review, and Audit screens so retrieval debugging and document management are first-class workflows.
 - Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
@@ -40,8 +41,9 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 9. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
 10. Ask the production DB write question and verify human approval is required.
 11. Open the Review screen and inspect the approval queue.
-12. Open the Audit screen and inspect the tool registry plus persisted tool-call trail.
-13. Save feedback and refresh the answer trace timeline and source grounding coverage.
+12. Open the Audit screen, run the Slack simulator, and inspect the dry-run thread reply trace.
+13. Inspect the tool registry plus persisted tool-call trail.
+14. Save feedback and refresh the answer trace timeline and source grounding coverage.
 
 This is the same path covered by the Playwright web smoke test.
 

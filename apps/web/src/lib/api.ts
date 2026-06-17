@@ -250,6 +250,42 @@ export type AgentToolDefinition = {
   auditFields: string[];
 };
 
+export type SlackSimulationTrace = {
+  ok: boolean;
+  ignored?: boolean;
+  reason?: string;
+  trace?: {
+    eventType: string;
+    channel: string;
+    threadTs: string;
+    user?: string;
+    actor: {
+      actorId?: string;
+      roles: string[];
+      teamSlugs: string[];
+    };
+    question: string;
+    questionId: string;
+    answerId: string;
+    needsHumanReview: boolean;
+    reviewReasons: string[];
+    sources: Array<{
+      title: string;
+      path: string;
+      score: number;
+    }>;
+    toolCalls: Array<{
+      toolName: string;
+      status: string;
+    }>;
+    reply: {
+      postMode: "dry_run" | "posted" | "failed";
+      blockCount: number;
+      textLength: number;
+    };
+  };
+};
+
 export type AnswerTrace = {
   summary: {
     sourceCount: number;
@@ -570,6 +606,30 @@ export async function listAgentTools(): Promise<AgentToolDefinition[]> {
 
   const data = (await response.json()) as { tools: AgentToolDefinition[] };
   return data.tools;
+}
+
+export async function simulateSlackMention(): Promise<SlackSimulationTrace> {
+  const response = await fetch(`${API_BASE_URL}/slack/simulate`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      type: "event_callback",
+      event: {
+        type: "app_mention",
+        user: "UOPSDEMO",
+        text: "<@UOPSPILOT> E102 에러가 발생하면 어떻게 대응해야 해?",
+        channel: "COPSDEMO",
+        ts: "1710000000.000100",
+        thread_ts: "1710000000.000100"
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<SlackSimulationTrace>;
 }
 
 export async function getObservabilitySummary(): Promise<ObservabilitySummary> {

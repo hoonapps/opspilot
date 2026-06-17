@@ -26,6 +26,8 @@ import {
   PermissionBoundaryMatrix,
   previewRetrieval,
   RetrievalPreviewResponse,
+  simulateSlackMention,
+  SlackSimulationTrace,
   syncGithubDocuments,
   ToolCallAuditItem,
   updateApproval,
@@ -127,6 +129,7 @@ export default function Home() {
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
+  const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
   const [retrievalLimit, setRetrievalLimit] = useState(5);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
@@ -154,6 +157,7 @@ export default function Home() {
     | "feedback"
     | "trace"
     | "tools"
+    | "slack"
     | null
   >(null);
   const [error, setError] = useState<string | null>(null);
@@ -402,6 +406,18 @@ export default function Home() {
       setAgentTools(await listAgentTools());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Tool registry request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runSlackSimulation() {
+    setError(null);
+    setLoading("slack");
+    try {
+      setSlackTrace(await simulateSlackMention());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Slack simulation request failed");
     } finally {
       setLoading(null);
     }
@@ -998,6 +1014,43 @@ export default function Home() {
                 </div>
               ) : (
                 <p className="empty">Load the registry to inspect tool contracts, side effects, and approval policy.</p>
+              )}
+            </section>
+            <section className="slackProof">
+              <div className="sectionHeader compact">
+                <div>
+                  <p className="eyebrow">Slack</p>
+                  <h2>Thread reply proof</h2>
+                </div>
+                {slackTrace?.trace ? <span className="badge">{slackTrace.trace.reply.postMode}</span> : null}
+                <button className="smallButton" disabled={loading === "slack"} onClick={runSlackSimulation} type="button">
+                  {loading === "slack" ? "Simulating..." : "Simulate Slack"}
+                </button>
+              </div>
+              {slackTrace?.trace ? (
+                <>
+                  <div className="slackProofGrid">
+                    <Metric label="Channel" value={slackTrace.trace.channel} />
+                    <Metric label="Thread" value={slackTrace.trace.threadTs} />
+                    <Metric label="Reply blocks" value={String(slackTrace.trace.reply.blockCount)} />
+                    <Metric label="Sources" value={String(slackTrace.trace.sources.length)} />
+                  </div>
+                  <div className="slackProofDetails">
+                    <span>Actor</span>
+                    <code>
+                      {slackTrace.trace.actor.actorId ?? "unknown"} · roles:{slackTrace.trace.actor.roles.join("|") || "none"} · teams:
+                      {slackTrace.trace.actor.teamSlugs.join("|") || "none"}
+                    </code>
+                    <span>Question</span>
+                    <code>{slackTrace.trace.question}</code>
+                    <span>Answer</span>
+                    <code>{slackTrace.trace.answerId}</code>
+                    <span>Tools</span>
+                    <code>{slackTrace.trace.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ") || "none"}</code>
+                  </div>
+                </>
+              ) : (
+                <p className="empty">Simulate a Slack app mention to inspect actor mapping, thread reply metadata, sources, and tool calls.</p>
               )}
             </section>
             <div className="auditList">

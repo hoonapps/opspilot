@@ -20,7 +20,7 @@ The screenshot above is generated from the working Next.js console by `pnpm web:
 - upsert and update a Markdown document, inspect index inventory, version diff, and chunk previews, then verify the indexed document through retrieval preview plus a grounded answer
 - preview retrieval ranking before answer generation with vector/lexical scores and permission-denied candidate counts
 - ask a sensitive operations question and force human approval
-- show permission audit counts, role/team boundary matrix, review reasons, answer trace, context budget, source grounding coverage, tool registry, tool calls, feedback, and approval queue state
+- show permission audit counts, role/team boundary matrix, review reasons, answer trace, context budget, source grounding coverage, Slack thread reply proof, tool registry, tool calls, feedback, and approval queue state
 
 Design and demo assets are tracked in [docs/design.md](docs/design.md).
 
@@ -35,6 +35,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can sensitive operations be separated into human approval?
 - Can tool contracts describe side effects and approval policy before runtime?
 - Can tool calls be audited after the answer is generated?
+- Can a Slack mention run the same RAG/tool-calling path and expose actor, source, and reply trace without live credentials?
 - Can new or changed documents be re-indexed, retrieved as top evidence, and evaluated?
 - Can document versions and diffs prove what changed before retrieval behavior changes?
 - Can retrieval ranking be debugged before answer generation?
@@ -390,7 +391,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval case explorer, operational telemetry, answer-level document match, context budget, source grounding coverage, permission audit, answer trace timeline, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval case explorer, operational telemetry, answer-level document match, context budget, source grounding coverage, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
@@ -413,6 +414,8 @@ Local mode does not require Slack credentials. It builds the same thread reply p
 ```bash
 pnpm slack:simulate
 ```
+
+The web console Audit screen also calls `POST /slack/simulate` to prove actor mapping, source citations, tool calls, and Slack thread reply metadata in `dry_run` mode.
 
 To post real thread replies, set:
 
@@ -497,13 +500,13 @@ Details: [docs/observability.md](docs/observability.md)
 
 ## API Contract
 
-Swagger UI is available at `/docs`, and the generated OpenAPI JSON is available at `/docs-json`. `pnpm openapi:smoke` verifies that the portfolio-critical paths and request schemas are present.
+Swagger UI is available at `/docs`, and the generated OpenAPI JSON is available at `/docs-json`. `pnpm openapi:smoke` verifies that the portfolio-critical paths, including the local Slack simulator, and request schemas are present.
 
 Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval case explorer, answer-level document match, permission audit, answer trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval case explorer, answer-level document match, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 
