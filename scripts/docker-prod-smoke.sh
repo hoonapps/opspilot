@@ -60,7 +60,7 @@ curl -fsS \
   > "$response_file"
 
 grep -q '"sources"' "$response_file"
-grep -q 'Payment API Error Codes' "$response_file"
+grep -q '결제 API 오류 코드' "$response_file"
 
 curl -fsS "http://localhost:${WEB_PORT}" | grep -q "OpsPilot 콘솔"
 
