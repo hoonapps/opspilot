@@ -833,6 +833,33 @@ export default function Home() {
                   {evaluation.suiteName} · {evaluation.total} cases · {evaluation.rows.filter((row) => row.hit).length} hits ·{" "}
                   {formatPercent(evaluation.metrics.documentAgreementScore)} match · {formatPercent(evaluation.metrics.citationAccuracy)} citations
                 </p>
+                <div className="evalCaseExplorer" aria-label="evaluation case explorer">
+                  {evaluation.rows.map((row) => (
+                    <article className="evalCaseItem" key={row.id}>
+                      <div className="evalCaseHead">
+                        <div>
+                          <strong>{row.id}</strong>
+                          <p>
+                            {row.expectedSources.join(", ")} → {row.actualSources[0] ?? "no source"}
+                          </p>
+                        </div>
+                        <span className={row.hit ? "badge" : "badge review"}>{row.hit ? "Hit" : "Miss"}</span>
+                      </div>
+                      <div className="evalCaseMetrics">
+                        <Metric label="Confidence" value={formatPercent(row.confidence)} />
+                        <Metric label="Match" value={formatPercent(row.documentAgreement)} />
+                        <Metric label="Human review" value={row.needsHumanReview ? "Yes" : "No"} />
+                        <Metric label="Citation" value={row.citationPresent ? "Present" : "Missing"} />
+                      </div>
+                      <div className="evalSourceCompare">
+                        <span>Expected</span>
+                        <code>{row.expectedSources.join(" | ")}</code>
+                        <span>Actual</span>
+                        <code>{row.actualSources.join(" | ") || "none"}</code>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               </>
             ) : (
               <p className="empty">Run `pnpm eval`, then load the latest quality report.</p>

@@ -1469,6 +1469,85 @@ pre {
   border-top: 3px solid var(--info);
 }
 
+.evalCaseExplorer {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.evalCaseItem {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.evalCaseHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.evalCaseHead strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evalCaseHead p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evalCaseMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evalCaseMetrics .metric {
+  min-height: 66px;
+  padding: 10px;
+  box-shadow: none;
+}
+
+.evalSourceCompare {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.evalSourceCompare span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.evalSourceCompare code {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .approvalPanel {
   border-top: 3px solid #f59e0b;
 }
@@ -1652,6 +1731,8 @@ pre {
   .retrievalStats,
   .scoreBars,
   .evalGrid,
+  .evalCaseMetrics,
+  .evalSourceCompare,
   .opsGrid,
   .opsBreakdown,
   .boundaryAudit,

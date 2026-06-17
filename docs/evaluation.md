@@ -46,7 +46,9 @@ GET /evaluations/latest
 GET /evaluations/latest?suiteName=seed-ops-wiki
 ```
 
-The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, citation accuracy, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel.
+The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, citation accuracy, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel and case explorer.
+
+The case explorer renders each row with expected sources, actual ranked sources, source hit/miss, confidence, document agreement, citation state, and human review state. This makes eval failures debuggable from the browser instead of reducing quality to one aggregate score.
 
 ## Planned Additions
 

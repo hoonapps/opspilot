@@ -23,13 +23,13 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Make permission boundaries visible through denied candidate counts and review reasons.
 - Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.
 - Keep sensitive actions separate from automatic answers through the approval queue.
-- Expose evaluation metrics in the same surface used for demos.
+- Expose evaluation metrics and case-level expected-vs-actual source comparison in the same surface used for demos.
 - Keep document upsert, GitHub sync, permission boundary matrix, version diff, index inventory, and chunk previews in a dedicated Documents screen so re-indexing, document changes, and access policy can be demonstrated live without hiding the controls below the answer workflow.
 
 ## Portfolio Demo Path
 
 1. Run the local stack and ingest seed documents.
-2. Open the Quality screen and load the latest evaluation report.
+2. Open the Quality screen and load the latest evaluation report, then inspect the case explorer for expected and actual sources.
 3. Open the Documents screen and upsert the sample status-page Markdown document.
 4. Verify that the inventory count, selected document, content hash, version diff, redaction summary, and generated chunk previews update before asking a question.
 5. Update the Markdown sample again and verify the version diff shows the added line.
