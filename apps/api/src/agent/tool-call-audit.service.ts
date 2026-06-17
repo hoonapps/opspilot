@@ -34,7 +34,7 @@ export class ToolCallAuditService {
         {
           name: "search_documents",
           category: "retrieval",
-          description: "Retrieve permission-filtered document chunks before answer generation.",
+          description: "답변 생성 전에 호출자 권한으로 필터링된 문서 청크를 검색합니다.",
           sideEffect: "none",
           approvalPolicy: "auto_allowed",
           statusWhenCalled: "allowed",
@@ -53,7 +53,7 @@ export class ToolCallAuditService {
         {
           name: "create_runbook_checklist",
           category: "runbook",
-          description: "Extract checklist items from retrieved runbook content for incident response questions.",
+          description: "장애 대응 질문에 맞춰 검색된 런북 문서에서 체크리스트 항목을 추출합니다.",
           sideEffect: "none",
           approvalPolicy: "auto_allowed",
           statusWhenCalled: "allowed",
@@ -71,7 +71,7 @@ export class ToolCallAuditService {
         {
           name: "request_human_approval",
           category: "approval",
-          description: "Create a pending approval handoff for production-sensitive operations.",
+          description: "운영 영향이 있는 민감 작업을 자동 실행하지 않고 사람 승인 대기열로 넘깁니다.",
           sideEffect: "database_write",
           approvalPolicy: "human_required",
           statusWhenCalled: "needs_approval",

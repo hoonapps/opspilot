@@ -45,6 +45,7 @@ import {
   updateApproval,
   upsertMarkdown
 } from "../lib/api";
+import { UsageGuide } from "./usage-guide";
 
 const sampleMarkdown = `---
 title: "상태 페이지 장애 공지 기준"
@@ -112,13 +113,13 @@ const screens: Array<{ id: ConsoleScreen; label: string; title: string; descript
     id: "review",
     label: "승인",
     title: "사람 승인 대기열",
-    description: "Agent가 자동 실행하지 않고 분리한 민감 작업을 승인 또는 반려합니다."
+    description: "에이전트가 자동 실행하지 않고 분리한 민감 작업을 승인 또는 반려합니다."
   },
   {
     id: "audit",
     label: "감사",
     title: "도구 호출 감사",
-    description: "저장된 Agent 도구 호출, 권한 감사 요약, 승인 위임 흐름을 확인합니다."
+    description: "저장된 에이전트 도구 호출, 권한 감사 요약, 승인 위임 흐름을 확인합니다."
   },
   {
     id: "help",
@@ -513,7 +514,7 @@ export default function Home() {
           <span className="brandMark">OP</span>
           <div>
 	            <strong>OpsPilot</strong>
-	            <p>운영 Agent</p>
+	            <p>운영 에이전트</p>
           </div>
         </div>
 	        <nav className="railNav" aria-label="콘솔 화면">
@@ -550,7 +551,7 @@ export default function Home() {
 	      </header>
 
 	      <section className="metrics" aria-label="검색 핵심 지표">
-	        <Metric label="검색" value="pgvector + hybrid" />
+	        <Metric label="검색" value="pgvector + 하이브리드" />
 	        <Metric label="권한" value="문서 접근 필터" />
 	        <Metric label="검토" value="사람 승인" />
 	        <Metric label="근거" value="출처 인용" />
@@ -559,95 +560,8 @@ export default function Home() {
       {error ? <div className="errorPanel">{error}</div> : null}
 
 	      <div className={`workspace ${activeScreen}`}>
-	        {activeScreen === "help" ? (
-	          <section className="usagePanel" aria-label="OpsPilot 사용법">
-	            <div className="sectionHeader">
-	              <div>
-	                <p className="eyebrow">사용법</p>
-	                <h2>로컬 데모 실행 순서</h2>
-	              </div>
-	              <span className="badge">5분 데모</span>
-	            </div>
-	            <div className="usageGrid">
-	              <article>
-	                <span>1</span>
-	                <div>
-	                  <strong>인프라와 API 실행</strong>
-	                  <p>PostgreSQL, Redis를 올리고 마이그레이션 후 API와 웹 콘솔을 실행합니다.</p>
-	                  <code>docker compose up -d postgres redis</code>
-	                  <code>pnpm --filter @opspilot/api db:migrate</code>
-	                  <code>pnpm dev:api · pnpm dev:web</code>
-	                </div>
-	              </article>
-	              <article>
-	                <span>2</span>
-	                <div>
-	                  <strong>기본 문서 색인</strong>
-	                  <p>`seed/documents`의 Markdown runbook, 정책, 에러 코드 문서를 RAG 인덱스에 넣습니다.</p>
-	                  <code>pnpm ingest</code>
-	                  <code>문서 화면 → 색인 새로고침</code>
-	                </div>
-	              </article>
-	              <article>
-	                <span>3</span>
-	                <div>
-	                  <strong>새 문서 등록 검증</strong>
-	                  <p>문서 화면에서 Markdown을 등록하면 청킹, 버전 이력, 검색 미리보기, 답변 일치율까지 한 번에 검증합니다.</p>
-	                  <code>문서 화면 → 등록하고 RAG 검증</code>
-	                  <code>색인 문서 검색 성공 · 출처 적중 확인</code>
-	                </div>
-	              </article>
-	              <article>
-	                <span>4</span>
-	                <div>
-	                  <strong>질문과 권한 경계 확인</strong>
-	                  <p>일반 질문은 자동 답변하고, 운영 DB 수정 같은 민감 작업은 승인 요청으로 분리됩니다.</p>
-	                  <code>질문 화면 → OpsPilot에 질문</code>
-	                  <code>검색 화면 → 권한 감사의 허용/차단 후보 확인</code>
-	                </div>
-	              </article>
-	              <article>
-	                <span>5</span>
-	                <div>
-	                  <strong>품질 게이트 확인</strong>
-	                  <p>평가, 문서 일치율, SLO, 배포 게이트를 확인해 RAG 품질이 현재 문서 상태와 맞는지 봅니다.</p>
-	                  <code>pnpm eval</code>
-	                  <code>pnpm freshness:smoke</code>
-	                  <code>pnpm release-gate:smoke</code>
-	                  <code>pnpm evidence-bundle:smoke</code>
-	                  <code>품질 화면 → 평가 불러오기 · 운영 지표 불러오기</code>
-	                </div>
-	              </article>
-	              <article>
-	                <span>6</span>
-	                <div>
-	                  <strong>포트폴리오 데모 리포트 생성</strong>
-	                  <p>터미널에서 핵심 증거를 JSON/Markdown 리포트로 만들고, 웹 smoke로 화면까지 검증합니다.</p>
-	                  <code>pnpm portfolio:demo</code>
-	                  <code>pnpm portfolio:report</code>
-	                  <code>pnpm web:smoke</code>
-	                </div>
-	              </article>
-	            </div>
-	            <div className="usageChecklist">
-	              <div>
-	                <strong>데모에서 보여줄 핵심 증거</strong>
-	                <p>문서 출처, 문서 일치율, 답변 drift, 증거 번들 해시, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트 상태를 순서대로 보여주면 됩니다.</p>
-	              </div>
-	              <div>
-	                <strong>문서를 어디서 관리하나?</strong>
-	                <p>로컬 샘플은 `seed/documents`, 앱에서 추가하는 문서는 `문서` 화면, GitHub 문서는 `GitHub 문서 동기화`로 관리합니다.</p>
-	              </div>
-	              <div>
-	                <strong>청킹과 RAG 검색은 어디서 보나?</strong>
-	                <p>`문서` 화면의 청크 미리보기와 `검색` 화면의 후보 청크 순위에서 실제 chunk, 점수, 권한 차단 결과를 확인합니다.</p>
-	              </div>
-	              <div>
-	                <strong>문서 일치율은 어디서 보나?</strong>
-	                <p>`질문` 화면 답변 상단, trace, proof packet, 증거 번들, `품질` 화면 평가 metric에서 답변과 근거 문서의 일치율을 확인합니다.</p>
-	              </div>
-	            </div>
-	          </section>
+        {activeScreen === "help" ? (
+	          <UsageGuide />
 	        ) : null}
 
 	        {activeScreen === "ask" ? (
@@ -695,7 +609,7 @@ export default function Home() {
               <span>
 	                신뢰도 {confidencePercent}% · 문서 일치율 {documentAgreementPercent}%
 	              </span>
-	              <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "아직 도구 호출 없음"}</span>
+	                <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${formatRuntimeStatus(tool.status)}`).join(", ") ?? "아직 도구 호출 없음"}</span>
 	              <span>
 	                {answer?.idempotency
 	                  ? `멱등성 ${answer.idempotency.replayed ? "재사용" : "신규"} · ${shortHash(answer.idempotency.requestHash)}`
@@ -705,7 +619,7 @@ export default function Home() {
 	            <pre>{answer?.answer ?? "질문을 실행하면 근거 기반 답변, 신뢰도, 도구 호출, 출처가 여기에 표시됩니다."}</pre>
             {answer ? (
               <div className="boundaryAudit">
-                <span>{answer.permissionAudit.enforcement}</span>
+                <span>{formatPermissionEnforcement(answer.permissionAudit.enforcement)}</span>
 	                <strong>차단 후보 {answer.permissionAudit.deniedCandidateCount}개</strong>
                 <code>{formatDeniedVisibility(answer.permissionAudit.deniedByVisibility)}</code>
               </div>
@@ -762,7 +676,7 @@ export default function Home() {
 	                    {loading === "trace" ? "새로고침 중..." : "추적 새로고침"}
                   </button>
                 </div>
-                <div className="groundingPanel" aria-label="source grounding coverage">
+                <div className="groundingPanel" aria-label="근거 커버리지">
                   <div className="groundingHeader">
                     <div>
 	                      <span>근거 커버리지</span>
@@ -785,7 +699,7 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-                <div className="contextPanel" aria-label="answer context package">
+                <div className="contextPanel" aria-label="답변 컨텍스트 패키지">
                   <div className="contextHeader">
                     <div>
 	                      <span>컨텍스트 예산</span>
@@ -806,14 +720,14 @@ export default function Home() {
                           <strong>{chunk.title}</strong>
                           <p>{chunk.path}</p>
                         </div>
-	                        <code>{chunk.included ? "포함" : chunk.reason}</code>
+	                        <code>{chunk.included ? "포함" : formatContextReason(chunk.reason)}</code>
                         <small>{chunk.estimatedTokens}t</small>
                       </article>
                     ))}
                   </div>
                 </div>
                 {proof ? (
-                  <div className="proofPanel" aria-label="answer proof packet">
+                  <div className="proofPanel" aria-label="답변 증명 패킷">
                     <div className="proofHeader">
                       <div>
 	                        <span>증명 패킷</span>
@@ -835,16 +749,16 @@ export default function Home() {
                     </div>
                     <div className="proofEvidence">
 	                      <span>출처 {proof.evidence.sourcePaths.length}</span>
-	                      <span>도구 {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ")}</span>
+	                      <span>도구 {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${formatRuntimeStatus(tool.status)}`).join(" ")}</span>
 	                      <span>검토 {proof.evidence.reviewReasons.join(" ") || "없음"}</span>
                     </div>
                   </div>
                 ) : null}
                 {replay ? (
-                  <div className="replayPanel" aria-label="answer 답변 drift">
+                  <div className="replayPanel" aria-label="답변 변경 감지">
                     <div className="proofHeader">
                       <div>
-	                        <span>답변 Drift</span>
+	                        <span>답변 변경 감지</span>
 	                        <strong>{formatReplayStatus(replay.status)}</strong>
                       </div>
 	                      <code>
@@ -881,7 +795,7 @@ export default function Home() {
                   </div>
                 ) : null}
                 {evidenceBundle ? (
-                  <div className="proofPanel" aria-label="answer evidence bundle">
+                  <div className="proofPanel" aria-label="답변 증거 번들">
                     <div className="proofHeader">
                       <div>
 	                        <span>증거 번들</span>
@@ -911,7 +825,7 @@ export default function Home() {
                     </div>
                   </div>
                 ) : null}
-                <div className="traceTimeline" aria-label="답변 trace timeline">
+                <div className="traceTimeline" aria-label="답변 추적 타임라인">
 	                  {trace.timeline.map((event) => (
 	                    <article className="timelineItem" key={`${event.order}-${event.kind}-${event.title}-${event.at}`}>
 	                      <span>{formatTraceKind(event.kind)}</span>
@@ -1019,7 +933,7 @@ export default function Home() {
 	                <p className="eyebrow">권한</p>
 	                <h2>권한 감사</h2>
               </div>
-              {retrievalPreview ? <span className="badge">{retrievalPreview.permissionAudit.enforcement}</span> : null}
+              {retrievalPreview ? <span className="badge">{formatPermissionEnforcement(retrievalPreview.permissionAudit.enforcement)}</span> : null}
             </div>
             {retrievalPreview ? (
               <>
@@ -1032,8 +946,8 @@ export default function Home() {
                 <div className="opsBreakdown">
 	                  <span>사용자</span>
                   <code>
-                    roles:{retrievalPreview.permissionAudit.actor.roles.join("|") || "none"} teams:
-                    {retrievalPreview.permissionAudit.actor.teamSlugs.join("|") || "none"}
+                    역할:{retrievalPreview.permissionAudit.actor.roles.join("|") || "없음"} 팀:
+                    {retrievalPreview.permissionAudit.actor.teamSlugs.join("|") || "없음"}
                   </code>
 	                  <span>차단</span>
                   <code>{formatDeniedVisibility(retrievalPreview.permissionAudit.deniedByVisibility)}</code>
@@ -1062,7 +976,7 @@ export default function Home() {
                         <strong>{candidate.title}</strong>
                         <p>{candidate.path}</p>
                       </div>
-                      <span className="badge">{candidate.visibility}</span>
+                      <span className="badge">{formatVisibility(candidate.visibility)}</span>
                     </div>
                     <div className="scoreBars">
                       <ScoreBar label="종합" value={candidate.score} />
@@ -1070,9 +984,9 @@ export default function Home() {
                       <ScoreBar label="키워드" value={candidate.retrieval.lexicalScore ?? 0} />
                     </div>
                     <div className="candidateMeta">
-                      <code>{candidate.retrieval.mode}</code>
-                      <code>{candidate.heading ?? "body"}</code>
-                      <code>{candidate.teamSlug ?? "public"}</code>
+                      <code>{formatRetrievalMode(candidate.retrieval.mode)}</code>
+                      <code>{candidate.heading ?? "문서 본문"}</code>
+                      <code>{candidate.teamSlug ?? "전체 공개"}</code>
                     </div>
                     <p>{candidate.contentPreview}</p>
                   </article>
@@ -1140,7 +1054,7 @@ export default function Home() {
 	                  <span>도구</span>
                   <code>{formatCountMap(observability.toolCalls.byName)}</code>
 	                  <span>상태</span>
-                  <code>{formatCountMap(observability.toolCalls.byStatus)}</code>
+                  <code>{formatStatusCountMap(observability.toolCalls.byStatus)}</code>
 	                  <span>색인</span>
                   <code>
 	                    문서 {observability.documents.total}개 / 청크 {observability.documents.chunks}개
@@ -1150,7 +1064,7 @@ export default function Home() {
                   <section className="sloPanel" aria-label="SLO guardrails">
                     <div className="evalHistoryHead">
 	                      <span>SLO 가드레일</span>
-                      <code>{sloReport.status}</code>
+                    <code>{formatSloStatus(sloReport.status)}</code>
                     </div>
                     <div className="sloList">
 	                      {sloReport.objectives.map((objective) => (
@@ -1232,7 +1146,7 @@ export default function Home() {
                         <div>
                           <strong>{row.id}</strong>
                           <p>
-                            {row.expectedSources.join(", ")} → {row.actualSources[0] ?? "no source"}
+                            {row.expectedSources.join(", ")} {"->"} {row.actualSources[0] ?? "출처 없음"}
                           </p>
                         </div>
 	                        <span className={row.hit ? "badge" : "badge review"}>{row.hit ? "적중" : "실패"}</span>
@@ -1247,7 +1161,7 @@ export default function Home() {
 	                        <span>기대 출처</span>
                         <code>{row.expectedSources.join(" | ")}</code>
 	                        <span>실제 출처</span>
-                        <code>{row.actualSources.join(" | ") || "none"}</code>
+                        <code>{row.actualSources.join(" | ") || "없음"}</code>
                       </div>
                     </article>
                   ))}
@@ -1307,7 +1221,7 @@ export default function Home() {
               <div className="sectionHeader compact">
                 <div>
 	                  <p className="eyebrow">레지스트리</p>
-	                  <h2>Agent 도구 계약</h2>
+	                  <h2>에이전트 도구 계약</h2>
 	                </div>
 	                {agentTools.length > 0 ? <span className="badge">도구 {agentTools.length}개</span> : null}
 	                <button className="smallButton" disabled={loading === "tools"} onClick={loadAgentTools} type="button">
@@ -1315,7 +1229,7 @@ export default function Home() {
                 </button>
               </div>
               {agentTools.length > 0 ? (
-                <div className="toolRegistryList" aria-label="agent 도구 registry">
+                <div className="toolRegistryList" aria-label="에이전트 도구 레지스트리">
                   {agentTools.map((tool) => (
                     <article className="toolRegistryItem" key={tool.name}>
                       <div>
@@ -1326,9 +1240,9 @@ export default function Home() {
 	                        {tool.approvalPolicy === "human_required" ? "사람 승인 필요" : "자동 허용"}
                       </span>
                       <div className="toolRegistryMeta">
-                        <code>{tool.category}</code>
-                        <code>{tool.sideEffect}</code>
-                        <code>{tool.statusWhenCalled}</code>
+                        <code>{formatToolCategory(tool.category)}</code>
+                        <code>{formatToolSideEffect(tool.sideEffect)}</code>
+                        <code>{formatRuntimeStatus(tool.statusWhenCalled)}</code>
                       </div>
                       <div className="toolSchemaGrid">
 	                        <span>입력</span>
@@ -1349,7 +1263,7 @@ export default function Home() {
 	                  <p className="eyebrow">Slack</p>
 	                  <h2>스레드 답변 증명</h2>
                 </div>
-                {slackTrace?.trace ? <span className="badge">{slackTrace.trace.reply.postMode}</span> : null}
+                {slackTrace?.trace ? <span className="badge">{formatSlackPostMode(slackTrace.trace.reply.postMode)}</span> : null}
                 <button className="smallButton" disabled={loading === "slack"} onClick={runSlackSimulation} type="button">
 	                  {loading === "slack" ? "시뮬레이션 중..." : "Slack 시뮬레이션"}
                 </button>
@@ -1365,15 +1279,15 @@ export default function Home() {
                   <div className="slackProofDetails">
 	                    <span>사용자</span>
                     <code>
-                      {slackTrace.trace.actor.actorId ?? "unknown"} · roles:{slackTrace.trace.actor.roles.join("|") || "none"} · teams:
-                      {slackTrace.trace.actor.teamSlugs.join("|") || "none"}
+                      {slackTrace.trace.actor.actorId ?? "알 수 없음"} · 역할:{slackTrace.trace.actor.roles.join("|") || "없음"} · 팀:
+                      {slackTrace.trace.actor.teamSlugs.join("|") || "없음"}
                     </code>
 	                    <span>질문</span>
                     <code>{slackTrace.trace.question}</code>
 	                    <span>답변</span>
                     <code>{slackTrace.trace.answerId}</code>
 	                    <span>도구</span>
-                    <code>{slackTrace.trace.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ") || "none"}</code>
+                    <code>{slackTrace.trace.toolCalls.map((tool) => `${tool.toolName}:${formatRuntimeStatus(tool.status)}`).join(" ") || "없음"}</code>
                   </div>
                 </>
               ) : (
@@ -1393,7 +1307,7 @@ export default function Home() {
                   </div>
                 ))
               ) : (
-	                <p className="empty">질문을 실행하면 최근 Agent 도구 호출이 여기에 표시됩니다.</p>
+	                <p className="empty">질문을 실행하면 최근 에이전트 도구 호출이 여기에 표시됩니다.</p>
               )}
             </div>
           </section>
@@ -1422,7 +1336,7 @@ export default function Home() {
 
             {documents.length > 0 ? (
               <div className="inventoryGrid">
-                <div className="documentList" aria-label="indexed documents">
+                <div className="documentList" aria-label="색인된 문서">
                   {documents.map((document) => (
                     <button
                       className={selectedDocument?.id === document.id ? "documentRow active" : "documentRow"}
@@ -1447,7 +1361,7 @@ export default function Home() {
                     <>
                       <div className="chunkHeader">
                         <div>
-                          <span>{selectedDocument.visibility}</span>
+                          <span>{formatVisibility(selectedDocument.visibility)}</span>
                           <strong>{selectedDocument.title}</strong>
                           <p>{selectedDocument.path}</p>
                         </div>
@@ -1456,7 +1370,7 @@ export default function Home() {
                         </button>
                       </div>
                       <div className="securityLine">
-	                        <span>팀: {selectedDocument.teamSlug ?? "public"}</span>
+	                        <span>팀: {selectedDocument.teamSlug ?? "전체 공개"}</span>
 	                        <span>마스킹: {getRedactionCount(selectedDocument)}</span>
 	                        <span className={hasPromptInjectionRisk(selectedDocument) ? "securityWarn" : ""}>
 	                          프롬프트 주입: {formatPromptInjectionRisk(selectedDocument)}
@@ -1464,7 +1378,7 @@ export default function Home() {
 	                        <span>해시: {selectedDocument.contentHash.slice(0, 10)}</span>
                       </div>
                       {documentVersionHistory?.document.id === selectedDocument.id ? (
-                        <section className="versionPanel" aria-label="document version history">
+                        <section className="versionPanel" aria-label="문서 버전 이력">
                           <div className="versionSummary">
                             <div>
 	                              <span>버전 이력</span>
@@ -1478,7 +1392,7 @@ export default function Home() {
 	                                  : "초기 버전"}
                               </strong>
                             </div>
-                            <code>{documentVersionHistory.latestDiff?.method ?? "no_previous_version"}</code>
+                            <code>{documentVersionHistory.latestDiff?.method ?? "이전 버전 없음"}</code>
                           </div>
                           <div className="versionList">
                             {documentVersionHistory.versions.slice(0, 4).map((version) => (
@@ -1558,7 +1472,7 @@ export default function Home() {
                       <div>
                         <strong>{document.title}</strong>
                         <p>
-                          {document.path} · {document.visibility}
+                          {document.path} · {formatVisibility(document.visibility)}
                           {document.teamSlug ? `:${document.teamSlug}` : ""}
                         </p>
                       </div>
@@ -1583,7 +1497,7 @@ export default function Home() {
                 </div>
               </>
             ) : (
-	              <p className="empty">매트릭스를 불러와 public, team, restricted 문서 접근이 사용자별로 어떻게 달라지는지 확인합니다.</p>
+	              <p className="empty">매트릭스를 불러와 전체 공개, 팀 한정, 제한 문서 접근이 사용자별로 어떻게 달라지는지 확인합니다.</p>
             )}
           </section>
 
@@ -1616,7 +1530,7 @@ export default function Home() {
               </p>
             ) : null}
             {indexProof ? (
-              <section className={indexProof.sourceHit ? "indexProof" : "indexProof warning"} aria-label="index verification proof">
+              <section className={indexProof.sourceHit ? "indexProof" : "indexProof warning"} aria-label="색인 검증 증거">
                 <div className="sectionHeader compact">
                   <div>
 	                    <p className="eyebrow">증명</p>
@@ -1626,7 +1540,7 @@ export default function Home() {
                 </div>
                 <div className="proofGrid">
 	                  <Metric label="청크" value={String(indexProof.chunkCount)} />
-	                  <Metric label="최고 점수" value={indexProof.topScore === null ? "n/a" : formatScore(indexProof.topScore)} />
+	                  <Metric label="최고 점수" value={indexProof.topScore === null ? "해당 없음" : formatScore(indexProof.topScore)} />
 	                  <Metric label="답변 일치율" value={formatPercent(indexProof.documentAgreement)} />
 	                  <Metric label="신뢰도" value={formatPercent(indexProof.confidence)} />
                 </div>
@@ -1636,7 +1550,7 @@ export default function Home() {
 	                  <span>기대 출처</span>
                   <code>{indexProof.path}</code>
 	                  <span>1순위 출처</span>
-                  <code>{indexProof.topSourcePath ?? "none"}</code>
+                  <code>{indexProof.topSourcePath ?? "없음"}</code>
 	                  <span>답변</span>
                   <code>{indexProof.answerId}</code>
                 </div>
@@ -1736,7 +1650,7 @@ function formatProofMetric(check: AnswerProof["checks"][number]): string {
   if (typeof check.metric === "number" && typeof check.threshold === "number") {
     return `${formatPercent(check.metric)} / ${formatPercent(check.threshold)}`;
   }
-  return check.id;
+  return "검사 완료";
 }
 
 function formatShortDate(value: string): string {
@@ -1758,7 +1672,7 @@ function shortHash(value: string): string {
 
 function formatDeltaPercent(value: number | null | undefined): string {
   if (value === null || value === undefined) {
-    return "n/a";
+    return "해당 없음";
   }
 
   const rounded = Math.round(value * 100);
@@ -1786,14 +1700,14 @@ function summarizeToolOutput(output: Record<string, unknown>): string {
 function summarizeTraceEvent(event: AnswerTrace["timeline"][number]): string {
   if (event.kind === "retrieval") {
     const sourceCount = typeof event.detail.sourceCount === "number" ? event.detail.sourceCount : 0;
-    const topSource = typeof event.detail.topSource === "string" ? event.detail.topSource : "none";
+    const topSource = typeof event.detail.topSource === "string" ? event.detail.topSource : "없음";
     return `출처 ${sourceCount}개 · 1순위 ${topSource}`;
   }
 
   if (event.kind === "answer") {
-    const confidence = typeof event.detail.confidence === "number" ? formatPercent(event.detail.confidence) : "n/a";
-    const match = typeof event.detail.documentAgreementScore === "number" ? formatPercent(event.detail.documentAgreementScore) : "n/a";
-    const duration = typeof event.detail.durationMs === "number" ? formatDuration(event.detail.durationMs) : "n/a";
+    const confidence = typeof event.detail.confidence === "number" ? formatPercent(event.detail.confidence) : "해당 없음";
+    const match = typeof event.detail.documentAgreementScore === "number" ? formatPercent(event.detail.documentAgreementScore) : "해당 없음";
+    const duration = typeof event.detail.durationMs === "number" ? formatDuration(event.detail.durationMs) : "해당 없음";
     return `신뢰도 ${confidence} · 일치율 ${match} · ${duration}`;
   }
 
@@ -1817,10 +1731,10 @@ function summarizeTraceEvent(event: AnswerTrace["timeline"][number]): string {
 function formatDeniedVisibility(deniedByVisibility: Record<string, number>): string {
   const entries = Object.entries(deniedByVisibility);
   if (entries.length === 0) {
-    return "차단된 visibility 없음";
+    return "차단된 권한 레벨 없음";
   }
 
-  return entries.map(([visibility, count]) => `${visibility}:${count}`).join(" ");
+  return entries.map(([visibility, count]) => `${formatVisibility(visibility)}:${count}`).join(" ");
 }
 
 function formatPersonaLabel(matrix: PermissionBoundaryMatrix, personaId: string): string {
@@ -1835,12 +1749,31 @@ function formatCountMap(values: Record<string, number>): string {
   return entries.map(([key, value]) => `${key}:${value}`).join(" ");
 }
 
+function formatSchemaType(value: string): string {
+  const labels: Record<string, string> = {
+    string: "문자열",
+    number: "숫자",
+    "string[]": "문자열[]",
+    RequestContext: "호출자 컨텍스트",
+    PermissionBoundaryAudit: "권한 감사"
+  };
+  return labels[value] ?? value;
+}
+
+function formatStatusCountMap(values: Record<string, number>): string {
+  const entries = Object.entries(values);
+  if (entries.length === 0) {
+    return "없음";
+  }
+  return entries.map(([key, value]) => `${formatRuntimeStatus(key)}:${value}`).join(" ");
+}
+
 function formatSchemaMap(values: Record<string, string>): string {
   const entries = Object.entries(values);
   if (entries.length === 0) {
     return "없음";
   }
-  return entries.map(([key, value]) => `${key}:${value}`).join(" ");
+  return entries.map(([key, value]) => `${key}:${formatSchemaType(value)}`).join(" ");
 }
 
 function formatGateStatus(status: string): string {
@@ -1906,9 +1839,70 @@ function formatRuntimeStatus(status: string): string {
     rejected: "반려",
     pass: "통과",
     warn: "주의",
-    fail: "실패"
+    fail: "실패",
+    completed: "완료",
+    failed: "실패"
   };
   return labels[status] ?? status;
+}
+
+function formatVisibility(visibility: string): string {
+  const labels: Record<string, string> = {
+    public: "전체 공개",
+    team: "팀 한정",
+    restricted: "제한"
+  };
+  return labels[visibility] ?? visibility;
+}
+
+function formatPermissionEnforcement(enforcement: string): string {
+  const labels: Record<string, string> = {
+    pre_ranking_sql_filter: "검색 전 SQL 권한 필터",
+    postgres_recheck_after_elasticsearch: "Elasticsearch 이후 PostgreSQL 권한 재검사"
+  };
+  return labels[enforcement] ?? enforcement;
+}
+
+function formatRetrievalMode(mode: string): string {
+  const labels: Record<string, string> = {
+    vector: "벡터 검색",
+    hybrid: "하이브리드 검색"
+  };
+  return labels[mode] ?? mode;
+}
+
+function formatToolCategory(category: string): string {
+  const labels: Record<string, string> = {
+    retrieval: "검색",
+    runbook: "런북",
+    approval: "승인"
+  };
+  return labels[category] ?? category;
+}
+
+function formatToolSideEffect(sideEffect: string): string {
+  const labels: Record<string, string> = {
+    none: "부작용 없음",
+    database_write: "데이터베이스 쓰기"
+  };
+  return labels[sideEffect] ?? sideEffect;
+}
+
+function formatSlackPostMode(mode: string): string {
+  const labels: Record<string, string> = {
+    dry_run: "로컬 시뮬레이션",
+    live: "실제 전송"
+  };
+  return labels[mode] ?? mode;
+}
+
+function formatContextReason(reason: string): string {
+  const labels: Record<string, string> = {
+    within_budget: "예산 안",
+    rank_cutoff: "순위 제외",
+    budget_exceeded: "예산 초과"
+  };
+  return labels[reason] ?? reason;
 }
 
 function formatTraceKind(kind: string): string {
@@ -1942,7 +1936,7 @@ function formatReleaseGateLabel(id: string, fallback: string): string {
     latest_eval_gate: "최신 평가 게이트",
     knowledge_freshness: "평가 최신성",
     slo_guardrails: "SLO 가드레일",
-    agent_audit_trail: "Agent 감사 추적",
+    agent_audit_trail: "에이전트 감사 추적",
     approval_backlog: "승인 대기열",
     feedback_signal: "피드백 신호"
   };

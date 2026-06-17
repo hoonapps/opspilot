@@ -20,6 +20,11 @@ async function main() {
     await page.locator(".usagePanel").getByText("로컬 데모 실행 순서", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".usagePanel").getByText("문서를 어디서 관리하나?", { exact: true }).waitFor({ timeout: 10000 });
     const usageVisible = await page.locator(".usagePanel").getByText("문서 화면", { exact: false }).first().isVisible();
+    await page.goto(`${baseUrl}/usage`, { waitUntil: "networkidle" });
+    await page.getByRole("heading", { name: "사용법" }).waitFor({ timeout: 10000 });
+    await page.getByText("로컬 데모 실행 순서", { exact: true }).waitFor({ timeout: 10000 });
+    const usagePageVisible = await page.getByText("문서 일치율은 어디서 보나?", { exact: true }).isVisible();
+    await page.goto(baseUrl, { waitUntil: "networkidle" });
 
     await page.getByRole("button", { name: "품질 품질 게이트와 운영 지표" }).click();
     await page.getByRole("button", { name: "평가 불러오기" }).click();
@@ -64,7 +69,7 @@ async function main() {
     await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).waitFor({ timeout: 10000 });
     const currentMarkdown = await page.getByLabel("Markdown").inputValue();
-    await page.getByLabel("Markdown").fill(`${currentMarkdown}\n\nWEB-DIFF-42: version history proof line for document diff inspection.`);
+    await page.getByLabel("Markdown").fill(`${currentMarkdown}\n\nWEB-DIFF-42: 문서 버전 변경 차이 검증용 라인입니다.`);
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).click();
     await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -99,10 +104,10 @@ async function main() {
     await page.getByLabel("검색 질문").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
     await page.getByRole("button", { name: "검색 미리보기" }).click();
     await page.locator(".retrievalPanel").getByText("차단", { exact: true }).first().waitFor({ timeout: 10000 });
-    await page.locator(".opsBreakdown").getByText("restricted", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".opsBreakdown").getByText("제한", { exact: false }).waitFor({ timeout: 10000 });
     const retrievalPreviewVisible = await page.locator(".candidateList").getByText("종합", { exact: true }).first().isVisible();
     const retrievalScoreVisible = await page.locator(".scoreBars").getByText("키워드", { exact: true }).first().isVisible();
-    const retrievalBoundaryVisible = await page.locator(".opsBreakdown").getByText("restricted", { exact: false }).isVisible();
+    const retrievalBoundaryVisible = await page.locator(".opsBreakdown").getByText("제한", { exact: false }).isVisible();
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
     await page
@@ -140,23 +145,23 @@ async function main() {
     await page.locator(".proofPanel").getByText("검사 통과율", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("출처 접근 재검사", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("승인 경계", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".replayPanel").getByText("답변 Drift", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".replayPanel").getByText("답변 변경 감지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".replayPanel").getByText("현재 문서 일치율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".replayPanel").getByText("권한 경계 재실행", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator("[aria-label='answer evidence bundle']").getByText("증거 번들", { exact: true }).waitFor({
+    await page.locator("[aria-label='답변 증거 번들']").getByText("증거 번들", { exact: true }).waitFor({
       timeout: 10000
     });
     await page
-      .locator("[aria-label='answer evidence bundle']")
+      .locator("[aria-label='답변 증거 번들']")
       .getByText("opspilot.answer_evidence_bundle.v1", { exact: true })
       .waitFor({ timeout: 10000 });
-    await page.locator("[aria-label='answer evidence bundle']").getByText("sha256:", { exact: false }).waitFor({
+    await page.locator("[aria-label='답변 증거 번들']").getByText("sha256:", { exact: false }).waitFor({
       timeout: 10000
     });
     await page.locator(".traceTimeline").getByText("질문 저장", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
-    const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("pre_ranking_sql_filter", { exact: false }).isVisible();
+    const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("검색 전 SQL 권한 필터", { exact: false }).isVisible();
     const reviewReasonVisible = await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).isVisible();
     const traceVisible = await page.locator(".tracePanel").getByText("추적 새로고침", { exact: true }).isVisible();
     const traceTimelineVisible = await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).isVisible();
@@ -168,16 +173,16 @@ async function main() {
       (await page.locator(".proofPanel").getByText("승인 경계", { exact: true }).isVisible()) &&
       (await page.locator(".proofPanel").getByText("피드백 저장", { exact: true }).isVisible());
     const replayDriftVisible =
-      (await page.locator(".replayPanel").getByText("답변 Drift", { exact: true }).isVisible()) &&
+      (await page.locator(".replayPanel").getByText("답변 변경 감지", { exact: true }).isVisible()) &&
       (await page.locator(".replayPanel").getByText("현재 문서 일치율", { exact: true }).isVisible()) &&
       (await page.locator(".replayPanel").getByText("권한 경계 재실행", { exact: true }).isVisible());
     const evidenceBundleVisible =
-      (await page.locator("[aria-label='answer evidence bundle']").getByText("증거 번들", { exact: true }).isVisible()) &&
+      (await page.locator("[aria-label='답변 증거 번들']").getByText("증거 번들", { exact: true }).isVisible()) &&
       (await page
-        .locator("[aria-label='answer evidence bundle']")
+        .locator("[aria-label='답변 증거 번들']")
         .getByText("opspilot.answer_evidence_bundle.v1", { exact: true })
         .isVisible()) &&
-      (await page.locator("[aria-label='answer evidence bundle']").getByText("sha256:", { exact: false }).isVisible());
+      (await page.locator("[aria-label='답변 증거 번들']").getByText("sha256:", { exact: false }).isVisible());
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
@@ -193,7 +198,7 @@ async function main() {
     await page.locator(".toolRegistry").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("사람 승인 필요", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "Slack 시뮬레이션" }).click();
-    await page.locator(".slackProof").getByText("dry_run", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".slackProof").getByText("로컬 시뮬레이션", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".slackProof").getByText("UOPSDEMO", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".slackProof").getByText("search_documents", { exact: false }).waitFor({ timeout: 10000 });
@@ -202,7 +207,7 @@ async function main() {
     await page.locator(".auditList").getByText("승인 필요", { exact: false }).first().waitFor({ timeout: 10000 });
     const toolRegistryVisible = await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).isVisible();
     const toolRegistryApprovalVisible = await page.locator(".toolRegistry").getByText("사람 승인 필요", { exact: true }).isVisible();
-    const slackProofVisible = await page.locator(".slackProof").getByText("dry_run", { exact: true }).isVisible();
+    const slackProofVisible = await page.locator(".slackProof").getByText("로컬 시뮬레이션", { exact: true }).isVisible();
     const slackTraceVisible =
       (await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).isVisible()) &&
       (await page.locator(".slackProof").getByText("search_documents", { exact: false }).isVisible());
@@ -227,7 +232,7 @@ async function main() {
       .waitFor({ timeout: 10000 });
     await page
       .locator(".observabilityPanel")
-      .getByText("needs_approval", { exact: false })
+      .getByText("승인 필요", { exact: false })
       .first()
       .waitFor({ timeout: 10000 });
     const observabilityText = await page.locator(".observabilityPanel").innerText();
@@ -246,7 +251,7 @@ async function main() {
       observabilityText.includes("피드백");
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
-    await page.locator("[aria-label='answer evidence bundle']").scrollIntoViewIfNeeded();
+    await page.locator("[aria-label='답변 증거 번들']").scrollIntoViewIfNeeded();
     await page.screenshot({ path: screenshotPath, fullPage: false });
 
     const report = {
@@ -296,7 +301,8 @@ async function main() {
         slackTraceVisible &&
         auditVisible &&
         observabilityVisible &&
-        usageVisible,
+        usageVisible &&
+        usagePageVisible,
       baseUrl,
       screenshotPath,
       checks: {
@@ -345,7 +351,8 @@ async function main() {
         slackTraceVisible,
         auditVisible,
         observabilityVisible,
-        usageVisible
+        usageVisible,
+        usagePageVisible
       }
     };
 
