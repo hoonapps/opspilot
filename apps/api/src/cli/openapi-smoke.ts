@@ -7,6 +7,7 @@ import { createOpenApiDocument } from "../openapi";
 type HttpMethod = "get" | "post" | "patch";
 type OpenApiOperation = {
   operationId?: string;
+  parameters?: Array<{ name?: string; in?: string }>;
   requestBody?: { $ref: string } | { content?: Record<string, { schema?: { $ref?: string } }> };
 };
 
@@ -65,6 +66,7 @@ async function main() {
     const missingSchemas = REQUIRED_SCHEMAS.filter((schemaName) => !schemas[schemaName]);
     const actorTokenScheme = document.components?.securitySchemes?.["actor-token"];
     const askRequestSchema = getRequestSchemaRef(document, "/ask", "post");
+    const askHasIdempotencyHeader = hasHeaderParameter(document, "/ask", "post", "x-idempotency-key");
     const retrievalPreviewSchema = getRequestSchemaRef(document, "/retrieval/preview", "post");
     const markdownRequestSchema = getRequestSchemaRef(document, "/documents/markdown", "post");
     const updateApprovalSchema = getRequestSchemaRef(document, "/approvals/{id}", "patch");
@@ -74,6 +76,7 @@ async function main() {
       missingSchemas.length === 0 &&
       isApiKeyScheme(actorTokenScheme) &&
       askRequestSchema === "#/components/schemas/AskDto" &&
+      askHasIdempotencyHeader &&
       retrievalPreviewSchema === "#/components/schemas/RetrievalPreviewDto" &&
       markdownRequestSchema === "#/components/schemas/UpsertMarkdownDocumentDto" &&
       updateApprovalSchema === "#/components/schemas/UpdateApprovalDto";
@@ -92,6 +95,9 @@ async function main() {
         retrievalPreview: retrievalPreviewSchema,
         markdown: markdownRequestSchema,
         updateApproval: updateApprovalSchema
+      },
+      headers: {
+        askHasIdempotencyHeader
       }
     };
 
@@ -103,6 +109,12 @@ async function main() {
   } finally {
     await app.close();
   }
+}
+
+function hasHeaderParameter(document: OpenAPIObject, path: string, method: HttpMethod, name: string): boolean {
+  return getOperation(document, path, method)?.parameters?.some((parameter) => {
+    return parameter.in === "header" && parameter.name?.toLowerCase() === name.toLowerCase();
+  }) === true;
 }
 
 function getOperation(document: OpenAPIObject, path: string, method: HttpMethod): OpenApiOperation | undefined {

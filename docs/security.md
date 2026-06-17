@@ -60,6 +60,23 @@ pnpm rate-limit:smoke
 
 limit 초과 시 HTTP 429와 `rateLimit.limit`, `remaining`, `resetAt`, `retryAfterSeconds`가 반환됩니다.
 
+## Ask Idempotency
+
+`POST /ask`는 `x-idempotency-key`를 지원합니다. key는 actor scope 안에서만 재사용되며, OpsPilot은 question/channel을 안정 hash로 저장합니다.
+
+- 같은 actor + 같은 key + 같은 body: 기존 answer를 replay
+- 같은 actor + 같은 key + 다른 body: HTTP 409
+- 다른 actor + 같은 key: 별도 scope로 처리
+- 처리 실패: key를 삭제해 안전하게 재시도 가능
+
+검증:
+
+```bash
+pnpm idempotency:smoke
+```
+
+이 테스트는 replay가 같은 `answerId`를 반환하고, conflict가 409로 막히며, replay가 rate limit을 추가로 소모하지 않는지 확인합니다.
+
 ## 검색 보안
 
 Elasticsearch는 recall booster일 뿐 권한 기준이 아닙니다. hybrid 모드에서도 Elasticsearch가 반환한 chunk id를 PostgreSQL에서 다시 로드하고 actor 권한 필터를 통과한 chunk만 답변 context에 들어갑니다.

@@ -38,6 +38,12 @@ export type AskResponse = {
     toolName: string;
     status: string;
   }>;
+  idempotency?: {
+    key: string;
+    replayed: boolean;
+    requestHash: string;
+    expiresAt: string;
+  };
 };
 
 export type Approval = {
@@ -610,14 +616,17 @@ export async function askOpsPilot(input: {
   question: string;
   teamSlugs: string;
   roles: string;
+  idempotencyKey?: string;
 }): Promise<AskResponse> {
+  const idempotencyKey = input.idempotencyKey ?? createIdempotencyKey();
   const response = await fetch(`${API_BASE_URL}/ask`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-team-slugs": input.teamSlugs,
       "x-user-roles": input.roles,
-      "x-roles": input.roles
+      "x-roles": input.roles,
+      "x-idempotency-key": idempotencyKey
     },
     body: JSON.stringify({ question: input.question, channel: "web" })
   });
@@ -627,6 +636,14 @@ export async function askOpsPilot(input: {
   }
 
   return response.json() as Promise<AskResponse>;
+}
+
+function createIdempotencyKey(): string {
+  const randomValue =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `web:${randomValue}`;
 }
 
 export async function previewRetrieval(input: {

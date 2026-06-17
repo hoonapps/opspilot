@@ -22,20 +22,22 @@ registry는 도구의 category, side effect, approval policy, 입력/출력 sche
 1. `/retrieval/preview`가 호출되면 부작용 없이 검색 후보와 권한 감사를 먼저 보여줍니다.
 2. `/ask`, Slack mention, 평가 script에서 질문을 받습니다.
 3. actor context를 구성합니다.
-4. Redis rate limit을 확인합니다.
-5. `search_documents`를 호출합니다.
-6. vector 모드에서는 pgvector와 PostgreSQL lexical score를 사용합니다.
-7. hybrid 모드에서는 pgvector 결과와 Elasticsearch BM25 결과를 fuse합니다.
-8. Elasticsearch 결과도 PostgreSQL에서 다시 로드하며 권한 필터를 적용합니다.
-9. context budget에 포함된 chunk와 제외된 chunk를 기록합니다.
-10. runbook/checklist 질문이면 `create_runbook_checklist`를 호출합니다.
-11. 출처 기반 답변을 생성합니다.
-12. confidence와 문서 일치율을 계산합니다.
-13. 출처 없음, 낮은 confidence, 민감 작업을 `reviewReasons`로 만듭니다.
-14. 민감 작업이면 `request_human_approval`을 호출합니다.
-15. 질문, 답변, 출처, context package, 도구 호출, review reason을 저장합니다.
-16. feedback은 answer id에 연결해 저장합니다.
-17. Slack 요청이면 같은 결과를 thread reply payload로 포맷합니다.
+4. `x-idempotency-key`가 있으면 actor scope와 request hash를 확인합니다.
+5. 같은 key와 같은 body의 완료된 요청이면 저장된 `/ask` 응답을 replay합니다.
+6. 신규 요청이면 Redis rate limit을 확인합니다.
+7. `search_documents`를 호출합니다.
+8. vector 모드에서는 pgvector와 PostgreSQL lexical score를 사용합니다.
+9. hybrid 모드에서는 pgvector 결과와 Elasticsearch BM25 결과를 fuse합니다.
+10. Elasticsearch 결과도 PostgreSQL에서 다시 로드하며 권한 필터를 적용합니다.
+11. context budget에 포함된 chunk와 제외된 chunk를 기록합니다.
+12. runbook/checklist 질문이면 `create_runbook_checklist`를 호출합니다.
+13. 출처 기반 답변을 생성합니다.
+14. confidence와 문서 일치율을 계산합니다.
+15. 출처 없음, 낮은 confidence, 민감 작업을 `reviewReasons`로 만듭니다.
+16. 민감 작업이면 `request_human_approval`을 호출합니다.
+17. 질문, 답변, 출처, context package, 도구 호출, review reason을 저장합니다.
+18. feedback은 answer id에 연결해 저장합니다.
+19. Slack 요청이면 같은 결과를 thread reply payload로 포맷합니다.
 
 ## 검색 미리보기
 

@@ -5,6 +5,7 @@ import { AgentService } from "./agent.service";
 import { AnswerTraceController } from "./answer-trace.controller";
 import { AnswerTraceService } from "./answer-trace.service";
 import { AnswerGeneratorService } from "./answer-generator.service";
+import { AskIdempotencyService } from "./ask-idempotency.service";
 import { ElasticsearchService } from "./elasticsearch.service";
 import { EmbeddingService } from "./embedding.service";
 import { RateLimitService } from "./rate-limit.service";
@@ -20,6 +21,7 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
     AgentService,
     AnswerTraceService,
     AnswerGeneratorService,
+    AskIdempotencyService,
     EmbeddingService,
     ElasticsearchService,
     RateLimitService,
@@ -27,6 +29,15 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
     RunbookChecklistService,
     ToolCallAuditService
   ],
-  exports: [EmbeddingService, ElasticsearchService, RateLimitService, SearchService, AgentService, AnswerTraceService, ToolCallAuditService]
+  exports: [
+    EmbeddingService,
+    ElasticsearchService,
+    RateLimitService,
+    SearchService,
+    AgentService,
+    AnswerTraceService,
+    AskIdempotencyService,
+    ToolCallAuditService
+  ]
 })
 export class AgentModule {}

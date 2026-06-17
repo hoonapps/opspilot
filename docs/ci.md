@@ -23,6 +23,7 @@ OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 - secret redaction smoke
 - prompt-injection guardrail smoke
 - actor rate limit smoke
+- ask idempotency smoke
 - readiness smoke
 - document agreement smoke
 - runbook checklist 도구 호출 smoke
@@ -37,4 +38,4 @@ OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 - OpenAPI contract smoke
 - Playwright web smoke
 
-CI는 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. grounded retrieval, citation accuracy, 문서 일치율, 권한 경계, 사람 승인, 도구 감사, Slack simulator, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.
+CI는 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. grounded retrieval, citation accuracy, 문서 일치율, 권한 경계, 사람 승인, 도구 감사, `/ask` 멱등성, Slack simulator, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.

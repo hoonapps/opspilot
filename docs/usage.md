@@ -247,6 +247,7 @@ pnpm authn:smoke
 pnpm redaction:smoke
 pnpm prompt-injection:smoke
 pnpm rate-limit:smoke
+pnpm idempotency:smoke
 pnpm release-gate:smoke
 pnpm evidence-bundle:smoke
 pnpm web:smoke
@@ -260,8 +261,9 @@ pnpm web:smoke
 2. 새 문서를 넣으면 바로 chunking과 검색 검증이 된다.
 3. 권한 없는 문서는 프롬프트에 들어가기 전에 제거된다.
 4. 답변은 출처와 문서 일치율을 함께 보여준다.
-5. 증거 번들은 trace, proof, replay, 권한 재검사, 무결성 해시를 한 번에 묶는다.
-6. runbook 질문은 도구 호출로 checklist를 만든다.
-7. 운영 DB 수정 같은 민감 작업은 사람 승인으로 분리된다.
-8. Slack mention도 같은 Agent workflow를 탄다.
+5. `/ask`는 idempotency key로 Slack retry와 중복 클릭을 안전하게 처리한다.
+6. 증거 번들은 trace, proof, replay, 권한 재검사, 무결성 해시를 한 번에 묶는다.
+7. runbook 질문은 도구 호출로 checklist를 만든다.
+8. 운영 DB 수정 같은 민감 작업은 사람 승인으로 분리된다.
+9. Slack mention도 같은 Agent workflow를 탄다.
 8. 평가, 답변 drift, 배포 게이트로 운영 품질을 계속 검증한다.

@@ -122,6 +122,9 @@ jobs:
       - name: Ask rate limit smoke
         run: pnpm rate-limit:smoke
 
+      - name: Ask idempotency smoke
+        run: pnpm idempotency:smoke
+
       - name: Readiness smoke
         run: pnpm readiness:smoke
 

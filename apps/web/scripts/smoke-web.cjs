@@ -125,6 +125,7 @@ async function main() {
     await page.getByRole("button", { name: "OpsPilot에 질문" }).click();
     await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".answerMeta").getByText("문서 일치율", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".answerMeta").getByText("멱등성 신규", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".boundaryAudit").getByText("차단 후보", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("추적", { exact: true }).waitFor({ timeout: 10000 });
@@ -254,6 +255,7 @@ async function main() {
         sourceText.length > 0 &&
         metaText.includes("request_human_approval") &&
         metaText.includes("문서 일치율") &&
+        metaText.includes("멱등성 신규") &&
         approvalText.includes("sensitive_operation") &&
         feedbackSaved &&
         githubSyncFormVisible &&
@@ -302,6 +304,7 @@ async function main() {
         sourcesVisible: sourceText.length > 0,
         approvalToolCallVisible: metaText.includes("request_human_approval"),
         documentAgreementVisible: metaText.includes("문서 일치율"),
+        idempotencyVisible: metaText.includes("멱등성 신규"),
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
         feedbackSaved,
         githubSyncFormVisible,

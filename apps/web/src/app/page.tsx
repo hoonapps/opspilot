@@ -696,6 +696,11 @@ export default function Home() {
 	                신뢰도 {confidencePercent}% · 문서 일치율 {documentAgreementPercent}%
 	              </span>
 	              <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "아직 도구 호출 없음"}</span>
+	              <span>
+	                {answer?.idempotency
+	                  ? `멱등성 ${answer.idempotency.replayed ? "재사용" : "신규"} · ${shortHash(answer.idempotency.requestHash)}`
+	                  : "멱등성 key 대기"}
+	              </span>
 	            </div>
 	            <pre>{answer?.answer ?? "질문을 실행하면 근거 기반 답변, 신뢰도, 도구 호출, 출처가 여기에 표시됩니다."}</pre>
             {answer ? (

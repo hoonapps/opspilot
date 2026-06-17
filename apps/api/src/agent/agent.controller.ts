@@ -1,7 +1,8 @@
 import { Body, Controller, Headers, Post } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiHeader, ApiTags } from "@nestjs/swagger";
 import { parseRequestContext } from "../shared/request-context";
 import { AgentService } from "./agent.service";
+import { AskIdempotencyService } from "./ask-idempotency.service";
 import { AskDto } from "./dto/ask.dto";
 import { RateLimitService } from "./rate-limit.service";
 import { RetrievalPreviewDto } from "./dto/retrieval-preview.dto";
@@ -11,18 +12,46 @@ import { RetrievalPreviewDto } from "./dto/retrieval-preview.dto";
 export class AgentController {
   constructor(
     private readonly agentService: AgentService,
+    private readonly askIdempotencyService: AskIdempotencyService,
     private readonly rateLimitService: RateLimitService
   ) {}
 
   @Post("ask")
+  @ApiHeader({
+    name: "x-idempotency-key",
+    required: false,
+    description: "Optional actor-scoped key that replays the same /ask response for safe retries."
+  })
   async ask(@Body() body: AskDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     const context = parseRequestContext(headers);
-    await this.rateLimitService.enforceAskLimit(context);
-    return this.agentService.ask(body.question, context, body.channel);
+    const idempotencyKey = readHeader(headers, "x-idempotency-key");
+    const runAsk = async () => {
+      await this.rateLimitService.enforceAskLimit(context);
+      return this.agentService.ask(body.question, context, body.channel);
+    };
+
+    if (idempotencyKey) {
+      return this.askIdempotencyService.execute({
+        key: idempotencyKey,
+        context,
+        request: {
+          question: body.question,
+          channel: body.channel ?? null
+        },
+        handler: runAsk
+      });
+    }
+
+    return runAsk();
   }
 
   @Post("retrieval/preview")
   previewRetrieval(@Body() body: RetrievalPreviewDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.agentService.previewRetrieval(body.question, parseRequestContext(headers), body.limit);
   }
+}
+
+function readHeader(headers: Record<string, string | string[] | undefined>, key: string): string | undefined {
+  const value = headers[key] ?? headers[key.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
 }

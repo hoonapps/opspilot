@@ -47,6 +47,28 @@ pnpm openapi:smoke
 
 이 명령은 포트폴리오 핵심 API와 request schema, `x-opspilot-actor-token` security scheme이 OpenAPI 문서에 남아 있는지 검증합니다. 기능이 커져도 공개 API가 조용히 깨지지 않게 하는 장치입니다.
 
+## `/ask` 멱등성
+
+`POST /ask`는 선택 header `x-idempotency-key`를 지원합니다. 같은 actor scope에서 같은 key와 같은 body가 다시 들어오면 새로운 질문, 답변, 승인 요청을 만들지 않고 기존 응답을 replay합니다.
+
+```bash
+curl -X POST http://localhost:3000/ask \
+  -H "content-type: application/json" \
+  -H "x-user-id: demo-operator" \
+  -H "x-team-slugs: payments" \
+  -H "x-user-roles: ops_admin" \
+  -H "x-idempotency-key: demo-ask-001" \
+  -d '{"question":"E102 에러가 발생하면 어떻게 대응해야 해?","channel":"demo"}'
+```
+
+응답의 `idempotency.replayed`가 `false`면 최초 처리, `true`면 replay입니다. 같은 key로 다른 question/channel을 보내면 HTTP 409를 반환합니다. replay는 `/ask` rate limit을 추가로 소모하지 않습니다.
+
+검증:
+
+```bash
+pnpm idempotency:smoke
+```
+
 ## 답변 증거 번들
 
 ```txt
