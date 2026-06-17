@@ -20,6 +20,7 @@ import {
   DocumentIndexExplainReport,
   DocumentInventoryItem,
   DocumentIndexQualityReport,
+  DocumentRevalidationQueueReport,
   DocumentVersionHistory,
   ErrorBudgetReport,
   enqueueMarkdownIndexingJob,
@@ -36,6 +37,7 @@ import {
   getAnswerTrace,
   getDocumentImpact,
   getDocumentIndexExplain,
+  getDocumentRevalidationQueue,
   getDocumentVersionHistory,
   getDocumentIndexQuality,
   getErrorBudget,
@@ -240,6 +242,7 @@ export default function Home() {
   const [documentVersionHistory, setDocumentVersionHistory] = useState<DocumentVersionHistory | null>(null);
   const [documentIndexExplain, setDocumentIndexExplain] = useState<DocumentIndexExplainReport | null>(null);
   const [documentImpact, setDocumentImpact] = useState<DocumentImpactReport | null>(null);
+  const [documentRevalidationQueue, setDocumentRevalidationQueue] = useState<DocumentRevalidationQueueReport | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
@@ -260,6 +263,7 @@ export default function Home() {
     | "versions"
     | "index-explain"
     | "impact"
+    | "revalidation"
     | "matrix"
     | "approval"
     | "audit"
@@ -283,6 +287,19 @@ export default function Home() {
     () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
     [documents, selectedDocumentId]
   );
+  const visibleRevalidationItems = useMemo(() => {
+    const items = documentRevalidationQueue?.items ?? [];
+    if (!selectedDocument) {
+      return items.slice(0, 5);
+    }
+    return [...items]
+      .sort((left, right) => {
+        const leftSelected = left.document.id === selectedDocument.id ? 0 : 1;
+        const rightSelected = right.document.id === selectedDocument.id ? 0 : 1;
+        return leftSelected - rightSelected;
+      })
+      .slice(0, 5);
+  }, [documentRevalidationQueue, selectedDocument]);
   const topRetrievalCandidate = retrievalPreview?.candidates[0] ?? null;
   const documentStats = useMemo(
     () => ({
@@ -590,6 +607,7 @@ export default function Home() {
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
       setIndexQuality(await getDocumentIndexQuality());
+      setDocumentRevalidationQueue(await getDocumentRevalidationQueue());
       setSelectedDocumentId((currentId) =>
         currentId && nextDocuments.some((document) => document.id === currentId) ? currentId : nextDocuments[0]?.id ?? null
       );
@@ -654,6 +672,18 @@ export default function Home() {
       setDocumentImpact(await getDocumentImpact(documentId));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 영향 분석 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadDocumentRevalidationQueue() {
+    setError(null);
+    setLoading("revalidation");
+    try {
+      setDocumentRevalidationQueue(await getDocumentRevalidationQueue());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 재검증 큐 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -2698,6 +2728,69 @@ export default function Home() {
               )}
             </section>
 
+            <section className="revalidationQueuePanel" aria-label="문서 재검증 큐">
+              <div className="qualityHead">
+                <div>
+                  <p className="eyebrow">변경 영향</p>
+                  <h2>문서 재검증 큐</h2>
+                </div>
+                {documentRevalidationQueue ? (
+                  <span className={documentRevalidationQueue.status === "empty" || documentRevalidationQueue.status === "ready" ? "badge" : "badge review"}>
+                    {formatRevalidationQueueStatus(documentRevalidationQueue.status)}
+                  </span>
+                ) : null}
+                <button className="smallButton" disabled={loading === "revalidation"} onClick={loadDocumentRevalidationQueue} type="button">
+                  {loading === "revalidation" ? "계산 중..." : "재검증 큐"}
+                </button>
+              </div>
+              {documentRevalidationQueue ? (
+                <>
+                  <div className="revalidationSummary">
+                    <Metric label="큐 항목" value={`${documentRevalidationQueue.summary.queueItemCount}개`} />
+                    <Metric label="영향 문서" value={`${documentRevalidationQueue.summary.affectedDocumentCount}개`} />
+                    <Metric label="고위험" value={`${documentRevalidationQueue.summary.highRiskItemCount}개`} />
+                    <Metric label="1순위 근거" value={`${documentRevalidationQueue.summary.topSourceItemCount}개`} />
+                    <Metric label="사람 검토" value={`${documentRevalidationQueue.summary.humanReviewItemCount}개`} />
+                    <Metric label="제한 문서" value={`${documentRevalidationQueue.summary.restrictedItemCount}개`} />
+                  </div>
+                  <div className="revalidationRecommendations">
+                    {documentRevalidationQueue.recommendations.map((recommendation) => (
+                      <p key={recommendation}>{recommendation}</p>
+                    ))}
+                  </div>
+                  <div className="revalidationList">
+                    {documentRevalidationQueue.items.length > 0 ? (
+                      visibleRevalidationItems.map((item) => (
+                        <article className={`revalidationItem revalidationItem--${item.priority.toLowerCase()}`} key={item.id}>
+                          <div className="revalidationItemHead">
+                            <span>{item.priority}</span>
+                            <div>
+                              <strong>{item.answer.question}</strong>
+                              <p>
+                                {item.document.path} · 근거 #{item.source.rank} · {formatRevalidationRisk(item.riskLevel)}
+                              </p>
+                            </div>
+                            <code>{shortId(item.answer.id)}</code>
+                          </div>
+                          <p>{item.reason}</p>
+                          <div className="revalidationActions">
+                            <span>{item.actions[0]}</span>
+                            <code>replay</code>
+                            <code>lineage</code>
+                            <code>quality-gate</code>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="empty">문서 변경 이후 오래된 답변이 없습니다.</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="empty">재검증 큐를 계산하면 문서 변경 이후 오래된 답변, 위험도, replay/lineage/quality gate 경로가 표시됩니다.</p>
+              )}
+            </section>
+
             {documents.length > 0 ? (
               <div className="inventoryGrid">
                 <div className="documentList" aria-label="색인된 문서">
@@ -3409,7 +3502,8 @@ function formatRiskLevel(level: string): string {
   const labels: Record<string, string> = {
     low: "낮음",
     medium: "중간",
-    high: "높음"
+    high: "높음",
+    critical: "긴급"
   };
   return labels[level] ?? level;
 }
@@ -3418,9 +3512,30 @@ function formatImpactRisk(level: string): string {
   const labels: Record<string, string> = {
     low: "낮은 영향",
     medium: "검토 필요",
-    high: "우선 재검증"
+    high: "우선 재검증",
+    critical: "즉시 재검증"
   };
   return labels[level] ?? level;
+}
+
+function formatRevalidationQueueStatus(status: DocumentRevalidationQueueReport["status"]): string {
+  const labels: Record<DocumentRevalidationQueueReport["status"], string> = {
+    empty: "비어 있음",
+    ready: "정상 대기",
+    attention: "재검증 필요",
+    critical: "즉시 대응"
+  };
+  return labels[status];
+}
+
+function formatRevalidationRisk(riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"]): string {
+  const labels: Record<DocumentRevalidationQueueReport["items"][number]["riskLevel"], string> = {
+    low: "낮은 위험",
+    medium: "중간 위험",
+    high: "높은 위험",
+    critical: "긴급 위험"
+  };
+  return labels[riskLevel];
 }
 
 function formatEvaluationCheckLabel(id: string, fallback: string): string {

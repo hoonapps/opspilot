@@ -2670,6 +2670,145 @@ pre {
   color: #283768;
 }
 
+.revalidationQueuePanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f4fbf8;
+}
+
+.revalidationSummary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.revalidationSummary .metric {
+  min-height: 62px;
+  box-shadow: none;
+}
+
+.revalidationRecommendations {
+  display: grid;
+  gap: 6px;
+}
+
+.revalidationRecommendations p {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #bfe6d6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0d5c48;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.revalidationList {
+  display: grid;
+  gap: 8px;
+}
+
+.revalidationItem {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.revalidationItem--p0,
+.revalidationItem--p1 {
+  border-left-color: var(--danger);
+}
+
+.revalidationItem--p2 {
+  border-left-color: var(--warning);
+}
+
+.revalidationItemHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.revalidationItemHead > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 5px 7px;
+  border: 1px solid #bfe6d6;
+  border-radius: 8px;
+  background: #e6f7ef;
+  color: #0d5c48;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.revalidationItem--p0 .revalidationItemHead > span,
+.revalidationItem--p1 .revalidationItemHead > span {
+  border-color: #facaca;
+  background: #fff0f0;
+  color: var(--danger);
+}
+
+.revalidationItem--p2 .revalidationItemHead > span {
+  border-color: #f3d7a3;
+  background: #fffaf0;
+  color: var(--warning);
+}
+
+.revalidationItemHead strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.revalidationItemHead p,
+.revalidationItem > p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.revalidationItemHead code,
+.revalidationActions code {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.revalidationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.revalidationActions span {
+  min-width: min(100%, 260px);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.revalidationActions code {
+  padding: 5px 7px;
+  border: 1px solid #d6e0ee;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
 .impactPanel {
   display: grid;
   gap: 10px;
@@ -5066,6 +5205,8 @@ pre {
   .indexExplainSummary,
   .indexExplainChecks,
   .indexExplainChunk div:first-child,
+  .revalidationSummary,
+  .revalidationItemHead,
   .impactSummary,
   .impactMetrics,
   .impactAnswerItem,

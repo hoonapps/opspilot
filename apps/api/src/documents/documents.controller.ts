@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Param, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { SyncGithubDocumentsDto } from "./dto/sync-github-documents.dto";
 import { UpsertMarkdownDocumentDto } from "./dto/upsert-markdown-document.dto";
@@ -30,6 +30,12 @@ export class DocumentsController {
   @Get("index-quality")
   getIndexQualityReport() {
     return this.documentsService.getIndexQualityReport();
+  }
+
+  @Get("revalidation-queue")
+  getRevalidationQueue(@Query("limit") limit?: string) {
+    const parsedLimit = limit ? Number(limit) : undefined;
+    return this.documentsService.getRevalidationQueue(parsedLimit !== undefined && Number.isFinite(parsedLimit) ? parsedLimit : undefined);
   }
 
   @Get(":id/versions")

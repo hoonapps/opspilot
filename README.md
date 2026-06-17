@@ -50,6 +50,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - 색인 품질 리포트: 문서 수, 청크 커버리지, 버전 커버리지, 헤딩 보존, 보안 격리 게이트
 - 문서 색인 설명: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 변경 차이 확인
 - 문서 변경 영향 분석: 특정 문서를 근거로 사용한 과거 답변, 오래된 답변, 1순위 근거 여부, 재검증 권고
+- 문서 재검증 큐: 변경된 문서 때문에 오래된 과거 답변을 전역 큐로 모아 위험도, 우선순위, replay/lineage/quality gate 링크 제공
 - GitHub Markdown 문서 동기화
 - `/ask` API와 출처 포함 답변
 - 검색 품질 진단, 실행 계획, 점수 격차, 출처 다양성, 컨텍스트 예산 미리보기
@@ -234,6 +235,7 @@ pnpm retrieval-permission-diff:smoke
 pnpm index-explain:smoke
 pnpm index-quality:smoke
 pnpm document-impact:smoke
+pnpm revalidation-queue:smoke
 pnpm incident-plan:smoke
 pnpm agreement:smoke
 pnpm trace:smoke
@@ -317,7 +319,7 @@ EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
 EVAL_MIN_CITATION_ACCURACY=1
 ```
 
-`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `error-budget:smoke`는 API 5xx가 5분/1시간/24시간 오류 예산을 얼마나 소모하는지 계산하고, 오류 예산 소모율이 높으면 배포 동결 권고가 나오는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
+`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `GET /documents/revalidation-queue`와 `pnpm revalidation-queue:smoke`는 문서 변경 이후 오래된 답변을 우선순위 큐로 모아 replay, lineage, quality gate 재검증 경로가 잡히는지 확인합니다. `error-budget:smoke`는 API 5xx가 5분/1시간/24시간 오류 예산을 얼마나 소모하는지 계산하고, 오류 예산 소모율이 높으면 배포 동결 권고가 나오는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
 
 개별 답변은 `GET /answers/{id}/quality-gate`로 별도 판정합니다. 이 게이트는 증명 패킷, 재실행 안정성, 승인 상태, 피드백 신호, 신뢰도, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 재검사를 묶어 `pass`, `review`, `block`으로 결정합니다. 긍정 피드백이 없는 답변은 검토 대상으로 남고, 민감 작업 승인 대기 답변은 자동 공유되지 않습니다.
 

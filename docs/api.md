@@ -25,6 +25,7 @@ GET /docs-json
 - `GET /documents/{id}/versions`: 마스킹된 문서 버전과 변경 차이 확인
 - `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 변경 차이 확인
 - `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, 오래된 답변 여부, 위험도, 재검증 권고 확인
+- `GET /documents/revalidation-queue`: 변경된 문서를 근거로 사용한 오래된 답변을 위험도/우선순위 큐로 집계
 - `POST /documents/github/sync`: GitHub Markdown 동기화
 - `GET /documents/indexing-jobs`: BullMQ 색인 큐 카운트, 최근 작업, 워커 상태 확인
 - `POST /documents/indexing-jobs/markdown`: BullMQ 색인 작업 생성
@@ -178,6 +179,26 @@ GET /documents/{id}/impact
 
 ```bash
 pnpm document-impact:smoke
+```
+
+## 문서 재검증 큐
+
+```txt
+GET /documents/revalidation-queue
+```
+
+응답은 특정 문서 하나가 아니라 전체 지식 베이스에서 “문서 변경 이후 오래된 답변”을 큐로 모읍니다.
+
+- `status`: 큐가 비어 있는지, 정상 대기인지, 재검증 필요인지, 즉시 대응인지 표시
+- `summary`: 큐 항목 수, 영향 문서/답변 수, 고위험/P0 항목, 1순위 근거, 사람 검토, 제한 문서 항목 수
+- `items[]`: 우선순위 `P0`~`P3`, 위험도, 변경 문서, 과거 답변, 출처 순위/점수, stale 시간
+- `items[].actions`: replay, lineage, quality gate, 승인 이력 확인 같은 운영 조치
+- `items[].evidenceLinks`: `/documents/{id}/impact`, `/answers/{id}/replay`, `/answers/{id}/lineage`, `/answers/{id}/quality-gate`
+
+검증:
+
+```bash
+pnpm revalidation-queue:smoke
 ```
 
 ## 장애 대응 플랜

@@ -25,6 +25,7 @@
     "index-explain:smoke": "ts-node src/cli/index-explain-smoke.ts",
     "index-quality:smoke": "ts-node src/cli/index-quality-smoke.ts",
     "document-impact:smoke": "ts-node src/cli/document-impact-smoke.ts",
+    "revalidation-queue:smoke": "ts-node src/cli/revalidation-queue-smoke.ts",
     "permission:smoke": "ts-node src/cli/permission-boundary-smoke.ts",
     "authn:smoke": "ts-node src/cli/authn-smoke.ts",
     "redaction:smoke": "ts-node src/cli/redaction-smoke.ts",

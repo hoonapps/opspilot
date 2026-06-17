@@ -277,6 +277,63 @@ export type DocumentImpactReport = {
   }>;
 };
 
+export type DocumentRevalidationQueueReport = {
+  schemaVersion: "opspilot.document_revalidation_queue.v1";
+  generatedAt: string;
+  status: "empty" | "ready" | "attention" | "critical";
+  summary: {
+    queueItemCount: number;
+    affectedDocumentCount: number;
+    affectedAnswerCount: number;
+    highRiskItemCount: number;
+    criticalItemCount: number;
+    topSourceItemCount: number;
+    humanReviewItemCount: number;
+    restrictedItemCount: number;
+    oldestStaleAnswerAt: string | null;
+  };
+  recommendations: string[];
+  items: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2" | "P3";
+    riskLevel: "low" | "medium" | "high" | "critical";
+    reason: string;
+    revalidationDueAt: string;
+    staleAgeHours: number;
+    document: {
+      id: string;
+      path: string;
+      title: string;
+      visibility: string;
+      teamSlug?: string | null;
+      latestVersion: number;
+      updatedAt: string;
+      contentHash: string;
+    };
+    answer: {
+      id: string;
+      questionId: string;
+      question: string;
+      answerPreview: string;
+      confidence: number;
+      needsHumanReview: boolean;
+      createdAt: string;
+    };
+    source: {
+      rank: number;
+      score: number;
+      chunkCount: number;
+    };
+    actions: string[];
+    evidenceLinks: {
+      documentImpact: string;
+      replay: string;
+      lineage: string;
+      qualityGate: string;
+    };
+  }>;
+};
+
 export type DocumentIndexQualityReport = {
   generatedAt: string;
   status: "healthy" | "warning" | "critical";
@@ -1729,6 +1786,16 @@ export async function getDocumentImpact(documentId: string): Promise<DocumentImp
   }
 
   return response.json() as Promise<DocumentImpactReport>;
+}
+
+export async function getDocumentRevalidationQueue(): Promise<DocumentRevalidationQueueReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/revalidation-queue?limit=500`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentRevalidationQueueReport>;
 }
 
 export async function getDocumentIndexQuality(): Promise<DocumentIndexQualityReport> {

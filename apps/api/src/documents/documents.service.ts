@@ -93,6 +93,17 @@ type DocumentImpactRow = {
   sourceChunkCount: number | string;
 };
 
+type DocumentRevalidationQueueRow = DocumentImpactRow & {
+  documentId: string;
+  documentPath: string;
+  documentTitle: string;
+  visibility: string;
+  teamSlug?: string | null;
+  contentHash: string;
+  latestVersion: number | string;
+  documentUpdatedAt: Date | string;
+};
+
 export type DocumentInventoryItem = {
   id: string;
   path: string;
@@ -305,6 +316,63 @@ export type DocumentImpactReport = {
     sourceScore: number;
     sourceChunkCount: number;
     staleAfterDocumentUpdate: boolean;
+  }>;
+};
+
+export type DocumentRevalidationQueueReport = {
+  schemaVersion: "opspilot.document_revalidation_queue.v1";
+  generatedAt: string;
+  status: "empty" | "ready" | "attention" | "critical";
+  summary: {
+    queueItemCount: number;
+    affectedDocumentCount: number;
+    affectedAnswerCount: number;
+    highRiskItemCount: number;
+    criticalItemCount: number;
+    topSourceItemCount: number;
+    humanReviewItemCount: number;
+    restrictedItemCount: number;
+    oldestStaleAnswerAt: string | null;
+  };
+  recommendations: string[];
+  items: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2" | "P3";
+    riskLevel: "low" | "medium" | "high" | "critical";
+    reason: string;
+    revalidationDueAt: string;
+    staleAgeHours: number;
+    document: {
+      id: string;
+      path: string;
+      title: string;
+      visibility: string;
+      teamSlug?: string | null;
+      latestVersion: number;
+      updatedAt: string;
+      contentHash: string;
+    };
+    answer: {
+      id: string;
+      questionId: string;
+      question: string;
+      answerPreview: string;
+      confidence: number;
+      needsHumanReview: boolean;
+      createdAt: string;
+    };
+    source: {
+      rank: number;
+      score: number;
+      chunkCount: number;
+    };
+    actions: string[];
+    evidenceLinks: {
+      documentImpact: string;
+      replay: string;
+      lineage: string;
+      qualityGate: string;
+    };
   }>;
 };
 
@@ -895,6 +963,217 @@ export class DocumentsService {
     };
   }
 
+  async getRevalidationQueue(limit = 50): Promise<DocumentRevalidationQueueReport> {
+    const connection = this.orm.em.fork().getConnection();
+    const rows = (await connection.execute<DocumentRevalidationQueueRow[]>(
+      `
+        with source_rows as (
+          select
+            d.id as document_id,
+            d.path as document_path,
+            d.title as document_title,
+            d.visibility,
+            d.team_slug,
+            d.content_hash,
+            d.updated_at as document_updated_at,
+            coalesce(max(v.version), 0)::int as latest_version,
+            a.id as answer_id,
+            q.id as question_id,
+            q.text as question,
+            a.text as answer_text,
+            a.confidence,
+            a.needs_human_review,
+            a.created_at,
+            s.rank,
+            s.score,
+            s.chunk_id::text as chunk_key
+          from answer_sources s
+          join documents d on d.id = s.document_id
+          join answers a on a.id = s.answer_id
+          join questions q on q.id = a.question_id
+          left join document_versions v on v.document_id = d.id
+          where a.created_at < d.updated_at
+          group by d.id, a.id, q.id, s.rank, s.score, s.chunk_id
+          union all
+          select
+            d.id as document_id,
+            d.path as document_path,
+            d.title as document_title,
+            d.visibility,
+            d.team_slug,
+            d.content_hash,
+            d.updated_at as document_updated_at,
+            coalesce(max(v.version), 0)::int as latest_version,
+            a.id as answer_id,
+            q.id as question_id,
+            q.text as question,
+            a.text as answer_text,
+            a.confidence,
+            a.needs_human_review,
+            a.created_at,
+            coalesce((source.value ->> 'rank')::int, 999) as rank,
+            coalesce((source.value ->> 'score')::float, 0) as score,
+            coalesce(source.value ->> 'chunkId', source.value ->> 'path', a.id::text) as chunk_key
+          from answers a
+          join questions q on q.id = a.question_id
+          cross join lateral jsonb_array_elements(coalesce(a.metadata -> 'sources', '[]'::jsonb)) as source(value)
+          join documents d on d.id::text = source.value ->> 'documentId'
+          left join document_versions v on v.document_id = d.id
+          where a.created_at < d.updated_at
+          group by d.id, a.id, q.id, source.value
+        )
+        select
+          document_id as "documentId",
+          document_path as "documentPath",
+          document_title as "documentTitle",
+          visibility,
+          team_slug as "teamSlug",
+          content_hash as "contentHash",
+          latest_version as "latestVersion",
+          document_updated_at as "documentUpdatedAt",
+          answer_id as "answerId",
+          question_id as "questionId",
+          question,
+          left(answer_text, 320) as "answerPreview",
+          confidence,
+          needs_human_review as "needsHumanReview",
+          created_at as "answerCreatedAt",
+          min(rank)::int as "sourceRank",
+          max(score) as "sourceScore",
+          count(distinct chunk_key)::int as "sourceChunkCount"
+        from source_rows
+        group by
+          document_id,
+          document_path,
+          document_title,
+          visibility,
+          team_slug,
+          content_hash,
+          latest_version,
+          document_updated_at,
+          answer_id,
+          question_id,
+          question,
+          answer_text,
+          confidence,
+          needs_human_review,
+          created_at
+        order by document_updated_at desc, created_at asc
+        limit ?;
+      `,
+      [limit]
+    )) as DocumentRevalidationQueueRow[];
+
+    const now = Date.now();
+    const items = rows
+      .map((row) => {
+        const answerCreatedAt = toIsoString(row.answerCreatedAt);
+        const documentUpdatedAt = toIsoString(row.documentUpdatedAt);
+        const staleAgeHours = Math.max(0, Math.round((new Date(documentUpdatedAt).getTime() - new Date(answerCreatedAt).getTime()) / 36_000) / 100);
+        const riskLevel = buildRevalidationRiskLevel({
+          confidence: Number(row.confidence),
+          needsHumanReview: row.needsHumanReview,
+          sourceRank: Number(row.sourceRank),
+          sourceChunkCount: Number(row.sourceChunkCount),
+          visibility: row.visibility
+        });
+        const priority = revalidationPriority(riskLevel);
+        return {
+          id: `${row.documentId}:${row.answerId}`,
+          priority,
+          riskLevel,
+          reason: buildRevalidationReason({
+            riskLevel,
+            visibility: row.visibility,
+            needsHumanReview: row.needsHumanReview,
+            sourceRank: Number(row.sourceRank),
+            sourceChunkCount: Number(row.sourceChunkCount)
+          }),
+          revalidationDueAt: new Date(now + revalidationDueHours(riskLevel) * 60 * 60 * 1000).toISOString(),
+          staleAgeHours,
+          document: {
+            id: row.documentId,
+            path: row.documentPath,
+            title: row.documentTitle,
+            visibility: row.visibility,
+            teamSlug: row.teamSlug,
+            latestVersion: Number(row.latestVersion),
+            updatedAt: documentUpdatedAt,
+            contentHash: row.contentHash
+          },
+          answer: {
+            id: row.answerId,
+            questionId: row.questionId,
+            question: row.question,
+            answerPreview: row.answerPreview,
+            confidence: Number(row.confidence),
+            needsHumanReview: row.needsHumanReview,
+            createdAt: answerCreatedAt
+          },
+          source: {
+            rank: Number(row.sourceRank),
+            score: Number(row.sourceScore),
+            chunkCount: Number(row.sourceChunkCount)
+          },
+          actions: buildRevalidationActions({
+            riskLevel,
+            needsHumanReview: row.needsHumanReview,
+            sourceRank: Number(row.sourceRank),
+            visibility: row.visibility
+          }),
+          evidenceLinks: {
+            documentImpact: `/documents/${row.documentId}/impact`,
+            replay: `/answers/${row.answerId}/replay`,
+            lineage: `/answers/${row.answerId}/lineage`,
+            qualityGate: `/answers/${row.answerId}/quality-gate`
+          }
+        };
+      })
+      .sort((left, right) => {
+        const priorityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
+        return priorityOrder[left.priority] - priorityOrder[right.priority] || right.staleAgeHours - left.staleAgeHours;
+      });
+
+    const affectedDocumentIds = new Set(items.map((item) => item.document.id));
+    const affectedAnswerIds = new Set(items.map((item) => item.answer.id));
+    const criticalItemCount = items.filter((item) => item.riskLevel === "critical").length;
+    const highRiskItemCount = items.filter((item) => item.riskLevel === "critical" || item.riskLevel === "high").length;
+    const topSourceItemCount = items.filter((item) => item.source.rank === 1).length;
+    const humanReviewItemCount = items.filter((item) => item.answer.needsHumanReview).length;
+    const restrictedItemCount = items.filter((item) => item.document.visibility === "restricted").length;
+    const oldestStaleAnswerAt =
+      items.length === 0
+        ? null
+        : [...items].sort((left, right) => new Date(left.answer.createdAt).getTime() - new Date(right.answer.createdAt).getTime())[0].answer.createdAt;
+    const status = revalidationQueueStatus({ itemCount: items.length, highRiskItemCount, criticalItemCount });
+
+    return {
+      schemaVersion: "opspilot.document_revalidation_queue.v1",
+      generatedAt: new Date().toISOString(),
+      status,
+      summary: {
+        queueItemCount: items.length,
+        affectedDocumentCount: affectedDocumentIds.size,
+        affectedAnswerCount: affectedAnswerIds.size,
+        highRiskItemCount,
+        criticalItemCount,
+        topSourceItemCount,
+        humanReviewItemCount,
+        restrictedItemCount,
+        oldestStaleAnswerAt
+      },
+      recommendations: buildRevalidationQueueRecommendations({
+        itemCount: items.length,
+        highRiskItemCount,
+        criticalItemCount,
+        topSourceItemCount,
+        humanReviewItemCount,
+        restrictedItemCount
+      }),
+      items
+    };
+  }
+
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {
     const parsed = parseMarkdownDocument(path, raw);
     const redacted = this.redaction.redactMarkdown(parsed.body);
@@ -1313,6 +1592,149 @@ function buildImpactRecommendations(input: {
   }
 
   return [...new Set(recommendations)].slice(0, 5);
+}
+
+function buildRevalidationRiskLevel(input: {
+  confidence: number;
+  needsHumanReview: boolean;
+  sourceRank: number;
+  sourceChunkCount: number;
+  visibility: string;
+}): DocumentRevalidationQueueReport["items"][number]["riskLevel"] {
+  if (input.visibility === "restricted" && (input.needsHumanReview || input.sourceRank === 1)) {
+    return "critical";
+  }
+  if (input.needsHumanReview || input.sourceRank === 1 || input.visibility === "restricted") {
+    return "high";
+  }
+  if (input.confidence < 0.5 || input.sourceRank <= 2 || input.sourceChunkCount > 1) {
+    return "medium";
+  }
+  return "low";
+}
+
+function revalidationPriority(
+  riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"]
+): DocumentRevalidationQueueReport["items"][number]["priority"] {
+  const priorities: Record<DocumentRevalidationQueueReport["items"][number]["riskLevel"], DocumentRevalidationQueueReport["items"][number]["priority"]> = {
+    critical: "P0",
+    high: "P1",
+    medium: "P2",
+    low: "P3"
+  };
+  return priorities[riskLevel];
+}
+
+function revalidationDueHours(riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"]): number {
+  const dueHours: Record<DocumentRevalidationQueueReport["items"][number]["riskLevel"], number> = {
+    critical: 4,
+    high: 24,
+    medium: 72,
+    low: 168
+  };
+  return dueHours[riskLevel];
+}
+
+function buildRevalidationReason(input: {
+  riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"];
+  visibility: string;
+  needsHumanReview: boolean;
+  sourceRank: number;
+  sourceChunkCount: number;
+}): string {
+  const reasons = [`${formatRevalidationRisk(input.riskLevel)} 위험`];
+  if (input.sourceRank === 1) {
+    reasons.push("변경 문서가 1순위 근거");
+  }
+  if (input.needsHumanReview) {
+    reasons.push("사람 검토 답변");
+  }
+  if (input.visibility === "restricted") {
+    reasons.push("제한 문서 포함");
+  }
+  if (input.sourceChunkCount > 1) {
+    reasons.push(`근거 청크 ${input.sourceChunkCount}개`);
+  }
+  return reasons.join(" · ");
+}
+
+function buildRevalidationActions(input: {
+  riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"];
+  needsHumanReview: boolean;
+  sourceRank: number;
+  visibility: string;
+}): string[] {
+  const actions = ["답변 replay로 현재 문서 기준 drift를 확인하세요.", "답변 계보 그래프로 출처/도구/승인 경계를 재검사하세요."];
+  if (input.sourceRank === 1) {
+    actions.push("1순위 근거였던 문서가 바뀌었으므로 운영 채널 공유 전 품질 게이트를 다시 확인하세요.");
+  }
+  if (input.needsHumanReview) {
+    actions.push("기존 승인/반려 이력을 확인하고 필요하면 담당자 재승인을 요청하세요.");
+  }
+  if (input.visibility === "restricted") {
+    actions.push("제한 문서 접근 권한이 없는 호출자에게 출처 경로가 노출되지 않는지 확인하세요.");
+  }
+  if (input.riskLevel === "low") {
+    actions.push("정기 평가 실행 시 함께 재검증하면 충분합니다.");
+  }
+  return [...new Set(actions)].slice(0, 5);
+}
+
+function revalidationQueueStatus(input: {
+  itemCount: number;
+  highRiskItemCount: number;
+  criticalItemCount: number;
+}): DocumentRevalidationQueueReport["status"] {
+  if (input.itemCount === 0) {
+    return "empty";
+  }
+  if (input.criticalItemCount > 0) {
+    return "critical";
+  }
+  if (input.highRiskItemCount > 0) {
+    return "attention";
+  }
+  return "ready";
+}
+
+function buildRevalidationQueueRecommendations(input: {
+  itemCount: number;
+  highRiskItemCount: number;
+  criticalItemCount: number;
+  topSourceItemCount: number;
+  humanReviewItemCount: number;
+  restrictedItemCount: number;
+}): string[] {
+  const recommendations: string[] = [];
+  if (input.itemCount === 0) {
+    recommendations.push("문서 변경 이후 오래된 답변이 없습니다. 신규 문서 색인과 정기 평가만 유지하면 됩니다.");
+  }
+  if (input.criticalItemCount > 0) {
+    recommendations.push("P0 항목은 제한 문서 또는 사람 승인 경계와 연결됐으므로 운영 채널 공유 전에 즉시 replay와 품질 게이트를 실행하세요.");
+  }
+  if (input.highRiskItemCount > 0) {
+    recommendations.push("P1 항목은 변경 문서가 핵심 근거였거나 사람 검토 답변이므로 담당자를 지정해 재검증하세요.");
+  }
+  if (input.topSourceItemCount > 0) {
+    recommendations.push("1순위 근거가 바뀐 답변은 답변 문구와 출처 인용을 함께 다시 확인하세요.");
+  }
+  if (input.humanReviewItemCount > 0) {
+    recommendations.push("사람 검토 답변은 승인 대기열과 감사 원장의 상태를 함께 확인하세요.");
+  }
+  if (input.restrictedItemCount > 0) {
+    recommendations.push("제한 문서 항목은 호출자 권한 재검사와 계보 그래프의 출처 노출 범위를 확인하세요.");
+  }
+  return [...new Set(recommendations)].slice(0, 5);
+}
+
+function formatRevalidationRisk(riskLevel: DocumentRevalidationQueueReport["items"][number]["riskLevel"]): string {
+  const labels: Record<DocumentRevalidationQueueReport["items"][number]["riskLevel"], string> = {
+    critical: "긴급",
+    high: "높음",
+    medium: "중간",
+    low: "낮음"
+  };
+  return labels[riskLevel];
 }
 
 function getSecurityNumber(metadata: Record<string, unknown>, key: string): number {
