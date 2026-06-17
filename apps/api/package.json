@@ -41,6 +41,7 @@
     "queue:smoke": "ts-node src/cli/queue-indexing-smoke.ts",
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "trace:smoke": "ts-node src/cli/answer-trace-smoke.ts",
+    "claim-support:smoke": "ts-node src/cli/answer-claim-support-smoke.ts",
     "lineage:smoke": "ts-node src/cli/answer-lineage-smoke.ts",
     "evidence-bundle:smoke": "ts-node src/cli/evidence-bundle-smoke.ts",
     "quality-gate:smoke": "ts-node src/cli/answer-quality-gate-smoke.ts",

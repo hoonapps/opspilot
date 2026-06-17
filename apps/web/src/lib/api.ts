@@ -1269,6 +1269,51 @@ export type AnswerProof = {
   };
 };
 
+export type AnswerClaimSupport = {
+  schemaVersion: "opspilot.answer_claim_support.v1";
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "supported" | "review_required" | "unsupported";
+  thresholds: {
+    minSupportedClaimScore: number;
+    minPartialClaimScore: number;
+  };
+  summary: {
+    claimCount: number;
+    supportedClaimCount: number;
+    partialClaimCount: number;
+    unsupportedClaimCount: number;
+    averageSupportScore: number;
+    minSupportScore: number;
+    sourceCoverageCount: number;
+    sourceAccessRechecked: true;
+  };
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+  claims: Array<{
+    rank: number;
+    text: string;
+    status: "supported" | "partial" | "unsupported";
+    supportScore: number;
+    matchedTokenCount: number;
+    tokenCount: number;
+    recommendedAction: "share" | "review_claim" | "rewrite_with_sources";
+    evidence: Array<{
+      sourceRank: number;
+      path: string;
+      title: string;
+      snippet: string;
+      supportScore: number;
+      matchedTokenCount: number;
+      matchedTokens: string[];
+    }>;
+  }>;
+};
+
 export type AnswerReplay = {
   answerId: string;
   questionId: string;
@@ -2385,6 +2430,26 @@ export async function getAnswerEvidenceBundle(input: {
   }
 
   return response.json() as Promise<AnswerEvidenceBundle>;
+}
+
+export async function getAnswerClaimSupport(input: {
+  answerId: string;
+  teamSlugs: string;
+  roles: string;
+}): Promise<AnswerClaimSupport> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/claim-support`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerClaimSupport>;
 }
 
 export async function getAnswerLineage(input: {

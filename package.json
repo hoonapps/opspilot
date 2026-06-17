@@ -41,6 +41,7 @@
     "queue:smoke": "pnpm --filter @opspilot/api queue:smoke",
     "review:smoke": "pnpm --filter @opspilot/api review:smoke",
     "trace:smoke": "pnpm --filter @opspilot/api trace:smoke",
+    "claim-support:smoke": "pnpm --filter @opspilot/api claim-support:smoke",
     "lineage:smoke": "pnpm --filter @opspilot/api lineage:smoke",
     "evidence-bundle:smoke": "pnpm --filter @opspilot/api evidence-bundle:smoke",
     "quality-gate:smoke": "pnpm --filter @opspilot/api quality-gate:smoke",

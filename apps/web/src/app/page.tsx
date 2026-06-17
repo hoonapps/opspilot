@@ -5,6 +5,7 @@ import {
   Approval,
   ApiRequestObservabilityReport,
   AuditLedgerReport,
+  AnswerClaimSupport,
   AnswerEvidenceBundle,
   AnswerLineageGraph,
   AnswerProof,
@@ -34,6 +35,7 @@ import {
   getApiRequestObservability,
   getAuditLedger,
   getAnswerLineage,
+  getAnswerClaimSupport,
   getAnswerProof,
   getAnswerEvidenceBundle,
   getAnswerQualityGate,
@@ -215,6 +217,7 @@ export default function Home() {
   const [proof, setProof] = useState<AnswerProof | null>(null);
   const [replay, setReplay] = useState<AnswerReplay | null>(null);
   const [evidenceBundle, setEvidenceBundle] = useState<AnswerEvidenceBundle | null>(null);
+  const [claimSupport, setClaimSupport] = useState<AnswerClaimSupport | null>(null);
   const [lineageGraph, setLineageGraph] = useState<AnswerLineageGraph | null>(null);
   const [qualityGate, setQualityGate] = useState<AnswerQualityGate | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
@@ -337,13 +340,22 @@ export default function Home() {
     setFeedbackStatus(null);
     setLoading("ask");
     try {
+      setTrace(null);
+      setProof(null);
+      setReplay(null);
+      setEvidenceBundle(null);
+      setClaimSupport(null);
+      setLineageGraph(null);
+      setQualityGate(null);
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextLineageGraph, nextQualityGate] = await fetchAnswerEvidence(nextAnswer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextClaimSupport, nextLineageGraph, nextQualityGate] =
+        await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setClaimSupport(nextClaimSupport);
       setLineageGraph(nextLineageGraph);
       setQualityGate(nextQualityGate);
       setApprovals(await listApprovals());
@@ -490,11 +502,13 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`피드백 저장됨 (${feedback.rating > 0 ? "도움됨" : "개선 필요"})`);
       setFeedbackComment("");
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextLineageGraph, nextQualityGate] = await fetchAnswerEvidence(answer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextClaimSupport, nextLineageGraph, nextQualityGate] =
+        await fetchAnswerEvidence(answer.answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setClaimSupport(nextClaimSupport);
       setLineageGraph(nextLineageGraph);
       setQualityGate(nextQualityGate);
     } catch (requestError) {
@@ -886,11 +900,13 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextLineageGraph, nextQualityGate] = await fetchAnswerEvidence(answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextClaimSupport, nextLineageGraph, nextQualityGate] =
+        await fetchAnswerEvidence(answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setClaimSupport(nextClaimSupport);
       setLineageGraph(nextLineageGraph);
       setQualityGate(nextQualityGate);
     } catch (requestError) {
@@ -918,12 +934,13 @@ export default function Home() {
 
   async function fetchAnswerEvidence(
     answerId: string
-  ): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle, AnswerLineageGraph, AnswerQualityGate]> {
+  ): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle, AnswerClaimSupport, AnswerLineageGraph, AnswerQualityGate]> {
     return Promise.all([
       getAnswerTrace({ answerId, teamSlugs, roles }),
       getAnswerProof({ answerId, teamSlugs, roles }),
       getAnswerReplay({ answerId, teamSlugs, roles }),
       getAnswerEvidenceBundle({ answerId, teamSlugs, roles }),
+      getAnswerClaimSupport({ answerId, teamSlugs, roles }),
       getAnswerLineage({ answerId, teamSlugs, roles }),
       getAnswerQualityGate({ answerId, teamSlugs, roles })
     ]);
@@ -1143,6 +1160,62 @@ export default function Home() {
                             <p>{formatQualityGateEvidence(check.evidence)}</p>
                           </div>
                           <code>{formatProofMetric(check)}</code>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {claimSupport ? (
+                  <div className={`claimSupportPanel claimSupportPanel--${claimSupport.status}`} aria-label="문장별 근거 검증">
+                    <div className="claimSupportHeader">
+                      <div>
+                        <span>문장별 근거 검증</span>
+                        <strong>{formatClaimSupportStatus(claimSupport.status)}</strong>
+                      </div>
+                      <code>{claimSupport.integrity.algorithm}:{shortHash(claimSupport.integrity.hash)}</code>
+                    </div>
+                    <div className="claimSupportSummary">
+                      <Metric label="문장" value={`${claimSupport.summary.claimCount}개`} />
+                      <Metric label="지원" value={`${claimSupport.summary.supportedClaimCount}개`} />
+                      <Metric label="부분" value={`${claimSupport.summary.partialClaimCount}개`} />
+                      <Metric label="미지원" value={`${claimSupport.summary.unsupportedClaimCount}개`} />
+                      <Metric label="평균 점수" value={formatPercent(claimSupport.summary.averageSupportScore)} />
+                      <Metric label="출처 커버" value={`${claimSupport.summary.sourceCoverageCount}개`} />
+                    </div>
+                    <div className="claimSupportList">
+                      {claimSupport.claims.slice(0, 5).map((claim) => (
+                        <article className={`claimSupportItem claimSupportItem--${claim.status}`} key={claim.rank}>
+                          <div className="claimSupportClaim">
+                            <span className={claim.status === "supported" ? "badge" : "badge review"}>
+                              {formatClaimStatus(claim.status)}
+                            </span>
+                            <div>
+                              <strong>
+                                #{claim.rank} {claim.text}
+                              </strong>
+                              <p>
+                                {claim.evidence[0]
+                                  ? `${claim.evidence[0].title} · ${claim.evidence[0].path}`
+                                  : "연결된 근거 스니펫이 없습니다."}
+                              </p>
+                            </div>
+                            <code>{formatPercent(claim.supportScore)}</code>
+                          </div>
+                          {claim.evidence[0] ? (
+                            <blockquote>
+                              {claim.evidence[0].snippet}
+                              <small>
+                                매칭 {claim.matchedTokenCount}/{claim.tokenCount} ·{" "}
+                                {claim.evidence[0].matchedTokens.join(" ") || "토큰 없음"} ·{" "}
+                                {formatClaimAction(claim.recommendedAction)}
+                              </small>
+                            </blockquote>
+                          ) : (
+                            <blockquote>
+                              근거 보강 필요
+                              <small>{formatClaimAction(claim.recommendedAction)}</small>
+                            </blockquote>
+                          )}
                         </article>
                       ))}
                     </div>
@@ -4100,6 +4173,33 @@ function formatQualityGateAction(action: string): string {
     block_and_rework: "차단 후 재작성"
   };
   return labels[action] ?? action;
+}
+
+function formatClaimSupportStatus(status: AnswerClaimSupport["status"]): string {
+  const labels: Record<AnswerClaimSupport["status"], string> = {
+    supported: "문서 근거 충분",
+    review_required: "일부 검토 필요",
+    unsupported: "근거 보강 필요"
+  };
+  return labels[status];
+}
+
+function formatClaimStatus(status: AnswerClaimSupport["claims"][number]["status"]): string {
+  const labels: Record<AnswerClaimSupport["claims"][number]["status"], string> = {
+    supported: "지원됨",
+    partial: "부분 지원",
+    unsupported: "근거 부족"
+  };
+  return labels[status];
+}
+
+function formatClaimAction(action: AnswerClaimSupport["claims"][number]["recommendedAction"]): string {
+  const labels: Record<AnswerClaimSupport["claims"][number]["recommendedAction"], string> = {
+    share: "공유 가능",
+    review_claim: "문장 검토",
+    rewrite_with_sources: "근거 보강"
+  };
+  return labels[action];
 }
 
 function formatApprovalGateStatus(status: string): string {

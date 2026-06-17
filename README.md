@@ -65,6 +65,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - 평가 회귀 리포트: 최신 평가와 직전 평가를 비교해 메트릭 하락, 실패 게이트, 고위험 케이스, 릴리즈 판단, 리포트 해시 제공
 - 런북 기반 장애 대응 플랜: 심각도, 단계별 조치, 사람 승인 경계, 커뮤니케이션, 복구 검증
 - 답변별 문서 일치율, 출처 근거 커버리지, 근거 스니펫 매핑, 증명 패킷
+- 문장별 근거 검증: 답변 claim을 문장 단위로 분해하고 출처 스니펫 지지 점수, 미지원 문장, SHA-256 리포트 해시 제공
 - 답변 추적/증명/재실행/증거 번들/계보 그래프 API
 - 답변 신뢰 게이트: 증명 패킷, 재실행 안정성, 승인 상태, 피드백, 권한 재검사를 묶어 공유 가능/검토 필요/차단 판정
 - 질문 단위 감사 번들 API: 답변 없는 장애 대응 작업 흐름의 도구 호출, 권한 재검사, 출처 계보, SHA-256 해시 검증
@@ -252,6 +253,7 @@ pnpm revalidation-run:smoke
 pnpm incident-plan:smoke
 pnpm agreement:smoke
 pnpm trace:smoke
+pnpm claim-support:smoke
 pnpm replay:smoke
 pnpm evidence-bundle:smoke
 pnpm lineage:smoke
@@ -335,6 +337,8 @@ EVAL_MIN_CITATION_ACCURACY=1
 `pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `GET /evaluations/regression`과 `pnpm eval:regression-smoke`는 최신 평가와 직전 평가를 비교해 메트릭 하락, 실패 게이트, 고위험 케이스, 릴리즈 판단, 리포트 해시를 반환합니다. `GET /documents/index-snapshot`과 `pnpm index-snapshot:smoke`는 같은 색인 상태에서 스냅샷 해시가 안정적이고, 새 문서를 넣으면 문서/청크/버전 매니페스트 해시가 바뀌는지 검증합니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `GET /documents/revalidation-queue`와 `pnpm revalidation-queue:smoke`는 문서 변경 이후 오래된 답변을 우선순위 큐로 모아 replay, lineage, quality gate 재검증 경로가 잡히는지 확인합니다. `POST /documents/revalidation-runs`와 `pnpm revalidation-run:smoke`는 큐 항목 하나를 실제로 재검증해 현재 문서 기준 replay, 품질 게이트, 계보 무결성, 권한 재검사를 한 응답으로 묶고 종료/재검토/차단 판정, 리포트 해시, 최근 실행 이력 저장을 검증합니다. `GET /documents/revalidation-runs`는 저장된 재검증 실행 이력을 조회합니다. `error-budget:smoke`는 API 5xx가 5분/1시간/24시간 오류 예산을 얼마나 소모하는지 계산하고, 오류 예산 소모율이 높으면 배포 동결 권고가 나오는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
 
 개별 답변은 `GET /answers/{id}/quality-gate`로 별도 판정합니다. 이 게이트는 증명 패킷, 재실행 안정성, 승인 상태, 피드백 신호, 신뢰도, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 재검사를 묶어 `pass`, `review`, `block`으로 결정합니다. 긍정 피드백이 없는 답변은 검토 대상으로 남고, 민감 작업 승인 대기 답변은 자동 공유되지 않습니다.
+
+`GET /answers/{id}/claim-support`는 답변을 문장 단위 claim으로 나누고 각 문장이 어떤 출처 스니펫으로 지지되는지 점수화합니다. `pnpm claim-support:smoke`는 제한 문서 기반 답변에서 호출자 권한 재검사, 지원 claim, 근거 스니펫, SHA-256 해시가 함께 생성되는지 검증합니다.
 
 `GET /answers/{id}/lineage`는 같은 답변을 그래프 형태로 다시 보여줍니다. 질문에서 답변이 생성되고, 어떤 출처가 답변을 지지했으며, 어떤 도구와 승인 요청이 신뢰 게이트에 영향을 줬는지 노드/엣지로 확인합니다. `pnpm lineage:smoke`는 민감 작업 질문에서 제한 출처, 도구 호출, 승인 대기, 피드백, SHA-256 무결성 해시가 모두 계보에 남는지 검증합니다.
 

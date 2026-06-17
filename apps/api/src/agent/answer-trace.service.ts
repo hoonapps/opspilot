@@ -279,6 +279,51 @@ export type AnswerQualityGate = {
   };
 };
 
+export type AnswerClaimSupport = {
+  schemaVersion: "opspilot.answer_claim_support.v1";
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "supported" | "review_required" | "unsupported";
+  thresholds: {
+    minSupportedClaimScore: number;
+    minPartialClaimScore: number;
+  };
+  summary: {
+    claimCount: number;
+    supportedClaimCount: number;
+    partialClaimCount: number;
+    unsupportedClaimCount: number;
+    averageSupportScore: number;
+    minSupportScore: number;
+    sourceCoverageCount: number;
+    sourceAccessRechecked: true;
+  };
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+  claims: Array<{
+    rank: number;
+    text: string;
+    status: "supported" | "partial" | "unsupported";
+    supportScore: number;
+    matchedTokenCount: number;
+    tokenCount: number;
+    recommendedAction: "share" | "review_claim" | "rewrite_with_sources";
+    evidence: Array<{
+      sourceRank: number;
+      path: string;
+      title: string;
+      snippet: string;
+      supportScore: number;
+      matchedTokenCount: number;
+      matchedTokens: string[];
+    }>;
+  }>;
+};
+
 export type AnswerLineageGraph = {
   schemaVersion: "opspilot.answer_lineage_graph.v1";
   answerId: string;
@@ -600,6 +645,56 @@ export class AnswerTraceService {
     };
   }
 
+  async getClaimSupport(answerId: string, context: RequestContext): Promise<AnswerClaimSupport> {
+    const trace = await this.getTrace(answerId, context);
+    const thresholds = {
+      minSupportedClaimScore: readProofThreshold("CLAIM_SUPPORT_MIN_SUPPORTED", 0.35),
+      minPartialClaimScore: readProofThreshold("CLAIM_SUPPORT_MIN_PARTIAL", 0.18)
+    };
+    const claims = buildClaimSupportClaims(trace, thresholds);
+    const supportedClaimCount = claims.filter((claim) => claim.status === "supported").length;
+    const partialClaimCount = claims.filter((claim) => claim.status === "partial").length;
+    const unsupportedClaimCount = claims.filter((claim) => claim.status === "unsupported").length;
+    const supportScores = claims.map((claim) => claim.supportScore);
+    const sourceCoverageCount = new Set(claims.flatMap((claim) => claim.evidence.map((item) => item.path))).size;
+    const unsigned = {
+      schemaVersion: "opspilot.answer_claim_support.v1" as const,
+      answerId: trace.answer.id,
+      questionId: trace.answer.questionId,
+      generatedAt: new Date().toISOString(),
+      status:
+        unsupportedClaimCount > 0
+          ? ("unsupported" as const)
+          : partialClaimCount > 0
+            ? ("review_required" as const)
+            : ("supported" as const),
+      thresholds,
+      summary: {
+        claimCount: claims.length,
+        supportedClaimCount,
+        partialClaimCount,
+        unsupportedClaimCount,
+        averageSupportScore: ratio(
+          supportScores.reduce((total, score) => total + score, 0),
+          Math.max(supportScores.length, 1)
+        ),
+        minSupportScore: supportScores.length > 0 ? Number(Math.min(...supportScores).toFixed(3)) : 0,
+        sourceCoverageCount,
+        sourceAccessRechecked: true as const
+      },
+      claims
+    };
+
+    return {
+      ...unsigned,
+      integrity: {
+        algorithm: "sha256",
+        canonicalization: "stable_json_v1",
+        hash: sha256StableJson(unsigned)
+      }
+    };
+  }
+
   async getEvidenceBundle(answerId: string, context: RequestContext): Promise<AnswerEvidenceBundle> {
     const trace = await this.getTrace(answerId, context);
     const [proof, replay] = await Promise.all([this.getProof(answerId, context), this.replay(answerId, context)]);
@@ -848,6 +943,99 @@ function splitEvidenceUnits(content: string): string[] {
 function compactEvidenceText(text: string): string {
   const compact = text.replace(/\s+/g, " ").trim();
   return compact.length > 220 ? `${compact.slice(0, 217)}...` : compact;
+}
+
+function buildClaimSupportClaims(
+  trace: AnswerTrace,
+  thresholds: AnswerClaimSupport["thresholds"]
+): AnswerClaimSupport["claims"] {
+  const evidenceUnits = buildClaimEvidenceUnits(trace);
+  return splitAnswerClaims(trace.answer.text).map((claimText, index) => {
+    const claimTokens = [...new Set(tokenizeForAgreement(removeAgreementBoilerplate(claimText)))];
+    const evidence = evidenceUnits
+      .map((unit) => {
+        const matchedTokens = claimTokens.filter((token) => unit.tokens.has(token));
+        return {
+          sourceRank: unit.sourceRank,
+          path: unit.path,
+          title: unit.title,
+          snippet: unit.snippet,
+          supportScore: ratio(matchedTokens.length, claimTokens.length),
+          matchedTokenCount: matchedTokens.length,
+          matchedTokens: matchedTokens.slice(0, 12)
+        };
+      })
+      .filter((unit) => unit.matchedTokens.length > 0)
+      .sort(
+        (a, b) =>
+          b.supportScore - a.supportScore ||
+          b.matchedTokens.length - a.matchedTokens.length ||
+          a.sourceRank - b.sourceRank
+      )
+      .slice(0, 3);
+    const supportScore = evidence[0]?.supportScore ?? 0;
+    const matchedTokenCount = evidence[0]?.matchedTokenCount ?? 0;
+    const status =
+      supportScore >= thresholds.minSupportedClaimScore
+        ? ("supported" as const)
+        : supportScore >= thresholds.minPartialClaimScore
+          ? ("partial" as const)
+          : ("unsupported" as const);
+
+    return {
+      rank: index + 1,
+      text: claimText,
+      status,
+      supportScore,
+      matchedTokenCount,
+      tokenCount: claimTokens.length,
+      recommendedAction:
+        status === "supported" ? ("share" as const) : status === "partial" ? ("review_claim" as const) : ("rewrite_with_sources" as const),
+      evidence
+    };
+  });
+}
+
+function buildClaimEvidenceUnits(trace: AnswerTrace): Array<{
+  sourceRank: number;
+  path: string;
+  title: string;
+  snippet: string;
+  tokens: Set<string>;
+}> {
+  const sourceByPath = new Map(trace.sources.map((source) => [source.path, source]));
+  return trace.grounding.sources.flatMap((source) => {
+    const fallback = sourceByPath.get(source.path)?.contentPreview;
+    const snippets = source.evidenceSnippets.length > 0 ? source.evidenceSnippets.map((snippet) => snippet.text) : fallback ? [fallback] : [];
+    return snippets.map((snippet) => ({
+      sourceRank: source.rank,
+      path: source.path,
+      title: source.title,
+      snippet,
+      tokens: new Set(tokenizeForAgreement(snippet))
+    }));
+  });
+}
+
+function splitAnswerClaims(answerText: string): string[] {
+  const normalized = removeAgreementBoilerplate(answerText)
+    .split(/\n+/u)
+    .flatMap((line) => line.split(/(?<=[.!?。])\s+/u))
+    .map((line) =>
+      line
+        .replace(/^\s*(?:[-*]|\d+[.)])\s*/u, "")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
+    .filter((line) => line.length >= 12)
+    .filter((line) => tokenizeForAgreement(line).length >= 2);
+
+  if (normalized.length > 0) {
+    return normalized.slice(0, 12);
+  }
+
+  const fallback = compactEvidenceText(removeAgreementBoilerplate(answerText));
+  return fallback ? [fallback] : [];
 }
 
 function ratio(numerator: number, denominator: number): number {

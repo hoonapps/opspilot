@@ -182,6 +182,9 @@ jobs:
       - name: Answer trace smoke
         run: pnpm trace:smoke
 
+      - name: Answer claim support smoke
+        run: pnpm claim-support:smoke
+
       - name: Answer lineage graph smoke
         run: pnpm lineage:smoke
 

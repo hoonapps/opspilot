@@ -38,6 +38,7 @@ GET /docs-json
 - `GET /answers/{id}/proof`: 답변 증명 패킷
 - `GET /answers/{id}/replay`: 현재 문서 기준 답변 변경 감지
 - `GET /answers/{id}/evidence-bundle`: 추적, 증명, 재실행, 권한 재검사, SHA-256 무결성 해시를 묶은 감사용 증거 번들
+- `GET /answers/{id}/claim-support`: 답변 문장별 출처 스니펫 지지 점수, 미지원 claim, SHA-256 리포트 해시
 - `GET /answers/{id}/lineage`: 질문, 답변, 출처, 도구 호출, 승인, 피드백, 신뢰 게이트를 노드/엣지로 묶은 계보 그래프
 - `GET /answers/{id}/quality-gate`: 개별 답변을 공유 가능/검토 필요/차단으로 판정하는 신뢰 게이트
 - `GET /questions/{id}/audit-bundle`: 질문 기준 출처 계보, 도구 호출 정책 검사, 승인/피드백, 권한 재검사, SHA-256 해시를 묶은 감사 번들

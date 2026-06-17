@@ -28,6 +28,11 @@ export class AnswerTraceController {
     return this.answerTraceService.getEvidenceBundle(id, parseRequestContext(headers));
   }
 
+  @Get(":id/claim-support")
+  claimSupport(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.answerTraceService.getClaimSupport(id, parseRequestContext(headers));
+  }
+
   @Get(":id/lineage")
   lineage(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.answerTraceService.getLineageGraph(id, parseRequestContext(headers));

@@ -376,6 +376,19 @@ async function main() {
     await page.locator(".qualityGatePanel").getByText(/공유 가능|검토 후 공유|차단 후 재작성/u).first().waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText("승인 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText("대기 중", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator("[aria-label='문장별 근거 검증']").getByText("문장별 근거 검증", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator("[aria-label='문장별 근거 검증']").getByText(/문서 근거 충분|일부 검토 필요|근거 보강 필요/u).first().waitFor({
+      timeout: 10000
+    });
+    await page.locator("[aria-label='문장별 근거 검증']").getByText("sha256:", { exact: false }).waitFor({
+      timeout: 10000
+    });
+    await page.locator(".claimSupportItem").getByText(/지원됨|부분 지원/u).first().waitFor({ timeout: 10000 });
+    await page.locator(".claimSupportItem blockquote").getByText("매칭", { exact: false }).first().waitFor({
+      timeout: 10000
+    });
     await page.locator(".traceSummary").getByText("승인", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".groundingPanel").getByText("근거 커버리지", { exact: true }).waitFor({ timeout: 10000 });
@@ -429,6 +442,11 @@ async function main() {
       (await page.locator(".qualityGatePanel").getByText(/공유 가능|검토 후 공유|차단 후 재작성/u).first().isVisible()) &&
       (await page.locator(".qualityGatePanel").getByText("승인 경계", { exact: true }).isVisible()) &&
       (await page.locator(".qualityGatePanel").getByText("대기 중", { exact: true }).isVisible());
+    const claimSupportVisible =
+      (await page.locator("[aria-label='문장별 근거 검증']").getByText("문장별 근거 검증", { exact: true }).isVisible()) &&
+      (await page.locator("[aria-label='문장별 근거 검증']").getByText("sha256:", { exact: false }).isVisible()) &&
+      (await page.locator(".claimSupportItem").getByText(/지원됨|부분 지원/u).first().isVisible()) &&
+      (await page.locator(".claimSupportItem blockquote").getByText("매칭", { exact: false }).first().isVisible());
     const traceTimelineVisible = await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).isVisible();
     const groundingVisible = await page.locator(".groundingPanel").getByText("근거 커버리지", { exact: true }).isVisible();
     const evidenceSnippetVisible = await page.locator(".evidenceSnippetList").getByText("매칭", { exact: false }).first().isVisible();
@@ -638,6 +656,7 @@ async function main() {
         reviewReasonVisible &&
         traceVisible &&
         answerQualityGateVisible &&
+        claimSupportVisible &&
         traceTimelineVisible &&
         groundingVisible &&
         evidenceSnippetVisible &&
@@ -721,6 +740,7 @@ async function main() {
         reviewReasonVisible,
         traceVisible,
         answerQualityGateVisible,
+        claimSupportVisible,
         traceTimelineVisible,
         groundingVisible,
         evidenceSnippetVisible,

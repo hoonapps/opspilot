@@ -1246,6 +1246,141 @@ pre {
   font-size: 12px;
 }
 
+.claimSupportPanel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.claimSupportPanel--supported {
+  border-color: #bbf7d0;
+  background: #f6fff8;
+}
+
+.claimSupportPanel--review_required {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.claimSupportPanel--unsupported {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.claimSupportHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.claimSupportHeader span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.claimSupportHeader strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.claimSupportHeader code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.claimSupportSummary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.claimSupportList {
+  display: grid;
+  gap: 8px;
+}
+
+.claimSupportItem {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.claimSupportItem--partial {
+  border-color: #fde68a;
+}
+
+.claimSupportItem--unsupported {
+  border-color: #fecaca;
+}
+
+.claimSupportClaim {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.claimSupportClaim strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.claimSupportClaim p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.claimSupportClaim code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--ink);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.claimSupportItem blockquote {
+  margin: 8px 0 0;
+  border-left: 3px solid #94a3b8;
+  padding: 7px 9px;
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.claimSupportItem blockquote small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .replaySummary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5674,6 +5809,8 @@ pre {
   .qualityGateSummary,
   .qualityGateChecks,
   .qualityGateCheck,
+  .claimSupportSummary,
+  .claimSupportClaim,
   .lineageSummary,
   .lineageGraph,
   .lineageEdges,
@@ -5711,7 +5848,8 @@ pre {
     text-align: left;
   }
 
-  .qualityGateCheck code {
+  .qualityGateCheck code,
+  .claimSupportClaim code {
     grid-column: auto;
   }
 
