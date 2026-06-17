@@ -104,7 +104,7 @@ const screens: Array<{ id: ConsoleScreen; label: string; title: string; descript
     id: "quality",
     label: "품질",
     title: "품질 게이트와 운영 지표",
-    description: "평가 게이트, 문서 일치율, 색인 규모, tool 호출, 승인, 피드백을 점검합니다."
+    description: "평가 게이트, 문서 일치율, 색인 규모, 도구 호출, 승인, 피드백을 점검합니다."
   },
   {
     id: "review",
@@ -115,8 +115,8 @@ const screens: Array<{ id: ConsoleScreen; label: string; title: string; descript
   {
     id: "audit",
     label: "감사",
-    title: "Tool 호출 감사",
-    description: "저장된 Agent tool 호출, 권한 감사 요약, 승인 위임 흐름을 확인합니다."
+    title: "도구 호출 감사",
+    description: "저장된 Agent 도구 호출, 권한 감사 요약, 승인 위임 흐름을 확인합니다."
   },
   {
     id: "help",
@@ -423,7 +423,7 @@ export default function Home() {
     try {
       setToolCalls(await listRecentToolCalls());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Tool 호출 감사 요청에 실패했습니다.");
+      setError(requestError instanceof Error ? requestError.message : "도구 호출 감사 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -435,7 +435,7 @@ export default function Home() {
     try {
       setAgentTools(await listAgentTools());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Tool 레지스트리 요청에 실패했습니다.");
+      setError(requestError instanceof Error ? requestError.message : "도구 레지스트리 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -566,10 +566,10 @@ export default function Home() {
 	                <span>1</span>
 	                <div>
 	                  <strong>인프라와 API 실행</strong>
-	                  <p>PostgreSQL, Redis를 올리고 마이그레이션 후 API와 Web을 실행합니다.</p>
+	                  <p>PostgreSQL, Redis를 올리고 마이그레이션 후 API와 웹 콘솔을 실행합니다.</p>
 	                  <code>docker compose up -d postgres redis</code>
 	                  <code>pnpm --filter @opspilot/api db:migrate</code>
-	                  <code>pnpm start:api · pnpm start:web</code>
+	                  <code>pnpm dev:api · pnpm dev:web</code>
 	                </div>
 	              </article>
 	              <article>
@@ -603,7 +603,7 @@ export default function Home() {
 	                <span>5</span>
 	                <div>
 	                  <strong>품질 게이트 확인</strong>
-	                  <p>평가, 문서 일치율, SLO, release gate를 확인해 RAG 품질이 현재 문서 상태와 맞는지 봅니다.</p>
+	                  <p>평가, 문서 일치율, SLO, 배포 게이트를 확인해 RAG 품질이 현재 문서 상태와 맞는지 봅니다.</p>
 	                  <code>pnpm eval</code>
 	                  <code>pnpm freshness:smoke</code>
 	                  <code>pnpm release-gate:smoke</code>
@@ -614,7 +614,7 @@ export default function Home() {
 	                <span>6</span>
 	                <div>
 	                  <strong>포트폴리오 데모 리포트 생성</strong>
-	                  <p>터미널에서 핵심 증거를 JSON/Markdown 리포트로 만들고, Web smoke로 화면까지 검증합니다.</p>
+	                  <p>터미널에서 핵심 증거를 JSON/Markdown 리포트로 만들고, 웹 smoke로 화면까지 검증합니다.</p>
 	                  <code>pnpm portfolio:demo</code>
 	                  <code>pnpm portfolio:report</code>
 	                  <code>pnpm web:smoke</code>
@@ -624,11 +624,19 @@ export default function Home() {
 	            <div className="usageChecklist">
 	              <div>
 	                <strong>데모에서 보여줄 핵심 증거</strong>
-	                <p>문서 출처, 문서 일치율, replay drift, 권한 차단 후보, tool 호출, 승인 요청, eval 결과, release gate 상태를 순서대로 보여주면 됩니다.</p>
+	                <p>문서 출처, 문서 일치율, 답변 drift, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트 상태를 순서대로 보여주면 됩니다.</p>
 	              </div>
 	              <div>
 	                <strong>문서를 어디서 관리하나?</strong>
 	                <p>로컬 샘플은 `seed/documents`, 앱에서 추가하는 문서는 `문서` 화면, GitHub 문서는 `GitHub 문서 동기화`로 관리합니다.</p>
+	              </div>
+	              <div>
+	                <strong>청킹과 RAG 검색은 어디서 보나?</strong>
+	                <p>`문서` 화면의 청크 미리보기와 `검색` 화면의 후보 청크 순위에서 실제 chunk, 점수, 권한 차단 결과를 확인합니다.</p>
+	              </div>
+	              <div>
+	                <strong>문서 일치율은 어디서 보나?</strong>
+	                <p>`질문` 화면 답변 상단, trace, proof packet, `품질` 화면 평가 metric에서 답변과 근거 문서의 일치율을 확인합니다.</p>
 	              </div>
 	            </div>
 	          </section>
@@ -679,9 +687,9 @@ export default function Home() {
               <span>
 	                신뢰도 {confidencePercent}% · 문서 일치율 {documentAgreementPercent}%
 	              </span>
-	              <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "아직 tool 호출 없음"}</span>
+	              <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join(", ") ?? "아직 도구 호출 없음"}</span>
 	            </div>
-	            <pre>{answer?.answer ?? "질문을 실행하면 근거 기반 답변, 신뢰도, tool 호출, 출처가 여기에 표시됩니다."}</pre>
+	            <pre>{answer?.answer ?? "질문을 실행하면 근거 기반 답변, 신뢰도, 도구 호출, 출처가 여기에 표시됩니다."}</pre>
             {answer ? (
               <div className="boundaryAudit">
                 <span>{answer.permissionAudit.enforcement}</span>
@@ -726,7 +734,7 @@ export default function Home() {
                     </strong>
                   </div>
                   <div>
-	                    <span>Tools</span>
+	                    <span>도구</span>
                     <strong>{trace.summary.toolCallCount}</strong>
                   </div>
                   <div>
@@ -814,20 +822,20 @@ export default function Home() {
                     </div>
                     <div className="proofEvidence">
 	                      <span>출처 {proof.evidence.sourcePaths.length}</span>
-	                      <span>Tools {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ")}</span>
+	                      <span>도구 {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ")}</span>
 	                      <span>검토 {proof.evidence.reviewReasons.join(" ") || "없음"}</span>
                     </div>
                   </div>
                 ) : null}
                 {replay ? (
-                  <div className="replayPanel" aria-label="answer replay drift">
+                  <div className="replayPanel" aria-label="answer 답변 drift">
                     <div className="proofHeader">
                       <div>
-	                        <span>Replay Drift</span>
+	                        <span>답변 Drift</span>
 	                        <strong>{formatReplayStatus(replay.status)}</strong>
                       </div>
 	                      <code>
-	                        현재 일치율 {formatPercent(replay.summary.currentDocumentAgreement)} · overlap{" "}
+	                        현재 일치율 {formatPercent(replay.summary.currentDocumentAgreement)} · 출처 겹침{" "}
 	                        {formatPercent(replay.summary.sourceOverlapRatio)}
 	                      </code>
                     </div>
@@ -859,7 +867,7 @@ export default function Home() {
                     </div>
                   </div>
                 ) : null}
-                <div className="traceTimeline" aria-label="answer trace timeline">
+                <div className="traceTimeline" aria-label="답변 trace timeline">
 	                  {trace.timeline.map((event) => (
 	                    <article className="timelineItem" key={`${event.order}-${event.kind}-${event.title}-${event.at}`}>
 	                      <span>{formatTraceKind(event.kind)}</span>
@@ -1013,9 +1021,9 @@ export default function Home() {
                       <span className="badge">{candidate.visibility}</span>
                     </div>
                     <div className="scoreBars">
-                      <ScoreBar label="score" value={candidate.score} />
-                      <ScoreBar label="vector" value={candidate.retrieval.vectorScore ?? 0} />
-                      <ScoreBar label="lexical" value={candidate.retrieval.lexicalScore ?? 0} />
+                      <ScoreBar label="종합" value={candidate.score} />
+                      <ScoreBar label="벡터" value={candidate.retrieval.vectorScore ?? 0} />
+                      <ScoreBar label="키워드" value={candidate.retrieval.lexicalScore ?? 0} />
                     </div>
                     <div className="candidateMeta">
                       <code>{candidate.retrieval.mode}</code>
@@ -1041,7 +1049,7 @@ export default function Home() {
 	                <p className="eyebrow">운영</p>
 	                <h2>운영 지표 요약</h2>
 	              </div>
-	              {observability ? <span className="badge">tool {observability.toolCalls.total}회</span> : null}
+	              {observability ? <span className="badge">도구 {observability.toolCalls.total}회</span> : null}
 	              <button className="smallButton" disabled={loading === "observability"} onClick={loadObservability} type="button">
 	                {loading === "observability" ? "불러오는 중..." : "운영 지표 불러오기"}
               </button>
@@ -1049,7 +1057,7 @@ export default function Home() {
             {observability ? (
               <>
                 {releaseGate ? (
-                  <section className="releaseGatePanel" aria-label="release gate">
+                  <section className="releaseGatePanel" aria-label="배포 게이트">
                     <div className="releaseGateHeader">
                       <div>
 	                        <span>릴리즈 게이트</span>
@@ -1085,7 +1093,7 @@ export default function Home() {
 	                  <Metric label="피드백" value={String(observability.feedback.total)} />
                 </div>
                 <div className="opsBreakdown">
-	                  <span>Tools</span>
+	                  <span>도구</span>
                   <code>{formatCountMap(observability.toolCalls.byName)}</code>
 	                  <span>상태</span>
                   <code>{formatCountMap(observability.toolCalls.byStatus)}</code>
@@ -1121,7 +1129,7 @@ export default function Home() {
                 ) : null}
               </>
             ) : (
-	              <p className="empty">저장된 운영 지표를 불러와 답변 품질, 검토 경계, tool 호출, 승인, 피드백을 확인합니다.</p>
+	              <p className="empty">저장된 운영 지표를 불러와 답변 품질, 검토 경계, 도구 호출, 승인, 피드백을 확인합니다.</p>
             )}
           </section>
 
@@ -1150,7 +1158,7 @@ export default function Home() {
 	                  일치율 {formatPercent(evaluation.metrics.documentAgreementScore)} · 인용 {formatPercent(evaluation.metrics.citationAccuracy)}
                 </p>
                 {evaluationHistory && evaluationHistory.items.length > 0 ? (
-                  <div className="evalHistory" aria-label="evaluation history">
+                  <div className="evalHistory" aria-label="평가 이력">
                     <div className="evalHistoryHead">
 	                      <span>회귀 이력</span>
 	                      <code>실행 {evaluationHistory.count}회</code>
@@ -1173,7 +1181,7 @@ export default function Home() {
                     ))}
                   </div>
                 ) : null}
-                <div className="evalCaseExplorer" aria-label="evaluation case explorer">
+                <div className="evalCaseExplorer" aria-label="평가 케이스 탐색기">
                   {evaluation.rows.map((row) => (
                     <article className="evalCaseItem" key={row.id}>
                       <div className="evalCaseHead">
@@ -1245,25 +1253,25 @@ export default function Home() {
             <div className="sectionHeader compact">
               <div>
 	                <p className="eyebrow">감사</p>
-	                <h2>Tool 호출</h2>
+	                <h2>도구 호출</h2>
 	              </div>
 	              <button className="smallButton" disabled={loading === "audit"} onClick={loadToolCalls} type="button">
-	                {loading === "audit" ? "불러오는 중..." : "Tool 호출 불러오기"}
+	                {loading === "audit" ? "불러오는 중..." : "도구 호출 불러오기"}
               </button>
             </div>
             <section className="toolRegistry">
               <div className="sectionHeader compact">
                 <div>
 	                  <p className="eyebrow">레지스트리</p>
-	                  <h2>Agent tool 계약</h2>
+	                  <h2>Agent 도구 계약</h2>
 	                </div>
-	                {agentTools.length > 0 ? <span className="badge">tool {agentTools.length}개</span> : null}
+	                {agentTools.length > 0 ? <span className="badge">도구 {agentTools.length}개</span> : null}
 	                <button className="smallButton" disabled={loading === "tools"} onClick={loadAgentTools} type="button">
 	                  {loading === "tools" ? "불러오는 중..." : "레지스트리 불러오기"}
                 </button>
               </div>
               {agentTools.length > 0 ? (
-                <div className="toolRegistryList" aria-label="agent tool registry">
+                <div className="toolRegistryList" aria-label="agent 도구 registry">
                   {agentTools.map((tool) => (
                     <article className="toolRegistryItem" key={tool.name}>
                       <div>
@@ -1288,7 +1296,7 @@ export default function Home() {
                   ))}
                 </div>
               ) : (
-	                <p className="empty">레지스트리를 불러와 tool 계약, 부작용, 승인 정책을 확인합니다.</p>
+	                <p className="empty">레지스트리를 불러와 도구 계약, 부작용, 승인 정책을 확인합니다.</p>
               )}
             </section>
             <section className="slackProof">
@@ -1320,12 +1328,12 @@ export default function Home() {
                     <code>{slackTrace.trace.question}</code>
 	                    <span>답변</span>
                     <code>{slackTrace.trace.answerId}</code>
-	                    <span>Tools</span>
+	                    <span>도구</span>
                     <code>{slackTrace.trace.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ") || "none"}</code>
                   </div>
                 </>
               ) : (
-	                <p className="empty">Slack 멘션을 시뮬레이션해서 사용자 매핑, 스레드 답변 메타데이터, 출처, tool 호출을 확인합니다.</p>
+	                <p className="empty">Slack 멘션을 시뮬레이션해서 사용자 매핑, 스레드 답변 메타데이터, 출처, 도구 호출을 확인합니다.</p>
               )}
             </section>
             <div className="auditList">
@@ -1341,7 +1349,7 @@ export default function Home() {
                   </div>
                 ))
               ) : (
-	                <p className="empty">질문을 실행하면 최근 Agent tool 호출이 여기에 표시됩니다.</p>
+	                <p className="empty">질문을 실행하면 최근 Agent 도구 호출이 여기에 표시됩니다.</p>
               )}
             </div>
           </section>
@@ -1829,7 +1837,7 @@ function formatReplayStatus(status: string): string {
   const labels: Record<string, string> = {
     stable: "안정",
     needs_review: "검토 필요",
-    drifted: "Drift 감지"
+    drifted: "변경 감지"
   };
   return labels[status] ?? status;
 }
@@ -1860,7 +1868,7 @@ function formatTraceKind(kind: string): string {
     question: "질문",
     retrieval: "검색",
     answer: "답변",
-    tool: "Tool",
+    tool: "도구",
     approval: "승인",
     feedback: "피드백"
   };
@@ -1872,7 +1880,7 @@ function formatTraceEventTitle(title: string): string {
     "Question persisted": "질문 저장",
     "Sources attached": "출처 연결",
     "Answer generated": "답변 생성",
-    "Tool call persisted": "Tool 호출 저장",
+    "Tool call persisted": "도구 호출 저장",
     "Approval requested": "승인 요청",
     "Feedback saved": "피드백 저장"
   };
@@ -1939,7 +1947,7 @@ function formatSloLabel(id: string, fallback: string): string {
   const labels: Record<string, string> = {
     answer_grounding: "답변 근거성",
     review_load: "검토 부하",
-    tool_audit_coverage: "Tool 감사 커버리지",
+    tool_audit_coverage: "도구 감사 커버리지",
     eval_gate: "평가 게이트"
   };
   return labels[id] ?? fallback;
@@ -1949,7 +1957,7 @@ function formatSloDescription(id: string, fallback: string): string {
   const labels: Record<string, string> = {
     answer_grounding: "평균 답변/문서 일치율이 목표치 이상이어야 합니다.",
     review_load: "사람 검토 비율이 운영자가 처리 가능한 기준 안에 있어야 합니다.",
-    tool_audit_coverage: "질문은 저장된 search_documents tool 호출로 추적돼야 합니다.",
+    tool_audit_coverage: "질문은 저장된 search_documents 도구 호출로 추적돼야 합니다.",
     eval_gate: "최신 seed 평가가 설정된 품질 게이트를 통과해야 합니다."
   };
   return labels[id] ?? fallback;
@@ -1961,7 +1969,7 @@ function formatProofLabel(id: string, fallback: string): string {
     sources_attached: "출처 연결",
     document_agreement: "문서 일치율",
     grounding_coverage: "근거 커버리지",
-    search_tool_audited: "검색 tool 감사",
+    search_tool_audited: "검색 도구 감사",
     approval_boundary: "승인 경계",
     context_budget: "컨텍스트 예산",
     feedback_captured: "피드백 저장"
@@ -2023,7 +2031,7 @@ function formatProofEvidence(id: string, fallback: string): string {
   if (id === "search_tool_audited") {
     return fallback.includes("was persisted")
       ? fallback.replace("search_documents was persisted with status", "search_documents가 저장된 상태:")
-      : "저장된 search_documents tool 호출을 찾지 못했습니다.";
+      : "저장된 search_documents 도구 호출을 찾지 못했습니다.";
   }
   if (id === "approval_boundary") {
     if (fallback.includes("Sensitive answer created")) {

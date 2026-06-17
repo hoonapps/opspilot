@@ -93,15 +93,15 @@ async function main() {
     await page.getByLabel("역할").fill("support_agent");
     await page.getByRole("button", { name: "검색 미리보기" }).click();
     await page.locator(".candidateHead p").getByText("public/status-page-policy.md", { exact: true }).first().waitFor({ timeout: 10000 });
-    await page.locator(".scoreBars").getByText("vector", { exact: true }).first().waitFor({ timeout: 10000 });
-    await page.locator(".scoreBars").getByText("lexical", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".scoreBars").getByText("벡터", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".scoreBars").getByText("키워드", { exact: true }).first().waitFor({ timeout: 10000 });
 
     await page.getByLabel("검색 질문").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
     await page.getByRole("button", { name: "검색 미리보기" }).click();
     await page.locator(".retrievalPanel").getByText("차단", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".opsBreakdown").getByText("restricted", { exact: false }).waitFor({ timeout: 10000 });
-    const retrievalPreviewVisible = await page.locator(".candidateList").getByText("score", { exact: true }).first().isVisible();
-    const retrievalScoreVisible = await page.locator(".scoreBars").getByText("lexical", { exact: true }).first().isVisible();
+    const retrievalPreviewVisible = await page.locator(".candidateList").getByText("종합", { exact: true }).first().isVisible();
+    const retrievalScoreVisible = await page.locator(".scoreBars").getByText("키워드", { exact: true }).first().isVisible();
     const retrievalBoundaryVisible = await page.locator(".opsBreakdown").getByText("restricted", { exact: false }).isVisible();
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
@@ -139,7 +139,7 @@ async function main() {
     await page.locator(".proofPanel").getByText("검사 통과율", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("출처 접근 재검사", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofPanel").getByText("승인 경계", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".replayPanel").getByText("Replay Drift", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".replayPanel").getByText("답변 Drift", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".replayPanel").getByText("현재 문서 일치율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".replayPanel").getByText("권한 경계 재실행", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("질문 저장", { exact: true }).waitFor({ timeout: 10000 });
@@ -157,7 +157,7 @@ async function main() {
       (await page.locator(".proofPanel").getByText("승인 경계", { exact: true }).isVisible()) &&
       (await page.locator(".proofPanel").getByText("피드백 저장", { exact: true }).isVisible());
     const replayDriftVisible =
-      (await page.locator(".replayPanel").getByText("Replay Drift", { exact: true }).isVisible()) &&
+      (await page.locator(".replayPanel").getByText("답변 Drift", { exact: true }).isVisible()) &&
       (await page.locator(".replayPanel").getByText("현재 문서 일치율", { exact: true }).isVisible()) &&
       (await page.locator(".replayPanel").getByText("권한 경계 재실행", { exact: true }).isVisible());
     const answerText = await answerPanel.innerText();
@@ -169,7 +169,7 @@ async function main() {
     const approvalText = await page.locator(".approvalList").innerText();
     await page.locator(".approvalList").getByRole("button", { name: "반려" }).first().click();
 
-    await page.getByRole("button", { name: "감사 Tool 호출 감사" }).click();
+    await page.getByRole("button", { name: "감사 도구 호출 감사" }).click();
     await page.getByRole("button", { name: "레지스트리 불러오기" }).click();
     await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
@@ -179,7 +179,7 @@ async function main() {
     await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".slackProof").getByText("UOPSDEMO", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".slackProof").getByText("search_documents", { exact: false }).waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "Tool 호출 불러오기" }).click();
+    await page.getByRole("button", { name: "도구 호출 불러오기" }).click();
     await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".auditList").getByText("승인 필요", { exact: false }).first().waitFor({ timeout: 10000 });
     const toolRegistryVisible = await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).isVisible();
@@ -201,7 +201,7 @@ async function main() {
     await page.locator(".observabilityPanel").getByText("평균 일치율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("SLO 가드레일", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("답변 근거성", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".sloPanel").getByText("Tool 감사 커버리지", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".sloPanel").getByText("도구 감사 커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page
       .locator(".observabilityPanel")
       .getByText("request_human_approval", { exact: false })
@@ -223,7 +223,7 @@ async function main() {
       observabilityText.includes("평균 일치율") &&
       observabilityText.includes("SLO 가드레일") &&
       observabilityText.includes("답변 근거성") &&
-      observabilityText.includes("Tool 감사 커버리지") &&
+      observabilityText.includes("도구 감사 커버리지") &&
       observabilityText.includes("request_human_approval") &&
       observabilityText.includes("피드백");
 

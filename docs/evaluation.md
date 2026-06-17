@@ -1,31 +1,22 @@
-# Evaluation
+# 평가
 
-OpsPilot evaluates RAG behavior with a seed question set.
+OpsPilot의 평가는 “답변이 자연스러운가”보다 운영에서 중요한 증거를 기준으로 합니다.
 
-## Metrics
+## 지표
 
-- Source hit rate: whether the expected document appears in returned sources
-- Top source accuracy: whether the first returned source is the expected document
-- Human review accuracy: whether restricted or sensitive questions are routed to human review
-- Document agreement score: how much of the answer's content-bearing tokens are supported by returned source chunks
-- Citation accuracy: whether the answer cites at least one returned source title or path
-- Confidence: retrieval-derived score stored with each answer
+- `sourceHitRate`: 기대 source가 검색 결과에 포함됐는지
+- `topSourceAccuracy`: 기대 source가 1순위인지
+- `humanReviewAccuracy`: 민감 작업이 사람 검토로 분리됐는지
+- `documentAgreementScore`: 답변과 출처 chunk의 token overlap 기반 일치율
+- `citationAccuracy`: 답변 source citation이 기대 조건을 만족하는지
 
-## Run
+## 실행
 
 ```bash
 pnpm eval
 ```
 
-The evaluation command ingests seed documents, asks each question, stores metric rows in `evaluation_results`, and prints a JSON report.
-
-Document agreement is deterministic and does not call an LLM judge. It removes citation/review boilerplate, tokenizes the answer and returned source chunks, then calculates the percentage of answer tokens that also appear in the cited source context. This is not a full factuality proof, but it is a stable regression signal for whether answers stay grounded in retrieved documents.
-
-The same calculation is returned by `/ask` as `documentAgreement`, stored in answer metadata, rendered in the web console as `Match`, and verified by `pnpm agreement:smoke`. This lets a portfolio demo show the final answer's source-document match ratio without running the full evaluation suite.
-
-## Quality Gates
-
-`pnpm eval` fails with a non-zero exit code when any metric falls below its threshold. Defaults:
+기본 threshold:
 
 ```txt
 EVAL_MIN_SOURCE_HIT_RATE=1
@@ -35,52 +26,13 @@ EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
 EVAL_MIN_CITATION_ACCURACY=1
 ```
 
-The JSON report includes `passed`, `thresholds`, and per-metric `gates` so CI logs and the web console can show exactly which metric failed.
+threshold가 깨지면 명령은 실패합니다.
 
-`pnpm eval:gate-smoke` runs a deliberate negative case with an impossible expected source. The command succeeds only when the evaluation report fails the source hit and top source gates. This proves the gate itself is being tested, not only the happy-path eval set.
-
-## Report APIs
-
-```txt
-GET /evaluations/latest
-GET /evaluations/latest?suiteName=seed-ops-wiki
-GET /evaluations/history
-GET /evaluations/history?suiteName=seed-ops-wiki&limit=8
-```
-
-The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, citation accuracy, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel and case explorer.
-
-The history endpoint groups metric rows by evaluation run id and returns recent pass/fail states, metric snapshots, thresholds, gates, and previous-run deltas. This makes retrieval regressions visible after document, chunking, prompt, or search changes instead of only showing the latest aggregate.
-
-The case explorer renders each row with expected sources, actual ranked sources, source hit/miss, confidence, document agreement, citation state, and human review state. This makes eval failures debuggable from the browser instead of reducing quality to one aggregate score.
-
-`pnpm eval:history-smoke` runs the same suite twice and fails unless the two runs are recorded separately with stable metric deltas. This protects the regression history contract in CI.
-
-## Planned Additions
-
-- larger regression set for newly added documents
-
-## New Document Regression
-
-`pnpm indexing:smoke` upserts a new Markdown document, asks a Korean incident communication question, and fails unless the top returned source is the newly indexed document. This covers the core portfolio proof that new operational knowledge can be added and retrieved without manually resetting the system.
-
-## Permission Boundary Regression
-
-`pnpm permission:smoke` asks a restricted production database question as an unprivileged actor. It fails unless restricted candidates are counted in the aggregated permission audit and no restricted source is returned to the answer.
-
-## Retrieval Comparison
-
-Run vector-only:
+## 회귀와 freshness
 
 ```bash
-RETRIEVAL_MODE=vector pnpm eval
+pnpm eval:history-smoke
+pnpm freshness:smoke
 ```
 
-Run hybrid:
-
-```bash
-docker compose --profile search up -d
-ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm eval
-```
-
-Hybrid mode is expected to improve exact-match operational queries such as error codes, API paths, metric names, and log keys.
+문서가 바뀐 뒤 최신 평가가 stale 상태가 되는지 확인합니다. 배포 게이트는 최신 평가가 없거나 문서 변경 이후 재평가가 없으면 review/block 상태로 내려갈 수 있습니다.

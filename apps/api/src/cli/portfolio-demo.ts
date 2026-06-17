@@ -103,23 +103,23 @@ async function main() {
     );
 
     const steps = [
-      toStep("Grounded incident answer", "E102 에러가 발생하면 어떻게 대응해야 해?", incident, {
+      toStep("근거 기반 장애 답변", "E102 에러가 발생하면 어떻게 대응해야 해?", incident, {
         topSourceIsPaymentErrors: incident.sources[0]?.path === "public/payment-error-codes.md",
         citesAtLeastOneSource: incident.sources.length > 0,
         searchToolLogged: hasTool(incident, "search_documents")
       }),
-      toStep("New Markdown indexing", "고객 공지 SLA와 15분 공지 기준은 무엇이야?", statusPage, {
+      toStep("새 Markdown 색인", "고객 공지 SLA와 15분 공지 기준은 무엇이야?", statusPage, {
         upsertCreatedChunks: upserted.chunks > 0,
         topSourceIsNewDocument: statusPage.sources[0]?.path === STATUS_PAGE_PATH,
         answerMentionsFifteenMinutes: statusPage.answer.includes("15")
       }),
-      toStep("Runbook checklist tool call", "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?", runbook, {
+      toStep("Runbook checklist 도구 호출", "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?", runbook, {
         usesSettlementRunbook: runbook.sources.some((source) => source.path === "team/settlement-runbook.md"),
         checklistToolLogged: hasTool(runbook, "create_runbook_checklist"),
         hasToolCalling: runbook.toolCalls.length >= 2
       }),
       toStep(
-        "Sensitive operation approval boundary",
+        "민감 작업 승인 경계",
         "운영 DB에서 merchant balance, payment state, refund state를 직접 update 해도 돼?",
         sensitive,
         {
@@ -138,11 +138,11 @@ async function main() {
       ok,
       generatedAt: new Date().toISOString(),
       demoClaims: [
-        "RAG answer returns grounded sources",
-        "New Markdown document is indexed and retrieved",
-        "Runbook questions trigger structured tool calling",
-        "Sensitive operations require human approval",
-        "Answer trace reconstructs sources, tool calls, approvals, and feedback"
+        "RAG 답변이 문서 출처를 포함합니다.",
+        "새 Markdown 문서가 색인되고 검색됩니다.",
+        "Runbook 질문이 구조화된 도구 호출을 발생시킵니다.",
+        "민감 작업은 사람 승인으로 분리됩니다.",
+        "Answer trace가 출처, 도구 호출, 승인, 피드백을 복원합니다."
       ],
       ingestedDocument: {
         path: upserted.path,
@@ -211,48 +211,48 @@ function getMarkdownReportPath(argv: string[]): string | null {
 
 function renderMarkdownReport(report: PortfolioReport): string {
   const lines = [
-    "# OpsPilot Portfolio Demo Report",
+    "# OpsPilot 포트폴리오 데모 리포트",
     "",
-    `Generated at: ${report.generatedAt}`,
+    `생성 시각: ${report.generatedAt}`,
     "",
-    `Overall result: ${report.ok ? "PASS" : "FAIL"}`,
+    `전체 결과: ${report.ok ? "PASS" : "FAIL"}`,
     "",
-    "## Proven Claims",
+    "## 증명한 항목",
     "",
     ...report.demoClaims.map((claim) => `- ${claim}`),
     "",
-    "## Runtime Evidence",
+    "## 실행 증거",
     "",
-    "| Step | Sources | Document agreement | Tool calls | Human review | Assertions |",
+    "| 단계 | 출처 | 문서 일치율 | 도구 호출 | 사람 검토 | Assertion |",
     "| --- | --- | ---: | --- | --- | --- |",
     ...report.steps.map((step) =>
       [
         escapeTable(step.name),
         escapeTable(step.sources.join("<br>")),
-        `${Math.round(step.documentAgreement * 100)}% (${step.documentAgreement.toFixed(3)}, ${step.documentAgreementTokens.matched}/${step.documentAgreementTokens.answer} tokens)`,
+        `${Math.round(step.documentAgreement * 100)}% (${step.documentAgreement.toFixed(3)}, ${step.documentAgreementTokens.matched}/${step.documentAgreementTokens.answer} 토큰)`,
         escapeTable(step.toolCalls.join("<br>")),
-        step.needsHumanReview ? "yes" : "no",
+        step.needsHumanReview ? "필요" : "불필요",
         escapeTable(renderAssertions(step.assertions))
       ].join(" | ")
     ).map((row) => `| ${row} |`),
     "",
-    "## New Document Indexing Proof",
+    "## 새 문서 색인 증거",
     "",
     `- Path: \`${report.ingestedDocument.path}\``,
-    `- Title: ${report.ingestedDocument.title}`,
-    `- Indexed chunks: ${report.ingestedDocument.chunks}`,
-    `- Upsert changed content hash in this run: ${report.ingestedDocument.changed ? "yes" : "no"}`,
-    "- Retrieval proof: the demo asks a Korean SLA question and fails unless this document is returned as the top source.",
+    `- 제목: ${report.ingestedDocument.title}`,
+    `- 색인 chunk: ${report.ingestedDocument.chunks}`,
+    `- 이번 실행에서 content hash 변경: ${report.ingestedDocument.changed ? "예" : "아니오"}`,
+    "- 검색 검증: 한국어 SLA 질문을 던지고 이 문서가 top source로 반환되지 않으면 실패합니다.",
     "",
-    "## Audit Trace Proof",
+    "## 감사 trace 증거",
     "",
     `- Answer ID: \`${report.traceSummary.answerId}\``,
-    `- Source count: ${report.traceSummary.sourceCount}`,
-    `- Tool calls: ${report.traceSummary.toolCalls.join(", ")}`,
-    `- Approvals: ${report.traceSummary.approvals.join(", ")}`,
-    `- Feedback records: ${report.traceSummary.feedbackCount}`,
+    `- 출처 수: ${report.traceSummary.sourceCount}`,
+    `- 도구 호출: ${report.traceSummary.toolCalls.join(", ")}`,
+    `- 승인: ${report.traceSummary.approvals.join(", ")}`,
+    `- 피드백 수: ${report.traceSummary.feedbackCount}`,
     "",
-    "This report is generated by `pnpm portfolio:report`, which runs the same assertions as `pnpm portfolio:demo` before writing this file.",
+    "이 파일은 `pnpm portfolio:report`가 `pnpm portfolio:demo`와 같은 assertion을 실행한 뒤 생성합니다.",
     ""
   ];
 

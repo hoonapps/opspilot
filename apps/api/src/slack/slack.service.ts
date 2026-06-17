@@ -154,11 +154,11 @@ function buildReply(input: {
     .slice(0, 3)
     .map((source, index) => `${index + 1}. ${source.title} - ${source.path} (${source.score.toFixed(3)})`)
     .join("\n");
-  const reviewText = input.answer.needsHumanReview ? "Human review required" : "Auto answered";
+  const reviewText = input.answer.needsHumanReview ? "사람 검토 필요" : "자동 답변";
   const reasonText = formatReviewReasons(input.answer.reviewReasons);
   const toolText = input.answer.toolCalls.map((tool) => `${tool.toolName}: ${tool.status}`).join("\n");
 
-  const text = `${input.answer.answer}\n\nSources:\n${sourceLines || "No sources"}\n\n${reviewText}${reasonText ? `\nReasons: ${reasonText}` : ""}`;
+  const text = `${input.answer.answer}\n\n출처:\n${sourceLines || "출처 없음"}\n\n${reviewText}${reasonText ? `\n검토 사유: ${reasonText}` : ""}`;
 
   return {
     channel: input.channel,
@@ -169,7 +169,7 @@ function buildReply(input: {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*OpsPilot answer*\n>${input.question}`
+          text: `*OpsPilot 답변*\n>${input.question}`
         }
       },
       {
@@ -184,11 +184,11 @@ function buildReply(input: {
         fields: [
           {
             type: "mrkdwn",
-            text: `*Confidence*\n${input.answer.confidence.toFixed(3)}`
+            text: `*신뢰도*\n${input.answer.confidence.toFixed(3)}`
           },
           {
             type: "mrkdwn",
-            text: `*Review*\n${reviewText}${reasonText ? `\n${reasonText}` : ""}`
+            text: `*검토 상태*\n${reviewText}${reasonText ? `\n${reasonText}` : ""}`
           }
         ]
       },
@@ -196,7 +196,7 @@ function buildReply(input: {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*Sources*\n${sourceLines || "No sources"}`
+          text: `*출처*\n${sourceLines || "출처 없음"}`
         }
       },
       {
@@ -204,7 +204,7 @@ function buildReply(input: {
         elements: [
           {
             type: "mrkdwn",
-            text: `Tool calls: ${toolText || "none"}`
+            text: `도구 호출: ${toolText || "없음"}`
           }
         ]
       }

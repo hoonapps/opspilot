@@ -119,6 +119,9 @@ jobs:
       - name: Prompt injection guardrail smoke
         run: pnpm prompt-injection:smoke
 
+      - name: Ask rate limit smoke
+        run: pnpm rate-limit:smoke
+
       - name: Readiness smoke
         run: pnpm readiness:smoke
 

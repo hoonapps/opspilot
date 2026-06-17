@@ -1,40 +1,39 @@
-# Continuous Integration
+# CI
 
-OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
+OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 
-## Gates
+## 검증 항목
 
-- install with a frozen pnpm lockfile
-- run PostgreSQL with pgvector and Redis service containers
-- run database migrations
-- typecheck every workspace package
-- build the NestJS API, worker, packages, and Next.js console
-- build the production Docker image target
-- boot the production Docker Compose profile and verify API readiness, web availability, and a real grounded `/ask` request with `pnpm docker:prod:smoke`
-- run Jest package tests
-- run seed RAG evaluation as a hard quality gate, including source hit, top source, human review, document agreement, and citation thresholds
-- verify the evaluation gate fails on a deliberate negative source case with `pnpm eval:gate-smoke`
-- verify evaluation run history and previous-run deltas with `pnpm eval:history-smoke`
-- verify permission boundary audit behavior with `pnpm permission:smoke`
-- verify signed actor token authentication behavior with `pnpm authn:smoke`
-- verify Markdown secret redaction before storage, retrieval, answers, and trace previews with `pnpm redaction:smoke`
-- verify prompt-injection document guardrails before retrieval context construction with `pnpm prompt-injection:smoke`
-- verify dependency readiness behavior with `pnpm readiness:smoke`
-- verify answer-level document agreement scoring with `pnpm agreement:smoke`
-- verify runbook checklist tool calling with `pnpm checklist:smoke`
-- verify new Markdown indexing with `pnpm indexing:smoke`
-- verify BullMQ queue indexing worker behavior with `pnpm queue:smoke`
-- verify GitHub Markdown sync indexing with `pnpm github:smoke`
-- verify sensitive-action review reasons, approval creation, and feedback with `pnpm review:smoke`
-- verify persisted answer reconstruction, proof packet checks, and unauthorized trace denial with `pnpm trace:smoke`
-- verify answer replay drift detection after supporting documents change with `pnpm replay:smoke`
-- run the compact portfolio demo report with `pnpm portfolio:demo`
-- generate the Markdown portfolio proof report with `pnpm portfolio:report`
-- verify operational telemetry aggregation with `pnpm observability:smoke`
-- verify SLO guardrails for grounding, review load, tool audit coverage, and latest eval state with `pnpm observability:slo-smoke`
-- verify that new or changed documents make the latest RAG evaluation stale until rerun with `pnpm freshness:smoke`
-- verify deploy-style release gate evidence with `pnpm release-gate:smoke`
-- verify the generated OpenAPI contract with `pnpm openapi:smoke`
-- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, evaluation regression history, operational telemetry, release gate, SLO guardrails, answer-level document match, replay drift, proof packet, permission audit, review reasons, answer trace, tool call audit, GitHub sync, answer, feedback, and approval flows
+- frozen lockfile 기반 설치
+- PostgreSQL + pgvector, Redis service container 실행
+- DB migration
+- typecheck
+- build
+- Jest package test
+- Docker image build
+- production compose smoke
+- RAG 평가
+- 평가 게이트 negative smoke
+- 평가 이력 smoke
+- 지식 최신성 smoke
+- 운영 지표/SLO smoke
+- 배포 게이트 smoke
+- permission boundary smoke
+- signed actor token smoke
+- secret redaction smoke
+- prompt-injection guardrail smoke
+- actor rate limit smoke
+- readiness smoke
+- document agreement smoke
+- runbook checklist 도구 호출 smoke
+- direct indexing smoke
+- queue indexing smoke
+- GitHub sync smoke
+- review workflow smoke
+- 답변 trace/proof smoke
+- answer 답변 drift smoke
+- portfolio demo/report
+- OpenAPI contract smoke
+- Playwright web smoke
 
-The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, citation accuracy, document agreement scoring, answer-level match visibility, answer proof packets, answer replay drift detection, evaluation hard gates, evaluation freshness after document changes, evaluation history regression visibility, release gate evidence, SLO guardrails, signed actor authentication, secret redaction before indexing, prompt-injection guardrails before retrieval context construction, dependency readiness, permission boundary enforcement, structured review reasons, permission-checked answer trace, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, operational telemetry aggregation, compact JSON and Markdown portfolio demo reports, OpenAPI contract stability, Docker-buildable and Docker-bootable deployment artifacts, and a working browser demo.
+CI는 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. grounded retrieval, citation accuracy, 문서 일치율, 권한 경계, 사람 승인, 도구 감사, Slack simulator, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.

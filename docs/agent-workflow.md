@@ -1,97 +1,56 @@
 # Agent Workflow
 
-## Tools
+이 문서는 OpsPilot Agent가 질문을 받았을 때 어떤 판단 순서로 검색, 도구 호출, 승인 분리를 수행하는지 설명합니다.
 
-- `search_documents`: retrieves accessible document chunks
-- `request_human_approval`: records approval requests for sensitive actions
-- `save_feedback`: records answer quality feedback
-- `create_runbook_checklist`: extracts numbered action items from retrieved runbooks
+## Agent 도구
 
-The callable agent tools are exposed through:
+- `search_documents`: actor가 접근 가능한 문서 chunk를 검색합니다.
+- `create_runbook_checklist`: 검색된 runbook에서 번호형 체크리스트를 추출합니다.
+- `request_human_approval`: 민감 작업 요청을 approval queue에 저장합니다.
+- `save_feedback`: 답변 품질 피드백을 저장합니다.
+
+도구 registry는 다음 API로 확인합니다.
 
 ```txt
 GET /tool-calls/registry
 ```
 
-The registry returns each tool's category, side-effect profile, approval policy, expected call status, compact input/output schema, and persisted audit fields. The Audit screen renders this next to recent runtime calls so reviewers can compare the designed tool contract with actual execution evidence.
+registry는 도구의 category, side effect, approval policy, 입력/출력 schema, 감사 저장 필드를 보여줍니다. 웹 콘솔 `감사` 화면은 이 registry와 실제 도구 호출 로그를 나란히 보여줍니다.
 
-## Retrieval Preview
+## 판단 순서
+
+1. `/retrieval/preview`가 호출되면 부작용 없이 검색 후보와 권한 감사를 먼저 보여줍니다.
+2. `/ask`, Slack mention, 평가 script에서 질문을 받습니다.
+3. actor context를 구성합니다.
+4. Redis rate limit을 확인합니다.
+5. `search_documents`를 호출합니다.
+6. vector 모드에서는 pgvector와 PostgreSQL lexical score를 사용합니다.
+7. hybrid 모드에서는 pgvector 결과와 Elasticsearch BM25 결과를 fuse합니다.
+8. Elasticsearch 결과도 PostgreSQL에서 다시 로드하며 권한 필터를 적용합니다.
+9. context budget에 포함된 chunk와 제외된 chunk를 기록합니다.
+10. runbook/checklist 질문이면 `create_runbook_checklist`를 호출합니다.
+11. 출처 기반 답변을 생성합니다.
+12. confidence와 문서 일치율을 계산합니다.
+13. 출처 없음, 낮은 confidence, 민감 작업을 `reviewReasons`로 만듭니다.
+14. 민감 작업이면 `request_human_approval`을 호출합니다.
+15. 질문, 답변, 출처, context package, 도구 호출, review reason을 저장합니다.
+16. feedback은 answer id에 연결해 저장합니다.
+17. Slack 요청이면 같은 결과를 thread reply payload로 포맷합니다.
+
+## 검색 미리보기
 
 ```txt
 POST /retrieval/preview
 ```
 
-The preview endpoint runs the same `SearchService.searchWithAudit` path used by `/ask`, but does not persist a question, create tool-call logs, generate an answer, or enqueue human approval. It returns ranked candidate chunks with vector/lexical/fused score details, content previews, actor roles/teams, and the aggregated permission audit. This gives the web console a safe RAG debugging surface for proving which chunks would enter prompt context and which inaccessible candidates were denied.
+검색 미리보기는 `/ask`와 같은 검색 경로를 타지만 질문 저장, 답변 생성, 도구 호출 저장, approval 생성을 하지 않습니다. 면접 데모에서는 이 화면으로 “어떤 chunk가 왜 선택됐는지”와 “권한 때문에 어떤 후보가 차단됐는지”를 먼저 보여주면 좋습니다.
 
-## Tool Audit
+## 답변 증거
 
-```txt
-GET /tool-calls/recent
-GET /tool-calls/recent?limit=20
-GET /tool-calls/registry
-GET /answers/:id/trace
-GET /answers/:id/proof
-```
+- `GET /answers/:id/trace`: 저장된 답변의 timeline, source, grounding, context budget, 도구 호출, approval, feedback을 복원합니다.
+- `GET /answers/:id/proof`: trace를 운영자용 pass/warn/fail checklist로 요약합니다.
+- `GET /answers/:id/replay`: 현재 문서 기준으로 이전 답변의 source drift를 확인합니다.
 
-Every tool call stores the linked question id, tool name, input, output, status, and timestamp in `tool_call_logs`. The web console reads the recent audit feed so demos can show which tools were allowed and which required approval.
+## Guardrail
 
-For `search_documents`, the output includes an aggregated `permissionAudit` object: candidate window size, allowed candidate count, denied candidate count, denied buckets by visibility, and the actor roles/teams used for filtering. Denied titles and paths are deliberately omitted.
-
-`GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns a summary, ordered timeline, question, answer metadata, ranked sources with chunk previews, source-level grounding coverage, context budget package, tool calls, approval requests, and feedback for that answer. The endpoint applies the same document access check to every traced source before returning the artifact.
-
-The trace timeline includes question persistence, source attachment, answer generation, tool calls, approval transitions, and feedback events. The grounding section shows answer-token coverage by source, including the matched tokens used for the deterministic overlap check. The context package shows which ranked chunks entered the prompt budget and which were omitted. This lets the web console show an answer-level execution story and document match evidence without exposing raw embeddings or bypassing document permissions.
-
-`GET /answers/:id/proof` uses the same source access re-check as trace, then compresses the artifact into operator-readable pass/warn/fail checks. It verifies source attachment, document agreement, grounding coverage, `search_documents` audit persistence, sensitive-action approval separation, context budget, and feedback capture. This gives reviewers a short proof packet without hiding the deeper trace.
-
-## Decision Flow
-
-1. Optionally preview retrieval through HTTP `/retrieval/preview` to inspect ranking and permission behavior without side effects.
-2. Receive the question through HTTP `/ask`, Slack `app_mention`, or evaluation script.
-3. Classify the question and actor context.
-4. Call `search_documents`.
-5. In `vector` mode, retrieve with pgvector and PostgreSQL lexical overlap. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
-6. Store the aggregated permission audit for the search call.
-7. Re-check accessible chunk ids in PostgreSQL before prompt construction.
-8. Build a `ranked_context_budget_v1` context package from the ranked sources. It records token budget, estimated tokens, included/omitted chunks, and omission reasons.
-9. If the user asks for a runbook/checklist and the retrieved source has a checklist section, call `create_runbook_checklist`.
-10. Generate a grounded answer with citations.
-11. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
-12. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
-13. Build structured `reviewReasons` for missing sources, low confidence, or sensitive actions.
-14. If any review reason exists, mark `needsHumanReview`.
-15. If sensitive, call `request_human_approval`.
-16. Persist every question, answer, source, review reason, context package, and tool call.
-17. Store optional feedback against the persisted answer id.
-18. Expose answer trace through `GET /answers/:id/trace`.
-19. Expose answer proof through `GET /answers/:id/proof`.
-20. Expose recent tool calls through the audit API.
-21. Expose pending approval requests for human review.
-22. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
-23. For local Slack simulation, return a compact trace with actor mapping, persisted question and answer ids, source scores, tool calls, and reply post mode.
-
-## Current Guardrail
-
-The agent can explain runbooks and policies. It cannot execute production-changing operations. Sensitive operations create approval records instead.
-
-## Review Reasons
-
-`/ask` returns `reviewReasons` alongside `needsHumanReview`:
-
-- `no_sources`: no permitted chunks were retrieved for the actor.
-- `low_confidence`: retrieval confidence is below `CONFIDENCE_THRESHOLD`.
-- `sensitive_action`: the question asks for a production-sensitive operation.
-
-The same array is stored in answer metadata and rendered in the web console so the demo can show why an answer was routed to human review.
-
-## AI Provider Modes
-
-Local mode is deterministic and requires no API key.
-
-OpenAI mode uses:
-
-- chat completions for grounded answer generation
-- embeddings with `OPENAI_EMBEDDING_DIMENSIONS=64` so pgvector schema remains stable
-
-Anthropic mode uses the Messages API for grounded answer generation. Embeddings still use the local deterministic provider unless `AI_PROVIDER=openai` is selected with an OpenAI key.
-
-If a provider request fails, the API falls back to local generation to keep demos reproducible.
+Agent는 운영 정책과 runbook을 설명할 수 있지만 운영 변경 작업을 직접 실행하지 않습니다. production DB write, 강제 환불, 권한 부여, 파괴적 cache/queue 조작은 approval record로 분리됩니다.

@@ -1,74 +1,69 @@
-# Security
+# 보안
 
-## Local Demo vs Production
+## 로컬 데모와 운영 환경
 
-Local Docker disables Elasticsearch security and, by default, accepts simple header-based actor context for fast demos. When `OPSPILOT_ACTOR_TOKEN_SECRET` is configured, OpsPilot requires a signed actor token on protected API routes and derives `actorId`, `email`, `roles`, and `teamSlugs` from that verified token instead of trusting caller-supplied role headers.
+로컬 데모는 빠른 실행을 위해 header 기반 actor context를 허용합니다. `OPSPILOT_ACTOR_TOKEN_SECRET`을 설정하면 보호 API는 `x-opspilot-actor-token`으로 전달된 HMAC 서명 token을 요구합니다.
 
-The signed actor token is an HMAC-SHA256 JWT-shaped token carried in `x-opspilot-actor-token`. It is intentionally small and dependency-free for the portfolio demo: missing, tampered, and expired tokens are rejected before `/ask` can build a retrieval context. `/health`, Swagger docs, and Slack Events remain public entry points because Slack has its own request signature check. Production should still add a full identity provider, rate limits, secret rotation, encrypted credentials, and audit-role policy.
-
-## Authentication Smoke
+## 인증 검증
 
 ```bash
 pnpm authn:smoke
 ```
 
-This smoke test enables `OPSPILOT_ACTOR_TOKEN_SECRET`, starts the API through Nest, and verifies four cases:
+이 테스트는 `/health`는 공개 상태로 유지되고, `/ask`는 token 없음/변조/만료 token을 거부하며, 유효한 `ops_admin` token만 restricted 문서를 검색할 수 있는지 검증합니다.
 
-- `/health` remains public.
-- `/ask` without a token returns 401.
-- `/ask` with a tampered or expired token returns 401.
-- `/ask` with a valid `ops_admin` token can retrieve the restricted production database policy and route the answer to human approval.
+## 민감 작업
 
-## Sensitive Operations
+Agent는 다음 작업을 직접 실행하지 않습니다.
 
-The agent must not execute sensitive operations directly. Examples:
+- production DB write
+- 강제 환불
+- 권한 부여
+- 파괴적 cache/queue 조작
+- 정산 결과 변경
 
-- production database writes
-- forced refunds
-- permission grants
-- destructive cache or queue operations
-- settlement result changes
+이런 요청은 `request_human_approval` 도구 호출과 approval record로 분리됩니다.
 
-These actions create approval requests and tool call logs. Human reviewers resolve them through `PATCH /approvals/:id`; the agent never runs the sensitive operation by itself.
+## Secret Redaction
 
-`/ask` also returns structured `reviewReasons`. A sensitive request includes `sensitive_action`, low retrieval confidence includes `low_confidence`, and missing permitted evidence includes `no_sources`. This makes the human approval decision auditable in the API response, answer metadata, Slack reply, and web console.
-
-## Data Handling
-
-Document visibility is stored on the document and enforced during retrieval. Restricted chunks should not be sent to the LLM layer for unauthorized users.
-
-Markdown ingestion also redacts common secret patterns before content is written to `document_versions`, `document_chunks`, embeddings, or Elasticsearch. The redaction pass covers AWS-style access keys, GitHub tokens, Slack tokens, bearer tokens, and common key-value secrets such as `api_key`, `password`, `token`, and `client_secret`. Document metadata stores the redaction count and matched pattern names, but not the original secret values.
+Markdown ingestion은 저장과 색인 전에 secret pattern을 마스킹합니다. AWS key, GitHub token, Slack token, bearer token, `api_key`, `password`, `client_secret`류 key-value secret을 대상으로 합니다.
 
 ```bash
 pnpm redaction:smoke
 ```
 
-The smoke test ingests a document containing fake secrets, asks a RAG question, reconstructs the answer trace, and fails if any raw secret appears in persisted chunks, persisted document versions, answer text, returned sources, or trace previews.
-
 ## Prompt Injection Guardrail
 
-Markdown ingestion also scans redacted content for prompt-injection patterns such as "ignore previous instructions", system prompt exfiltration requests, and Korean equivalents. The scan result is stored under `metadata.security.promptInjectionRisk` and copied to chunk metadata.
+Markdown 안의 “이전 지시를 무시하라”, system prompt 탈취 요청 같은 prompt-injection pattern을 탐지해 `metadata.security.promptInjectionRisk=true`로 표시합니다. 위험 chunk는 inventory에는 남지만 검색 context에서는 제외됩니다.
 
-Retrieval excludes chunks with `metadata.security.promptInjectionRisk=true` before ranking, before Elasticsearch re-check results are loaded from PostgreSQL, and before permission audit candidate windows are counted. The risky document can still remain in inventory for operator review, but it is not sent into answer context.
+```bash
+pnpm prompt-injection:smoke
+```
 
-`pnpm prompt-injection:smoke` indexes a safe document and a malicious document with the same keyword, then fails unless the malicious document is tagged, excluded from retrieval preview, excluded from `/ask` sources, and absent from answer trace previews.
+## Rate Limit
 
-## Search Security
+`POST /ask`는 retrieval과 답변 생성 전에 actor 단위 Redis fixed-window rate limit을 적용합니다. actor key는 actor id, email, roles, teamSlugs를 조합한 뒤 hash로 저장합니다.
 
-Elasticsearch is used only as a recall booster. In hybrid mode, Elasticsearch returns chunk ids, and OpsPilot reloads those chunks from PostgreSQL with the actor's permission filter before answer generation. PostgreSQL remains the authorization boundary.
+환경 변수:
 
-The `search_documents` tool log stores an aggregated permission audit with the candidate window, allowed count, denied count, denied visibility buckets, actor roles, and actor teams. It does not store denied document titles or paths, so the demo can prove access control behavior without leaking restricted knowledge.
+```txt
+ASK_RATE_LIMIT_MAX=300
+ASK_RATE_LIMIT_WINDOW_SECONDS=60
+ASK_RATE_LIMIT_DISABLED=false
+```
 
-## Answer Trace
+검증:
 
-`GET /answers/:id/trace` is an audit endpoint for the portfolio demo. It reconstructs the persisted answer with ranked source chunks, tool calls, approval requests, and feedback. The endpoint re-checks every traced source against the caller's roles and teams before returning the artifact, because source previews can contain permitted operational content. A production deployment should additionally require real user authentication and either original-answer access or an operator audit role.
+```bash
+pnpm rate-limit:smoke
+```
 
-`GET /answers/:id/proof` uses the same source re-check and returns a compact evidence packet for operators. It does not bypass trace permissions; if a caller cannot access a traced source, the proof request is denied too. The proof packet reports pass/warn/fail checks for source attachment, document agreement, grounding coverage, tool audit persistence, approval boundary separation, context budget, and feedback capture.
+limit 초과 시 HTTP 429와 `rateLimit.limit`, `remaining`, `resetAt`, `retryAfterSeconds`가 반환됩니다.
 
-`GET /answers/:id/replay` also starts from the permission-checked trace. If the caller cannot access the original answer sources, replay is denied before current retrieval runs. This prevents an unauthorized user from using replay drift metadata to infer restricted source paths. When authorized, replay reruns the same permission-aware retrieval path and reports only current sources the caller can access.
+## 검색 보안
 
-## Slack Security
+Elasticsearch는 recall booster일 뿐 권한 기준이 아닙니다. hybrid 모드에서도 Elasticsearch가 반환한 chunk id를 PostgreSQL에서 다시 로드하고 actor 권한 필터를 통과한 chunk만 답변 context에 들어갑니다.
 
-When `SLACK_SIGNING_SECRET` is configured, OpsPilot verifies Slack request signatures with the raw request body and rejects stale requests older than five minutes. Local demos can leave the secret empty to replay fixture payloads without Slack credentials.
+## Trace 보안
 
-The current demo maps Slack users through environment defaults. Production should store Slack user ids on application users and derive team/role access from the database.
+`GET /answers/:id/trace`, `proof`, `replay`는 저장된 source에 대해 현재 caller 권한을 다시 확인합니다. 권한 없는 사용자는 trace를 통해 restricted 출처 path나 preview를 추론할 수 없어야 합니다.

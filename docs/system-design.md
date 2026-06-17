@@ -1,94 +1,59 @@
-# System Design
+# 시스템 설계
 
-OpsPilot is designed as an operational knowledge platform with an agentic RAG backend.
+OpsPilot은 운영 지식 기반 AI Agent를 만들기 위한 RAG 백엔드와 감사 가능한 운영 콘솔로 구성됩니다.
 
-## Components
+## 구성 요소
 
-- API: NestJS HTTP API for signed actor authentication, liveness/readiness checks, operational telemetry, SLO guardrails, document ingestion, queued indexing jobs, GitHub Markdown sync, asking questions, answer-level document agreement, answer trace/proof/replay, review reasons, tool call audit, evaluation reports with document agreement and citation scoring, feedback, and approvals
-- Web Console: Next.js UI for asking questions, viewing answer trace/proof, sources/tool calls, review reasons, permission audits, audit logs, evaluation metrics, and upserting Markdown documents
-- Database: PostgreSQL stores documents, chunks, embeddings, questions, answers, sources, tool call logs, approvals, feedback, and evaluation results; observability summaries are derived from these persisted operational rows
-- Vector Search: pgvector performs permission-aware semantic retrieval
-- Search Extension: Elasticsearch performs optional BM25 keyword retrieval and hybrid fusion
-- AI Adapter Package: `@opspilot/ai` provides local deterministic embedding, OpenAI chat/embedding, and Anthropic chat adapters
-- Worker: BullMQ indexing worker consumes Redis jobs and reuses the document ingestion service
-- Slack Bot: receives mentions and replies in threads with answer, sources, confidence, review reasons, tool calls, and review status
-- Deployment Profile: multi-target Dockerfile builds API, web, and worker containers; `docker-compose.prod.yml` wires them to PostgreSQL and Redis for a production-style demo
+- API: NestJS HTTP API. 문서 색인, 질문 처리, 검색 미리보기, 권한 감사, 답변 trace/proof/replay, 평가, 승인, 피드백, Slack 이벤트를 담당합니다.
+- Web Console: Next.js 한국어 콘솔. 질문, 검색, 문서, 품질, 승인, 감사, 사용법 화면으로 나뉩니다.
+- PostgreSQL: 문서, chunk, embedding, 질문, 답변, 출처, 도구 호출, 승인, 피드백, 평가 결과를 저장합니다.
+- pgvector: 권한이 적용된 semantic retrieval을 수행합니다.
+- Redis/BullMQ: 비동기 문서 색인 작업과 `/ask` rate limit에 사용합니다.
+- Elasticsearch: 선택형 BM25 검색 확장입니다. hybrid 모드에서도 권한 기준은 PostgreSQL입니다.
+- AI adapter: 로컬 deterministic 모드, OpenAI, Anthropic adapter를 제공합니다.
+- Slack Bot: Slack mention을 같은 Agent workflow로 처리하고 thread reply payload를 만듭니다.
+- Docker Compose: 로컬 인프라와 production-style 데모 실행을 제공합니다.
 
-## Request Flow
+## 요청 흐름
 
-1. User asks a question through the web console, API, or Slack.
-2. API builds actor context from a verified signed actor token, local demo headers, or Slack identity.
-3. Retrieval filter is built from actor roles and team memberships.
-4. Search tool retrieves chunks only from accessible documents and stores an aggregated permission audit.
-5. Runbook questions can call `create_runbook_checklist` to structure action items from retrieved runbooks.
-6. Agent generates an answer from retrieved chunks.
-7. API calculates deterministic document agreement between the answer and returned source chunks.
-8. Missing evidence, low confidence, and sensitive actions are converted into structured review reasons.
-9. Sensitive actions are converted into approval requests.
-10. Question, answer, sources, document agreement, review reasons, permission audit, tool calls, approval state, and feedback are logged.
-11. `GET /answers/:id/trace` re-checks traced source access and reconstructs the answer audit artifact from persisted rows.
-12. `GET /answers/:id/proof` summarizes the same persisted artifact into pass/warn/fail evidence checks for grounding, tool audit, approval boundary, context budget, and feedback capture.
-13. `GET /answers/:id/replay` reruns permission-aware retrieval for the original question and compares current evidence with the persisted answer's original sources.
-14. `GET /observability/summary` aggregates the persisted rows into operating metrics for question volume, answer quality, review rate, tool calls, approvals, feedback, and indexed knowledge size.
-15. `GET /observability/slo` turns quality and audit metrics into SLO guardrails with status and error budget remaining.
-16. `GET /observability/release-gate` combines readiness, indexed knowledge, eval state, knowledge freshness, SLOs, audit trail, approval backlog, and feedback into a deploy-style `pass`, `review`, or `block`.
-17. Web requests render the grounded answer, document match, sources, confidence, review reasons, permission audit, trace summary, proof packet, replay drift, release gate, and tool calls in the console.
-18. Slack requests are formatted into thread replies. Real posting is controlled by `SLACK_POST_REPLIES`.
+1. 사용자가 웹 콘솔, API, Slack에서 질문합니다.
+2. API는 signed actor token, 로컬 header, Slack identity로 actor context를 만듭니다.
+3. `/ask`는 Redis fixed-window rate limit을 먼저 확인합니다.
+4. actor의 role/team 기준으로 문서 권한 필터를 구성합니다.
+5. `search_documents` tool이 접근 가능한 chunk만 검색합니다.
+6. 검색 결과는 문서 권한으로 다시 확인된 뒤 context budget에 들어갑니다.
+7. runbook 질문이면 `create_runbook_checklist` tool을 호출합니다.
+8. Agent가 출처 기반 답변을 생성합니다.
+9. 답변과 출처 chunk 사이의 문서 일치율을 계산합니다.
+10. 낮은 confidence, 출처 없음, 민감 작업은 `reviewReasons`로 구조화합니다.
+11. 민감 작업은 `request_human_approval` 도구 호출과 approval record로 분리합니다.
+12. 질문, 답변, 출처, 권한 감사, 도구 호출, approval, feedback을 저장합니다.
+13. `GET /answers/:id/trace`는 저장된 답변 실행 내역을 복원합니다.
+14. `GET /answers/:id/proof`는 trace를 pass/warn/fail 증거 패킷으로 요약합니다.
+15. `GET /answers/:id/replay`는 현재 문서 기준으로 이전 답변의 drift를 확인합니다.
+16. observability/배포 게이트 API가 운영 품질 상태를 집계합니다.
 
-## Ingestion Flow
+## 문서 색인 흐름
 
-1. Seed ingestion reads local Markdown fixtures for reproducible demos and evaluation.
-2. Runtime upsert accepts one Markdown document through `POST /documents/markdown`.
-3. Async indexing accepts one Markdown document through `POST /documents/indexing-jobs/markdown` and stores a BullMQ job in Redis.
-4. The indexing worker consumes `index-markdown` jobs and calls the same document ingestion service.
-5. GitHub sync reads repository Markdown through `POST /documents/github/sync`.
-6. Every ingestion path redacts common secret patterns before writing document versions, chunk content, embeddings, or Elasticsearch mirrors.
-7. Every ingestion path scans redacted Markdown for prompt-injection patterns and stores the result on document and chunk security metadata.
-8. Every ingestion path normalizes metadata, chunks redacted content, stores embeddings in PostgreSQL, and optionally mirrors redacted chunks into Elasticsearch.
-9. Re-indexing the same path preserves chunk identity where possible and deletes obsolete chunks after the fresh version is written.
+1. Markdown frontmatter를 파싱합니다.
+2. secret redaction을 먼저 수행합니다.
+3. prompt-injection pattern을 탐지합니다.
+4. Markdown을 heading/paragraph 기준으로 chunking합니다.
+5. embedding을 생성합니다.
+6. PostgreSQL `document_chunks`와 pgvector 컬럼에 저장합니다.
+7. 선택적으로 Elasticsearch에 redacted chunk를 mirror합니다.
+8. 같은 path 재색인 시 obsolete chunk를 정리하고 문서 버전을 남깁니다.
 
-## Web Console Flow
+## 권한 경계
 
-1. Operator opens the Next.js console on `localhost:3001`.
-2. The console calls `POST /documents/github/sync` to import repository Markdown docs.
-3. The console calls `POST /documents/markdown` to upsert ad hoc Markdown knowledge.
-4. The console calls `POST /ask` with team and role headers.
-5. The answer panel renders the generated response, confidence, review state, review reasons, permission audit, trace summary, and tool calls.
-6. The source panel renders ranked source documents so retrieval quality can be inspected during a demo.
-7. Operators can save answer feedback through `POST /feedback`.
-8. Operators can load the latest source hit, top source, human review, document agreement, and citation metrics through `GET /evaluations/latest`.
-9. Operators can refresh the answer trace through `GET /answers/:id/trace`.
-10. Operators can inspect recent Agent tool calls through `GET /tool-calls/recent`.
-11. Sensitive requests appear in the approval queue and can be approved or rejected through `PATCH /approvals/:id`.
+핵심 원칙은 “권한 없는 chunk는 LLM 프롬프트에 들어가기 전에 제거한다”입니다. 답변 생성 후 숨기는 방식이 아닙니다.
 
-## Permission Boundary
+- `public`: 모든 사용자 접근 가능
+- `team`: 사용자 `teamSlugs`와 문서 `teamSlug`가 일치해야 접근 가능
+- `restricted`: `ops_admin` 또는 `security_admin` 필요
 
-The key design rule is that inaccessible chunks are filtered at retrieval time. The LLM layer never receives restricted text for users who cannot access it. Search logs keep only aggregate denied counts by visibility, not denied document titles or paths.
+검색 로그는 차단 후보 개수와 visibility bucket만 저장합니다. 권한 없는 사용자에게 차단된 문서 제목이나 path를 노출하지 않습니다.
 
-Secret redaction happens before persistence and indexing, not only before answer generation. That means accidental credentials in Markdown documents are not stored in `document_versions`, `document_chunks`, embeddings, Elasticsearch mirrors, answer text, or trace previews.
+## 배포 관점
 
-Prompt-injection scanning happens before retrieval context construction. Chunks marked with `metadata.security.promptInjectionRisk=true` remain visible in inventory for operator review but are excluded from PostgreSQL vector retrieval, Elasticsearch re-check loading, and permission audit candidate windows.
-
-When `OPSPILOT_ACTOR_TOKEN_SECRET` is configured, protected HTTP routes require `x-opspilot-actor-token`. The token is HMAC-signed and contains the actor id, roles, team slugs, and expiration. Local demos can leave the secret empty to use role/team headers directly, but the CI smoke test proves the stricter signed-token path.
-
-## Retrieval Modes
-
-`vector` mode uses pgvector plus a lightweight PostgreSQL lexical overlap score so local demos handle exact operational terms without Elasticsearch.
-
-`hybrid` mode combines:
-
-- pgvector semantic search
-- Elasticsearch BM25 lexical search
-- reciprocal-rank fusion
-- PostgreSQL permission re-check for Elasticsearch chunk ids
-
-The last step is intentional. Elasticsearch improves recall, but PostgreSQL remains the source of truth for access control.
-
-## Slack Event Flow
-
-1. Slack sends `POST /slack/events`.
-2. OpsPilot verifies `x-slack-signature` when `SLACK_SIGNING_SECRET` is configured.
-3. `app_mention` text is normalized into a question.
-4. Slack user context is mapped to roles and teams.
-5. The agent answers through the same RAG path as `/ask`.
-6. A Slack thread reply payload is generated. If `SLACK_POST_REPLIES=true`, OpsPilot calls `chat.postMessage`.
+로컬 데모는 Docker Compose로 PostgreSQL, Redis, 선택형 Elasticsearch를 올립니다. production-style profile은 API, Web, Worker, PostgreSQL, Redis 컨테이너를 함께 띄우며, CI에서 실제 `/ask` 요청까지 검증합니다.

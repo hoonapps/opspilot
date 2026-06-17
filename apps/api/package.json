@@ -22,6 +22,7 @@
     "authn:smoke": "ts-node src/cli/authn-smoke.ts",
     "redaction:smoke": "ts-node src/cli/redaction-smoke.ts",
     "prompt-injection:smoke": "ts-node src/cli/prompt-injection-smoke.ts",
+    "rate-limit:smoke": "ts-node src/cli/rate-limit-smoke.ts",
     "readiness:smoke": "ts-node src/cli/readiness-smoke.ts",
     "agreement:smoke": "ts-node src/cli/answer-agreement-smoke.ts",
     "queue:smoke": "ts-node src/cli/queue-indexing-smoke.ts",

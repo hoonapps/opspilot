@@ -1,19 +1,17 @@
-# Portfolio Demo
+# 포트폴리오 데모
 
-`pnpm portfolio:demo` runs a compact end-to-end demo without requiring a browser or external LLM provider. It creates a Nest application context, ingests the seed wiki, upserts a new Markdown document, asks representative operations questions, and prints a JSON report.
+`pnpm portfolio:demo`는 브라우저 없이 핵심 시나리오를 실행하는 compact end-to-end 데모입니다.
 
-`pnpm portfolio:report` runs the same assertions and writes `docs/demo-report.md`. That file is intended for portfolio review: it shows the retrieved source paths, document agreement ratio, tool calls, human review state, new-document indexing proof, and persisted audit trace evidence. The live trace smoke adds an answer proof packet for source access, grounding, tool audit, approval boundary, context budget, and feedback checks.
+## 검증하는 내용
 
-## What It Proves
+- 일반 장애 질문이 문서 출처와 함께 답변되는지
+- 새 Markdown 문서가 색인되고 1순위 출처로 검색되는지
+- runbook 질문에서 `create_runbook_checklist` tool이 호출되는지
+- 운영 DB 수정 같은 민감 작업이 사람 승인으로 분리되는지
+- 답변 trace가 source, 도구 호출, approval, feedback을 복원하는지
+- proof packet이 grounding, policy, context budget, feedback을 요약하는지
 
-- A normal incident question returns grounded RAG sources.
-- A newly added Markdown document is indexed and retrieved as the top source.
-- A runbook question triggers the `create_runbook_checklist` tool call.
-- A sensitive production operation triggers human review and `request_human_approval`.
-- The answer trace can reconstruct sources, tool calls, approvals, and feedback.
-- The answer proof packet summarizes grounding, policy, tool audit, approval boundary, context budget, and feedback checks.
-
-## Run
+## 실행
 
 ```bash
 docker compose up -d postgres redis
@@ -21,43 +19,10 @@ pnpm --filter @opspilot/api db:migrate
 pnpm portfolio:demo
 ```
 
-The command exits non-zero if any portfolio claim is not proven.
-
-Generate the Markdown proof report:
+Markdown 리포트를 남기려면:
 
 ```bash
 pnpm portfolio:report
 ```
 
-## Report Shape
-
-The report is intentionally readable in terminal output and CI logs:
-
-```json
-{
-  "ok": true,
-  "demoClaims": [
-    "RAG answer returns grounded sources",
-    "New Markdown document is indexed and retrieved",
-    "Runbook questions trigger structured tool calling",
-    "Sensitive operations require human approval",
-    "Answer trace reconstructs sources, tool calls, approvals, and feedback",
-    "Answer proof packet summarizes evidence checks"
-  ],
-  "steps": [
-    {
-      "name": "Grounded incident answer",
-      "sources": ["public/payment-error-codes.md"],
-      "toolCalls": ["search_documents:allowed"]
-    },
-    {
-      "name": "Sensitive operation approval boundary",
-      "needsHumanReview": true,
-      "reviewReasons": ["sensitive_action"],
-      "toolCalls": ["search_documents:allowed", "request_human_approval:needs_approval"]
-    }
-  ]
-}
-```
-
-This is the fastest command to show that OpsPilot is more than a prompt wrapper: it demonstrates indexing, retrieval, tool calling, approval boundaries, and audit reconstruction in one run.
+결과는 [docs/demo-report.md](docs/demo-report.md)에 저장됩니다.

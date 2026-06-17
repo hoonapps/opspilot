@@ -1,62 +1,27 @@
-# Permission Boundary
+# 권한 경계
 
-OpsPilot supports three document visibility levels:
+OpsPilot은 문서 visibility를 기준으로 검색 전 권한 필터를 적용합니다.
 
-- `public`: visible to all users
-- `team`: visible to users whose `teamSlugs` include the document `teamSlug`
-- `restricted`: visible only to `ops_admin` or `security_admin`
+## Visibility
 
-The retrieval SQL applies this filter before ranking chunks. This prevents restricted content from being included in prompts, citations, answer text, or logs for unauthorized actors.
+- `public`: 모든 사용자 접근 가능
+- `team`: 사용자 `teamSlugs`에 문서 `teamSlug`가 있어야 접근 가능
+- `restricted`: `ops_admin` 또는 `security_admin` 필요
 
-`search_documents` also stores a permission audit summary with denied candidate counts. The audit is intentionally aggregated so unauthorized users can prove the boundary was enforced without seeing restricted titles or paths.
+권한 없는 chunk는 prompt context, answer, source, trace preview에 들어가지 않습니다.
 
-## Boundary Matrix
+## Matrix API
 
 ```bash
 curl http://localhost:3000/permission-boundary/matrix
 ```
 
-The matrix endpoint evaluates every indexed document against demo personas:
+이 API는 현재 색인 문서를 anonymous, team on-call, ops admin, security admin persona로 평가합니다. 웹 콘솔 `문서` 화면은 이 결과를 matrix로 보여줍니다.
 
-- anonymous user
-- team on-call user for the first indexed team slug
-- `ops_admin`
-- `security_admin`
-
-It uses the same `AuthzService.canAccessDocument` function as retrieval and trace reads. The response includes document visibility, team slug, allow/deny decisions, and short policy reasons. The web console renders the result in the Documents screen so reviewers can inspect the permission model before asking a RAG question.
-
-## Regression Smoke
+## Smoke
 
 ```bash
 pnpm permission:smoke
 ```
 
-This smoke test asks a production database question without privileged roles. It fails unless restricted candidates are counted as denied, no `restricted/` source is returned to the answer, and the matrix proves anonymous users are denied restricted documents while `ops_admin` and `security_admin` personas are allowed.
-
-## Local Header Demo
-
-No team access:
-
-```bash
-curl -X POST http://localhost:3000/ask \
-  -H "content-type: application/json" \
-  -d '{"question":"정산 배치가 30분 이상 지연되면 어떻게 해?"}'
-```
-
-Payments team access:
-
-```bash
-curl -X POST http://localhost:3000/ask \
-  -H "content-type: application/json" \
-  -H "x-team-slugs: payments" \
-  -d '{"question":"정산 배치가 30분 이상 지연되면 어떻게 해?"}'
-```
-
-Restricted access:
-
-```bash
-curl -X POST http://localhost:3000/ask \
-  -H "content-type: application/json" \
-  -H "x-user-roles: ops_admin" \
-  -d '{"question":"운영 DB에서 user status를 직접 update 해도 돼?"}'
-```
+이 테스트는 권한 없는 사용자에게 restricted source가 반환되지 않는지, denied candidate count가 남는지, privileged persona는 접근 가능한지 검증합니다.

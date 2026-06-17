@@ -1,84 +1,39 @@
-# Deployment
+# 배포
 
-OpsPilot includes a Docker production demo profile so the portfolio can be run without local Node or pnpm.
+OpsPilot은 로컬 Node 환경 없이도 포트폴리오 데모를 실행할 수 있도록 production-style Docker 구성을 포함합니다.
 
-## Local Production Demo
+## 로컬 개발 실행
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+docker compose up -d postgres redis
+pnpm --filter @opspilot/api db:migrate
+pnpm ingest
+pnpm dev:api
+pnpm dev:web
 ```
 
-This starts:
+## 프로덕션 스타일 데모
 
-- PostgreSQL with pgvector
-- Redis
-- NestJS API on `http://localhost:3000`
-- Next.js web console on `http://localhost:3001`
-- BullMQ indexing worker
+```bash
+pnpm docker:prod
+```
 
-The API container runs migrations and seed ingestion before starting. Ingestion is idempotent, so restarting the stack keeps the demo usable.
+이 명령은 API, Web, Worker, PostgreSQL, Redis 컨테이너를 함께 실행합니다.
 
-For a disposable smoke test on isolated host ports:
+검증:
 
 ```bash
 pnpm docker:prod:smoke
 ```
 
-The smoke script starts the same production compose profile under a separate Compose project, checks API readiness on `http://localhost:3100/health/ready`, checks the web console on `http://localhost:3101`, sends a real `/ask` request, verifies the expected cited source, and then removes containers and volumes.
+smoke script는 production target을 build하고, compose stack을 올리고, `/health/ready`, 웹 콘솔, 실제 `/ask` 요청을 확인한 뒤 컨테이너와 volume을 정리합니다.
 
-Host ports can be overridden without editing Compose files:
+## 선택형 Elasticsearch
 
 ```bash
-API_PORT=3200 WEB_PORT=3201 POSTGRES_HOST_PORT=35432 REDIS_HOST_PORT=36379 pnpm docker:prod:smoke
+docker compose --profile search up -d
+ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm ingest
+ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 ```
 
-The API exposes:
-
-- `GET /health`: liveness, used to confirm the process is running
-- `GET /health/ready`: readiness, used by the production Compose healthcheck to confirm PostgreSQL, Redis, and optional Elasticsearch are reachable
-
-## Hosted Environment Shape
-
-For a hosted demo, keep these process boundaries:
-
-- API container: HTTP API, Slack Events, RAG orchestration
-- Web container: Next.js console
-- Worker container: BullMQ indexing jobs
-- PostgreSQL: managed Postgres with pgvector enabled
-- Redis: managed Redis
-- Optional Elasticsearch: only for hybrid BM25 recall
-
-Required production environment variables:
-
-```txt
-DATABASE_HOST
-DATABASE_PORT
-DATABASE_NAME
-DATABASE_USER
-DATABASE_PASSWORD
-REDIS_URL
-NEXT_PUBLIC_API_BASE_URL
-OPSPILOT_ACTOR_TOKEN_SECRET
-```
-
-Optional provider variables:
-
-```txt
-AI_PROVIDER=openai
-OPENAI_API_KEY=...
-OPENAI_CHAT_MODEL=gpt-4.1-mini
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_EMBEDDING_DIMENSIONS=64
-```
-
-or:
-
-```txt
-AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=...
-ANTHROPIC_CHAT_MODEL=claude-3-5-haiku-latest
-```
-
-## CI Proof
-
-GitHub Actions builds the Docker image target after typecheck and package build, runs the production compose smoke test, then runs tests, RAG evaluation, authentication smoke tests, readiness smoke tests, answer agreement smoke tests, permission boundary smoke tests, and browser smoke tests. This proves the checked-in deployment artifact can build and boot from a clean environment and that the runtime behavior still passes the portfolio gates.
+Elasticsearch는 검색 recall을 높이기 위한 선택형 구성입니다. 권한 판단은 항상 PostgreSQL re-check를 통과해야 합니다.

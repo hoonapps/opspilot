@@ -1,58 +1,24 @@
-# Design Artifacts
+# 디자인
 
-OpsPilot keeps its product proof close to the code. The checked-in design artifacts are meant to show both the intended operator experience and the currently working browser implementation.
+OpsPilot 웹 콘솔은 Open Design.app에서 잡은 운영 대시보드 콘셉트를 기준으로 구현했습니다.
 
-## Assets
+## 산출물
 
-- `docs/assets/opspilot-dashboard.svg`: editable SVG product board showing the target operating model for a permission-aware RAG agent console.
-- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current Korean console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, retrieval lab, evidence panel, answer proof packet, operations telemetry, quality gates, approval queue, Slack thread reply proof, audit feed, a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection, plus a Usage screen for the local demo flow.
+- `docs/assets/opspilot-dashboard.svg`: README용 정적 제품 미리보기
+- `docs/assets/opspilot-web-console.png`: 실제 Next.js 콘솔을 Playwright로 캡처한 화면
 
-The PNG is refreshed by `pnpm web:smoke` after the API and web console are running. This makes the README image a runtime artifact, not a static marketing mockup.
+PNG는 `pnpm web:smoke`가 실행 중인 API/Web을 대상으로 생성합니다. 따라서 README 이미지는 단순 마케팅 mockup이 아니라 실제 동작 화면의 결과물입니다.
 
-## Open Design Workflow
+## 화면 구조
 
-The local `/Applications/Open Design.app` desktop app was launched during the design pass. Its bundled dashboard template guidance and design-system references were used to refine the OpsPilot web console into an operations dashboard layout. The app is a separate runtime from the Pencil MCP server, so the repository currently keeps the durable design proof as source-controlled SVG plus Playwright-generated runtime PNG instead of a `.pen` canvas export.
+- 질문: RAG 답변, 출처, 문서 일치율, trace, proof, 답변 drift
+- 검색: retrieval preview, score breakdown, 권한 차단 후보
+- 문서: Markdown 등록, GitHub sync, version diff, chunk preview, permission matrix
+- 품질: 평가, SLO, 배포 게이트, 운영 지표
+- 승인: 사람 승인 queue
+- 감사: 도구 registry, 도구 호출 감사, Slack simulator
+- 사용법: 로컬 실행과 데모 순서
 
-## Console Design Goals
+## 디자인 원칙
 
-- Show the answer, confidence, document match, context budget, grounding coverage, tool calls, and sources in one scan.
-- Show an answer proof packet so grounding, policy, tool audit, approval boundary, context budget, and feedback evidence are readable without opening database rows.
-- Render answer trace as a compact timeline with context budget and source-level grounding coverage so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
-- Render replay drift beside the proof packet so reviewers can see whether an old answer is still supported by the current indexed documents after Markdown changes.
-- Show the agent tool registry beside runtime tool logs so side effects and approval policy are visible before inspecting individual executions.
-- Show Slack simulation trace in Audit so actor mapping, sources, tool calls, and thread reply metadata are visible without live Slack credentials.
-- Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
-- Split the console into Korean Ask, Retrieval, Documents, Quality, Review, Audit, and Usage screens so retrieval debugging, document management, and onboarding are first-class workflows.
-- Surface operating telemetry next to evidence so reviewers can see question volume, review rate, average match, approvals, and feedback without leaving the demo.
-- Show a release gate in the Quality screen so readiness, eval freshness, SLO, audit, approval backlog, and feedback evidence collapse into one operator decision.
-- Render SLO guardrails in the Quality screen so answer grounding, review load, tool audit coverage, and eval gate state are visible as operating objectives.
-- Make permission boundaries visible through denied candidate counts and review reasons.
-- Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.
-- Show document security metadata, including redaction and prompt-injection isolation state, in the Documents screen.
-- Keep sensitive actions separate from automatic answers through the approval queue.
-- Expose evaluation metrics, previous-run regression deltas, and case-level expected-vs-actual source comparison in the same surface used for demos.
-- Keep document upsert, GitHub sync, permission boundary matrix, version diff, index inventory, and chunk previews in a dedicated Documents screen so re-indexing, document changes, and access policy can be demonstrated live without hiding the controls below the answer workflow.
-
-## Portfolio Demo Path
-
-1. Run the local stack and ingest seed documents.
-2. Open the Usage screen and follow the local demo order for infrastructure, seed indexing, document upsert, asking, quality gates, and portfolio reports.
-3. Open the Quality screen and load release gate, telemetry, SLO guardrails, and the latest evaluation report, then inspect regression history and the case explorer for expected and actual sources.
-4. Open the Documents screen and upsert the sample status-page Markdown document.
-5. Verify that the inventory count, selected document, content hash, version diff, redaction summary, and generated chunk previews update before asking a question.
-6. Update the Markdown sample again and verify the version diff shows the added line.
-7. Load the permission boundary matrix and verify public/team/restricted allow-deny behavior across personas.
-8. Open the Retrieval screen and preview ranking for the status-page and production DB questions.
-9. Verify vector/lexical score bars, ranked chunks, and denied restricted candidates.
-10. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
-11. Ask the production DB write question and verify human approval is required and the proof packet shows the approval boundary.
-12. Open the Review screen and inspect the approval queue.
-13. Open the Audit screen, run the Slack simulator, and inspect the dry-run thread reply trace.
-14. Inspect the tool registry plus persisted tool-call trail.
-15. Save feedback and refresh the answer trace timeline, proof packet, and source grounding coverage.
-
-This is the same path covered by the Playwright web smoke test.
-
-## Editable Source Workflow
-
-When Pencil is available, keep the editable `.pen` source next to these exported assets and export the final board into `docs/assets/`. The repository currently treats the SVG board plus runtime screenshot as the source-controlled design proof, so reviewers can inspect visual intent without a separate design account.
+운영 도구답게 과한 마케팅 hero보다 반복 작업에 맞는 console UI를 우선했습니다. 모든 핵심 증거는 면접관이 클릭해서 확인할 수 있게 화면별로 분리했습니다.
