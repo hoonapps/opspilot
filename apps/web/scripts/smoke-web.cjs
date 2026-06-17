@@ -177,16 +177,31 @@ async function main() {
 
     await page.getByRole("button", { name: /Quality/ }).click();
     await page.getByRole("button", { name: "Load ops" }).click();
+    await page.locator(".releaseGatePanel").getByText("Release gate", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".releaseGatePanel").getByText("Dependencies ready", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".releaseGatePanel").getByText("Latest eval gate", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".releaseGatePanel").getByText("SLO guardrails", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("Human review rate", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("Avg match", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("SLO guardrails", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("Answer grounding", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("Tool audit coverage", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".observabilityPanel").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
-    await page.locator(".observabilityPanel").getByText("needs_approval", { exact: false }).waitFor({ timeout: 10000 });
+    await page
+      .locator(".observabilityPanel")
+      .getByText("request_human_approval", { exact: false })
+      .first()
+      .waitFor({ timeout: 10000 });
+    await page
+      .locator(".observabilityPanel")
+      .getByText("needs_approval", { exact: false })
+      .first()
+      .waitFor({ timeout: 10000 });
     const observabilityText = await page.locator(".observabilityPanel").innerText();
     const normalizedObservabilityText = observabilityText.toLowerCase();
     const observabilityVisible =
+      normalizedObservabilityText.includes("release gate") &&
+      normalizedObservabilityText.includes("dependencies ready") &&
+      normalizedObservabilityText.includes("latest eval gate") &&
       normalizedObservabilityText.includes("human review rate") &&
       normalizedObservabilityText.includes("avg match") &&
       normalizedObservabilityText.includes("slo guardrails") &&

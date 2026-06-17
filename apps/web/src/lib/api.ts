@@ -490,6 +490,29 @@ export type ObservabilitySloReport = {
   }>;
 };
 
+export type ObservabilityReleaseGate = {
+  generatedAt: string;
+  status: "pass" | "review" | "block";
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    owner: "platform" | "rag" | "ops" | "quality";
+    metric?: number;
+    threshold?: number;
+  }>;
+  summary: {
+    readinessOk: boolean;
+    sloStatus: "ok" | "warn" | "breach";
+    latestEvalPassed: boolean;
+    pendingApprovals: number;
+    documents: number;
+    chunks: number;
+    feedback: number;
+  };
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -728,6 +751,16 @@ export async function getObservabilitySlo(): Promise<ObservabilitySloReport> {
   }
 
   return response.json() as Promise<ObservabilitySloReport>;
+}
+
+export async function getObservabilityReleaseGate(): Promise<ObservabilityReleaseGate> {
+  const response = await fetch(`${API_BASE_URL}/observability/release-gate`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<ObservabilityReleaseGate>;
 }
 
 export async function getAnswerTrace(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerTrace> {

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { HealthService, ReadinessReport } from "../health/health.service";
 
 export type ObservabilitySummary = {
   generatedAt: string;
@@ -57,6 +58,35 @@ export type SloObjective = {
   window: "all_time" | "latest_eval";
 };
 
+export type ReleaseGateStatus = "pass" | "review" | "block";
+
+export type ReleaseGateCheckStatus = "pass" | "warn" | "fail";
+
+export type ObservabilityReleaseGate = {
+  generatedAt: string;
+  status: ReleaseGateStatus;
+  checks: ReleaseGateCheck[];
+  summary: {
+    readinessOk: boolean;
+    sloStatus: SloStatus;
+    latestEvalPassed: boolean;
+    pendingApprovals: number;
+    documents: number;
+    chunks: number;
+    feedback: number;
+  };
+};
+
+export type ReleaseGateCheck = {
+  id: string;
+  label: string;
+  status: ReleaseGateCheckStatus;
+  evidence: string;
+  owner: "platform" | "rag" | "ops" | "quality";
+  metric?: number;
+  threshold?: number;
+};
+
 type CountRow = { total: number | string };
 type QuestionRow = { total: number | string; last24h: number | string };
 type AnswerRow = {
@@ -81,7 +111,10 @@ type ToolCoverageRow = { covered: number | string; total: number | string };
 
 @Injectable()
 export class ObservabilityService {
-  constructor(private readonly orm: MikroORM) {}
+  constructor(
+    private readonly orm: MikroORM,
+    private readonly healthService: HealthService
+  ) {}
 
   async summary(): Promise<ObservabilitySummary> {
     const connection = this.orm.em.fork().getConnection();
@@ -254,6 +287,136 @@ export class ObservabilityService {
       objectives
     };
   }
+
+  async releaseGate(): Promise<ObservabilityReleaseGate> {
+    const connection = this.orm.em.fork().getConnection();
+    const [summary, slo, readiness, latestEvalRows] = await Promise.all([
+      this.summary(),
+      this.slo(),
+      this.healthService.readiness(),
+      connection.execute<EvaluationPassRow[]>(`
+        select (details->>'passed')::boolean as passed
+        from evaluation_results
+        where suite_name = 'seed-ops-wiki'
+        order by created_at desc
+        limit 1;
+      `)
+    ]);
+    const latestEvalPassed = latestEvalRows[0]?.passed === true;
+    const pendingApprovals = summary.approvals.byStatus.pending ?? 0;
+    const checks = buildReleaseGateChecks({
+      summary,
+      slo,
+      readiness,
+      latestEvalPassed,
+      pendingApprovals
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      status: aggregateReleaseGateStatus(checks),
+      checks,
+      summary: {
+        readinessOk: readiness.ok,
+        sloStatus: slo.status,
+        latestEvalPassed,
+        pendingApprovals,
+        documents: summary.documents.total,
+        chunks: summary.documents.chunks,
+        feedback: summary.feedback.total
+      }
+    };
+  }
+}
+
+function buildReleaseGateChecks(input: {
+  summary: ObservabilitySummary;
+  slo: ObservabilitySloReport;
+  readiness: ReadinessReport;
+  latestEvalPassed: boolean;
+  pendingApprovals: number;
+}): ReleaseGateCheck[] {
+  const minDocuments = readCountThreshold("RELEASE_MIN_DOCUMENTS", 5);
+  const minChunks = readCountThreshold("RELEASE_MIN_CHUNKS", 8);
+  const maxPendingApprovals = readCountThreshold("RELEASE_MAX_PENDING_APPROVALS", 25);
+  const searchCalls = input.summary.toolCalls.byName.search_documents ?? 0;
+  const approvalCalls = input.summary.toolCalls.byName.request_human_approval ?? 0;
+
+  return [
+    {
+      id: "dependencies_ready",
+      label: "Dependencies ready",
+      status: input.readiness.ok ? "pass" : "fail",
+      evidence: `PostgreSQL=${input.readiness.dependencies.postgres.status}, Redis=${input.readiness.dependencies.redis.status}, Elasticsearch=${input.readiness.dependencies.elasticsearch.status}.`,
+      owner: "platform"
+    },
+    {
+      id: "indexed_knowledge_ready",
+      label: "Indexed knowledge ready",
+      status:
+        input.summary.documents.total >= minDocuments && input.summary.documents.chunks >= minChunks
+          ? "pass"
+          : "fail",
+      evidence: `${input.summary.documents.total} documents and ${input.summary.documents.chunks} chunks are indexed.`,
+      owner: "rag",
+      metric: input.summary.documents.chunks,
+      threshold: minChunks
+    },
+    {
+      id: "latest_eval_gate",
+      label: "Latest eval gate",
+      status: input.latestEvalPassed ? "pass" : "fail",
+      evidence: input.latestEvalPassed
+        ? "Latest seed-ops-wiki evaluation passed."
+        : "Latest seed-ops-wiki evaluation is missing or failing.",
+      owner: "quality"
+    },
+    {
+      id: "slo_guardrails",
+      label: "SLO guardrails",
+      status: input.slo.status === "ok" ? "pass" : input.slo.status === "warn" ? "warn" : "fail",
+      evidence: `${input.slo.objectives.length} SLO objectives report ${input.slo.status}.`,
+      owner: "quality"
+    },
+    {
+      id: "agent_audit_trail",
+      label: "Agent audit trail",
+      status: searchCalls > 0 && approvalCalls > 0 ? "pass" : searchCalls > 0 ? "warn" : "fail",
+      evidence: `search_documents=${searchCalls}, request_human_approval=${approvalCalls}.`,
+      owner: "ops"
+    },
+    {
+      id: "approval_backlog",
+      label: "Approval backlog",
+      status: input.pendingApprovals <= maxPendingApprovals ? "pass" : "warn",
+      evidence: `${input.pendingApprovals} pending approvals; review threshold is ${maxPendingApprovals}.`,
+      owner: "ops",
+      metric: input.pendingApprovals,
+      threshold: maxPendingApprovals
+    },
+    {
+      id: "feedback_signal",
+      label: "Feedback signal",
+      status: input.summary.feedback.total > 0 ? "pass" : "warn",
+      evidence:
+        input.summary.feedback.total > 0
+          ? `${input.summary.feedback.total} feedback records are available.`
+          : "No feedback has been captured yet.",
+      owner: "quality",
+      metric: input.summary.feedback.total,
+      threshold: 1
+    }
+  ];
+}
+
+function aggregateReleaseGateStatus(checks: ReleaseGateCheck[]): ReleaseGateStatus {
+  if (checks.some((check) => check.status === "fail")) {
+    return "block";
+  }
+  if (checks.some((check) => check.status === "warn")) {
+    return "review";
+  }
+  return "pass";
 }
 
 function buildObjective(input: Omit<SloObjective, "status" | "errorBudgetRemaining">): SloObjective {
@@ -314,6 +477,20 @@ function readSloThreshold(name: string, fallback: number): number {
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0 || value > 1) {
     throw new Error(`${name} must be a number between 0 and 1`);
+  }
+
+  return value;
+}
+
+function readCountThreshold(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
   }
 
   return value;

@@ -16,4 +16,9 @@ export class ObservabilityController {
   slo() {
     return this.observabilityService.slo();
   }
+
+  @Get("release-gate")
+  releaseGate() {
+    return this.observabilityService.releaseGate();
+  }
 }

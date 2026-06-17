@@ -17,6 +17,7 @@ import {
   getDocumentVersionHistory,
   getEvaluationHistory,
   getLatestEvaluation,
+  getObservabilityReleaseGate,
   getObservabilitySlo,
   getObservabilitySummary,
   getPermissionBoundaryMatrix,
@@ -27,6 +28,7 @@ import {
   listAgentTools,
   listRecentToolCalls,
   listApprovals,
+  ObservabilityReleaseGate,
   ObservabilitySloReport,
   ObservabilitySummary,
   PermissionBoundaryMatrix,
@@ -136,6 +138,7 @@ export default function Home() {
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
+  const [releaseGate, setReleaseGate] = useState<ObservabilityReleaseGate | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
@@ -442,9 +445,14 @@ export default function Home() {
     setError(null);
     setLoading("observability");
     try {
-      const [summary, slo] = await Promise.all([getObservabilitySummary(), getObservabilitySlo()]);
+      const [summary, slo, gate] = await Promise.all([
+        getObservabilitySummary(),
+        getObservabilitySlo(),
+        getObservabilityReleaseGate()
+      ]);
       setObservability(summary);
       setSloReport(slo);
+      setReleaseGate(gate);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Observability request failed");
     } finally {
@@ -904,6 +912,32 @@ export default function Home() {
             </div>
             {observability ? (
               <>
+                {releaseGate ? (
+                  <section className="releaseGatePanel" aria-label="release gate">
+                    <div className="releaseGateHeader">
+                      <div>
+                        <span>Release gate</span>
+                        <strong>{releaseGate.status}</strong>
+                      </div>
+                      <code>
+                        ready:{releaseGate.summary.readinessOk ? "yes" : "no"} eval:
+                        {releaseGate.summary.latestEvalPassed ? "pass" : "fail"} slo:{releaseGate.summary.sloStatus}
+                      </code>
+                    </div>
+                    <div className="releaseGateList">
+                      {releaseGate.checks.map((check) => (
+                        <article className="releaseGateItem" key={check.id}>
+                          <span className={check.status === "pass" ? "badge" : "badge review"}>{check.status}</span>
+                          <div>
+                            <strong>{check.label}</strong>
+                            <p>{check.evidence}</p>
+                          </div>
+                          <code>{check.owner}</code>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
                 <div className="opsGrid">
                   <Metric label="Questions" value={String(observability.questions.total)} />
                   <Metric label="Human review rate" value={formatPercent(observability.answers.humanReviewRate)} />

@@ -1841,6 +1841,84 @@ pre {
   border-top: 3px solid #0f766e;
 }
 
+.releaseGatePanel {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.releaseGateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.releaseGateHeader span {
+  display: block;
+  color: var(--info);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.releaseGateHeader strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 18px;
+  text-transform: capitalize;
+}
+
+.releaseGateHeader code,
+.releaseGateItem code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.releaseGateList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.releaseGateItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.releaseGateItem strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.releaseGateItem p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sloPanel {
   display: grid;
   gap: 8px;
@@ -2206,6 +2284,8 @@ pre {
   .evalHistoryHead,
   .evalHistoryItem,
   .opsGrid,
+  .releaseGateList,
+  .releaseGateItem,
   .sloList,
   .sloItem,
   .toolRegistryItem,
