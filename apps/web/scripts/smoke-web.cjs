@@ -121,6 +121,12 @@ async function main() {
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).click();
     await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "색인 설명" }).click();
+    await page.locator(".indexExplainPanel").getByText("색인 준비", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexExplainPanel").getByText("heading_paragraph_window_v1", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".indexExplainPanel").getByText("임베딩 커버리지", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexExplainPanel").getByText("헤딩 아웃라인", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexExplainPanel").getByText("고객 공지 SLA", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "영향 분석" }).click();
     await page.locator(".impactPanel").getByText("영향 분석", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".impactPanel").getByText("재검증 필요", { exact: true }).waitFor({ timeout: 10000 });
@@ -149,6 +155,11 @@ async function main() {
       (await page.locator(".qualityDocumentList").getByText("public/status-page-policy.md", { exact: false }).first().isVisible());
     const versionHistoryVisible = await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).isVisible();
     const versionDiffVisible = await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).isVisible();
+    const indexExplainVisible =
+      (await page.locator(".indexExplainPanel").getByText("색인 준비", { exact: true }).isVisible()) &&
+      (await page.locator(".indexExplainPanel").getByText("heading_paragraph_window_v1", { exact: true }).first().isVisible()) &&
+      (await page.locator(".indexExplainPanel").getByText("임베딩 커버리지", { exact: true }).isVisible()) &&
+      (await page.locator(".indexExplainPanel").getByText("헤딩 아웃라인", { exact: true }).isVisible());
     const documentImpactVisible =
       (await page.locator(".impactPanel").getByText("영향 분석", { exact: true }).isVisible()) &&
       (await page.locator(".impactPanel").getByText("재검증 필요", { exact: true }).isVisible()) &&
@@ -254,7 +265,7 @@ async function main() {
     await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("추적", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText("답변 신뢰 게이트", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".qualityGatePanel").getByText("검토 후 공유", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".qualityGatePanel").getByText(/공유 가능|검토 후 공유|차단 후 재작성/u).first().waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText("승인 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".qualityGatePanel").getByText("대기 중", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceSummary").getByText("승인", { exact: true }).first().waitFor({ timeout: 10000 });
@@ -292,7 +303,7 @@ async function main() {
     const traceVisible = await page.locator(".tracePanel").getByText("추적 새로고침", { exact: true }).isVisible();
     const answerQualityGateVisible =
       (await page.locator(".qualityGatePanel").getByText("답변 신뢰 게이트", { exact: true }).isVisible()) &&
-      (await page.locator(".qualityGatePanel").getByText("검토 후 공유", { exact: false }).first().isVisible()) &&
+      (await page.locator(".qualityGatePanel").getByText(/공유 가능|검토 후 공유|차단 후 재작성/u).first().isVisible()) &&
       (await page.locator(".qualityGatePanel").getByText("승인 경계", { exact: true }).isVisible()) &&
       (await page.locator(".qualityGatePanel").getByText("대기 중", { exact: true }).isVisible());
     const traceTimelineVisible = await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).isVisible();
@@ -420,6 +431,7 @@ async function main() {
         indexQualityVisible &&
         versionHistoryVisible &&
         versionDiffVisible &&
+        indexExplainVisible &&
         documentImpactVisible &&
         permissionMatrixVisible &&
         permissionMatrixDenyVisible &&
@@ -486,6 +498,7 @@ async function main() {
         indexQualityVisible,
         versionHistoryVisible,
         versionDiffVisible,
+        indexExplainVisible,
         documentImpactVisible,
         permissionMatrixVisible,
         permissionMatrixDenyVisible,

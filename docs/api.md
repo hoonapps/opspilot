@@ -22,6 +22,7 @@ GET /docs-json
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
+- `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 diff 확인
 - `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, stale 여부, 위험도, 재검증 권고 확인
 - `POST /documents/github/sync`: GitHub Markdown 동기화
 - `GET /documents/indexing-jobs`: BullMQ 색인 큐 카운트, 최근 작업, 워커 상태 확인
@@ -108,6 +109,28 @@ GET /documents/index-quality
 
 ```bash
 pnpm index-quality:smoke
+```
+
+## 문서 색인 설명
+
+```txt
+GET /documents/{id}/index-explain
+```
+
+응답은 특정 문서가 RAG 검색에 어떤 형태로 들어갔는지 설명합니다.
+
+- `pipeline`: frontmatter 파서, 마스킹, 청킹 전략, 임베딩, pgvector 저장소, Elasticsearch mirror 여부
+- `summary`: 청크 수, 총 본문 길이, 평균/최대/최소 청크 길이, 헤딩 커버리지, 임베딩 커버리지, 검색 준비 상태
+- `checks`: 청크 생성, 임베딩 커버리지, 헤딩 신호, 청크 크기, 버전 추적, 보안 메타데이터 판정
+- `headingOutline`: 헤딩별 청크 index
+- `chunks[]`: 청크별 길이, 토큰 추정치, 64차원 임베딩 저장 여부, 검색 힌트, preview
+- `latestDiff`: 최신 버전 diff
+- `recommendations`: 재색인, 헤딩 보강, 청크 분리 같은 개선 권고
+
+검증:
+
+```bash
+pnpm index-explain:smoke
 ```
 
 ## 문서 변경 영향 분석

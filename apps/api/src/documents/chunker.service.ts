@@ -35,6 +35,29 @@ export class ChunkerService {
       }
     }
 
-    return chunks;
+    return mergeHeadingOnlyChunks(chunks).map((chunk, index) => ({ ...chunk, index }));
   }
+}
+
+function mergeHeadingOnlyChunks(chunks: Chunk[]): Chunk[] {
+  const merged: Chunk[] = [];
+
+  for (const chunk of chunks) {
+    const previous = merged[merged.length - 1];
+    if (previous && isHeadingOnly(previous.content)) {
+      merged[merged.length - 1] = {
+        ...chunk,
+        content: `${previous.content}\n\n${chunk.content}`,
+        heading: chunk.heading ?? previous.heading
+      };
+      continue;
+    }
+    merged.push(chunk);
+  }
+
+  return merged;
+}
+
+function isHeadingOnly(content: string): boolean {
+  return /^#{1,3}\s+.+$/u.test(content.trim());
 }

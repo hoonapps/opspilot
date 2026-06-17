@@ -174,6 +174,72 @@ export type DocumentVersionDiff = {
   removedPreview: string[];
 };
 
+export type DocumentIndexExplainReport = {
+  schemaVersion: "opspilot.document_index_explain.v1";
+  generatedAt: string;
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    latestVersion: number;
+    updatedAt: string;
+    contentHash: string;
+    metadata: Record<string, unknown>;
+  };
+  pipeline: {
+    source: "markdown";
+    parser: "frontmatter_markdown_v1";
+    redaction: "security_redaction_v1";
+    chunking: "heading_paragraph_window_v1";
+    embedding: "local_hash_embedding_64d";
+    vectorStore: "pgvector_hnsw";
+    lexicalMirror: "optional_elasticsearch";
+  };
+  summary: {
+    chunkCount: number;
+    totalContentLength: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    minChunkLength: number;
+    headingCoverageRatio: number;
+    uniqueHeadingCount: number;
+    latestDiffChangedLineCount: number;
+    searchReady: boolean;
+    embeddingCoverageRatio: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+  };
+  checks: Array<{
+    id: "chunks_present" | "embedding_coverage" | "heading_signal" | "chunk_size" | "version_trace" | "security_metadata";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    evidence: string;
+  }>;
+  headingOutline: Array<{
+    heading: string;
+    chunkIndexes: number[];
+    chunkCount: number;
+  }>;
+  chunks: Array<{
+    id: string;
+    chunkIndex: number;
+    heading?: string | null;
+    contentLength: number;
+    tokenEstimate: number;
+    embeddingStored: boolean;
+    embeddingDimensions: number;
+    preview: string;
+    retrievalHints: string[];
+    createdAt: string;
+  }>;
+  latestDiff: DocumentVersionDiff | null;
+  recommendations: string[];
+};
+
 export type DocumentImpactReport = {
   generatedAt: string;
   document: {
@@ -1390,6 +1456,16 @@ export async function getDocumentVersionHistory(documentId: string): Promise<Doc
   }
 
   return response.json() as Promise<DocumentVersionHistory>;
+}
+
+export async function getDocumentIndexExplain(documentId: string): Promise<DocumentIndexExplainReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}/index-explain`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentIndexExplainReport>;
 }
 
 export async function getDocumentImpact(documentId: string): Promise<DocumentImpactReport> {

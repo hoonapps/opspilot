@@ -38,6 +38,17 @@ type ChunkPreviewRow = {
   heading?: string | null;
 };
 
+type DocumentIndexExplainChunkRow = {
+  id: string;
+  chunkIndex: number | string;
+  content: string;
+  contentLength: number | string;
+  heading?: string | null;
+  embeddingStored: boolean;
+  embeddingDimensions: number | string;
+  createdAt: Date | string;
+};
+
 type DocumentVersionRow = {
   id: string;
   documentId: string;
@@ -132,6 +143,72 @@ export type DocumentVersionDiff = {
   unchangedLineCount: number;
   addedPreview: string[];
   removedPreview: string[];
+};
+
+export type DocumentIndexExplainReport = {
+  schemaVersion: "opspilot.document_index_explain.v1";
+  generatedAt: string;
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    latestVersion: number;
+    updatedAt: string;
+    contentHash: string;
+    metadata: Record<string, unknown>;
+  };
+  pipeline: {
+    source: "markdown";
+    parser: "frontmatter_markdown_v1";
+    redaction: "security_redaction_v1";
+    chunking: "heading_paragraph_window_v1";
+    embedding: "local_hash_embedding_64d";
+    vectorStore: "pgvector_hnsw";
+    lexicalMirror: "optional_elasticsearch";
+  };
+  summary: {
+    chunkCount: number;
+    totalContentLength: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    minChunkLength: number;
+    headingCoverageRatio: number;
+    uniqueHeadingCount: number;
+    latestDiffChangedLineCount: number;
+    searchReady: boolean;
+    embeddingCoverageRatio: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+  };
+  checks: Array<{
+    id: "chunks_present" | "embedding_coverage" | "heading_signal" | "chunk_size" | "version_trace" | "security_metadata";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    evidence: string;
+  }>;
+  headingOutline: Array<{
+    heading: string;
+    chunkIndexes: number[];
+    chunkCount: number;
+  }>;
+  chunks: Array<{
+    id: string;
+    chunkIndex: number;
+    heading?: string | null;
+    contentLength: number;
+    tokenEstimate: number;
+    embeddingStored: boolean;
+    embeddingDimensions: number;
+    preview: string;
+    retrievalHints: string[];
+    createdAt: string;
+  }>;
+  latestDiff: DocumentVersionDiff | null;
+  recommendations: string[];
 };
 
 export type DocumentIndexQualityReport = {
@@ -410,6 +487,131 @@ export class DocumentsService {
       },
       versions: [...versionsAscending].reverse(),
       latestDiff: versionsAscending[versionsAscending.length - 1]?.diffFromPrevious ?? null
+    };
+  }
+
+  async getIndexExplainReport(documentId: string): Promise<DocumentIndexExplainReport | null> {
+    const connection = this.orm.em.fork().getConnection();
+    const history = await this.getVersionHistory(documentId);
+    const [document] = (await connection.execute<DocumentInventoryRow[]>(
+      `
+        select
+          d.id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.metadata,
+          d.content_hash as "contentHash",
+          count(distinct c.id)::int as "chunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          d.updated_at as "updatedAt"
+        from documents d
+        left join document_chunks c on c.document_id = d.id
+        left join document_versions v on v.document_id = d.id
+        where d.id = ?::uuid
+        group by d.id;
+      `,
+      [documentId]
+    )) as DocumentInventoryRow[];
+
+    if (!document) {
+      return null;
+    }
+
+    const chunkRows = (await connection.execute<DocumentIndexExplainChunkRow[]>(
+      `
+        select
+          c.id,
+          c.chunk_index as "chunkIndex",
+          c.content,
+          char_length(c.content)::int as "contentLength",
+          c.metadata ->> 'heading' as heading,
+          c.embedding is not null as "embeddingStored",
+          cardinality(string_to_array(trim(both '[]' from c.embedding::text), ','))::int as "embeddingDimensions",
+          c.created_at as "createdAt"
+        from document_chunks c
+        where c.document_id = ?::uuid
+        order by c.chunk_index asc;
+      `,
+      [documentId]
+    )) as DocumentIndexExplainChunkRow[];
+
+    const chunks = chunkRows.map((chunk) => {
+      const content = chunk.content.trim();
+      const heading = chunk.heading && chunk.heading.trim().length > 0 ? chunk.heading : null;
+      const contentLength = Number(chunk.contentLength);
+      return {
+        id: chunk.id,
+        chunkIndex: Number(chunk.chunkIndex),
+        heading,
+        contentLength,
+        tokenEstimate: estimateTokenCount(content),
+        embeddingStored: chunk.embeddingStored,
+        embeddingDimensions: Number(chunk.embeddingDimensions),
+        preview: previewText(content),
+        retrievalHints: buildChunkRetrievalHints({ heading, content }),
+        createdAt: toIsoString(chunk.createdAt)
+      };
+    });
+
+    const chunkCount = chunks.length;
+    const totalContentLength = chunks.reduce((sum, chunk) => sum + chunk.contentLength, 0);
+    const headingChunks = chunks.filter((chunk) => chunk.heading);
+    const headingCoverageRatio = chunkCount === 0 ? 0 : headingChunks.length / chunkCount;
+    const embeddingCoverageRatio =
+      chunkCount === 0 ? 0 : chunks.filter((chunk) => chunk.embeddingStored && chunk.embeddingDimensions === 64).length / chunkCount;
+    const latestDiffChangedLineCount =
+      (history?.latestDiff?.addedLineCount ?? 0) + (history?.latestDiff?.removedLineCount ?? 0);
+    const redactionCount = getSecurityNumber(document.metadata, "redactionCount");
+    const promptInjectionRisk = getSecurityBoolean(document.metadata, "promptInjectionRisk");
+    const maxChunkLength = Math.max(0, ...chunks.map((chunk) => chunk.contentLength));
+    const minChunkLength = chunks.length > 0 ? Math.min(...chunks.map((chunk) => chunk.contentLength)) : 0;
+    const avgChunkLength = chunkCount === 0 ? 0 : totalContentLength / chunkCount;
+    const summary = {
+      chunkCount,
+      totalContentLength,
+      avgChunkLength,
+      maxChunkLength,
+      minChunkLength,
+      headingCoverageRatio,
+      uniqueHeadingCount: new Set(headingChunks.map((chunk) => chunk.heading)).size,
+      latestDiffChangedLineCount,
+      searchReady: chunkCount > 0 && embeddingCoverageRatio === 1,
+      embeddingCoverageRatio,
+      redactionCount,
+      promptInjectionRisk
+    };
+
+    return {
+      schemaVersion: "opspilot.document_index_explain.v1",
+      generatedAt: new Date().toISOString(),
+      document: {
+        id: document.id,
+        path: document.path,
+        title: document.title,
+        visibility: document.visibility,
+        teamSlug: document.teamSlug,
+        latestVersion: Number(document.latestVersion),
+        updatedAt: toIsoString(document.updatedAt),
+        contentHash: document.contentHash,
+        metadata: document.metadata
+      },
+      pipeline: {
+        source: "markdown",
+        parser: "frontmatter_markdown_v1",
+        redaction: "security_redaction_v1",
+        chunking: "heading_paragraph_window_v1",
+        embedding: "local_hash_embedding_64d",
+        vectorStore: "pgvector_hnsw",
+        lexicalMirror: "optional_elasticsearch"
+      },
+      summary,
+      checks: buildIndexExplainChecks(summary, Number(document.latestVersion)),
+      headingOutline: buildHeadingOutline(chunks),
+      chunks,
+      latestDiff: history?.latestDiff ?? null,
+      recommendations: buildIndexExplainRecommendations(summary)
     };
   }
 
@@ -822,6 +1024,122 @@ function buildDocumentCheck(
   return { id, label, status, message };
 }
 
+function buildIndexExplainChecks(
+  summary: DocumentIndexExplainReport["summary"],
+  latestVersion: number
+): DocumentIndexExplainReport["checks"] {
+  return [
+    {
+      id: "chunks_present",
+      label: "청크 생성",
+      status: summary.chunkCount > 0 ? "pass" : "fail",
+      metric: summary.chunkCount,
+      threshold: 1,
+      evidence: summary.chunkCount > 0 ? `검색 가능한 청크 ${summary.chunkCount}개가 생성됐습니다.` : "검색 가능한 청크가 없습니다."
+    },
+    {
+      id: "embedding_coverage",
+      label: "임베딩 커버리지",
+      status: summary.embeddingCoverageRatio === 1 ? "pass" : summary.embeddingCoverageRatio > 0 ? "warn" : "fail",
+      metric: summary.embeddingCoverageRatio,
+      threshold: 1,
+      evidence: `64차원 임베딩 저장 비율은 ${Math.round(summary.embeddingCoverageRatio * 100)}%입니다.`
+    },
+    {
+      id: "heading_signal",
+      label: "헤딩 신호",
+      status: summary.headingCoverageRatio >= 0.5 ? "pass" : summary.headingCoverageRatio > 0 ? "warn" : "fail",
+      metric: summary.headingCoverageRatio,
+      threshold: 0.5,
+      evidence: `헤딩이 보존된 청크 비율은 ${Math.round(summary.headingCoverageRatio * 100)}%입니다.`
+    },
+    {
+      id: "chunk_size",
+      label: "청크 크기",
+      status: summary.maxChunkLength <= 1400 && summary.avgChunkLength >= 120 ? "pass" : "warn",
+      metric: Math.round(summary.avgChunkLength),
+      threshold: 120,
+      evidence: `평균 ${Math.round(summary.avgChunkLength)}자, 최대 ${summary.maxChunkLength}자입니다.`
+    },
+    {
+      id: "version_trace",
+      label: "버전 추적",
+      status: latestVersion > 0 ? "pass" : "fail",
+      metric: latestVersion,
+      threshold: 1,
+      evidence: latestVersion > 0 ? `최신 버전 v${latestVersion}와 변경 라인 ${summary.latestDiffChangedLineCount}개를 추적합니다.` : "문서 버전 이력이 없습니다."
+    },
+    {
+      id: "security_metadata",
+      label: "보안 메타데이터",
+      status: summary.promptInjectionRisk ? "warn" : "pass",
+      metric: summary.redactionCount,
+      threshold: 0,
+      evidence: summary.promptInjectionRisk
+        ? `프롬프트 주입 위험 문구가 감지됐고 마스킹 ${summary.redactionCount}건이 기록됐습니다.`
+        : `마스킹 ${summary.redactionCount}건이 기록됐고 프롬프트 주입 위험은 없습니다.`
+    }
+  ];
+}
+
+function buildHeadingOutline(
+  chunks: DocumentIndexExplainReport["chunks"]
+): DocumentIndexExplainReport["headingOutline"] {
+  const outline = new Map<string, number[]>();
+  for (const chunk of chunks) {
+    const heading = chunk.heading ?? "문서 본문";
+    outline.set(heading, [...(outline.get(heading) ?? []), chunk.chunkIndex]);
+  }
+
+  return [...outline.entries()].map(([heading, chunkIndexes]) => ({
+    heading,
+    chunkIndexes,
+    chunkCount: chunkIndexes.length
+  }));
+}
+
+function buildChunkRetrievalHints(input: { heading?: string | null; content: string }): string[] {
+  const hints = new Set<string>();
+  if (input.heading) {
+    hints.add(input.heading);
+  }
+
+  for (const token of input.content.match(/[가-힣A-Za-z0-9][가-힣A-Za-z0-9._-]{1,}/g) ?? []) {
+    if (token.length >= 2 && !STOP_HINTS.has(token.toLowerCase())) {
+      hints.add(token);
+    }
+    if (hints.size >= 6) {
+      break;
+    }
+  }
+
+  return [...hints].slice(0, 6);
+}
+
+function buildIndexExplainRecommendations(summary: DocumentIndexExplainReport["summary"]): string[] {
+  const recommendations: string[] = [];
+  if (summary.chunkCount === 0) {
+    recommendations.push("문서를 다시 등록해 검색 가능한 청크와 임베딩을 생성하세요.");
+  }
+  if (summary.embeddingCoverageRatio < 1) {
+    recommendations.push("임베딩 누락 청크가 있으므로 색인 작업을 재실행하세요.");
+  }
+  if (summary.headingCoverageRatio < 0.5) {
+    recommendations.push("Markdown 헤딩을 보강해 검색 결과에서 문맥 단위를 더 명확히 드러내세요.");
+  }
+  if (summary.maxChunkLength > 1400) {
+    recommendations.push("긴 청크는 하위 헤딩이나 문단 분리로 나눠 답변 컨텍스트 오염을 줄이세요.");
+  }
+  if (summary.avgChunkLength < 120 && summary.chunkCount > 0) {
+    recommendations.push("너무 짧은 청크는 주변 문단과 합쳐 벡터 검색 신호를 강화하세요.");
+  }
+  if (summary.promptInjectionRisk) {
+    recommendations.push("프롬프트 주입 위험이 있는 문서는 공개 범위를 제한하고 운영 검토를 거치세요.");
+  }
+
+  return recommendations.length > 0 ? recommendations : ["청크, 임베딩, 버전, 보안 메타데이터가 검색 준비 기준을 충족합니다."];
+}
+
 function buildIndexRecommendations(input: {
   chunkCount: number;
   avgChunkLength: number;
@@ -1021,6 +1339,10 @@ function previewText(content: string): string {
   return content.replace(/\s+/g, " ").trim().slice(0, 360);
 }
 
+function estimateTokenCount(content: string): number {
+  return Math.max(1, Math.ceil(content.replace(/\s+/g, " ").trim().length / 4));
+}
+
 function diffVersions(fromVersion: number, previousContent: string, toVersion: number, currentContent: string): DocumentVersionDiff {
   const previousLines = normalizeLines(previousContent);
   const currentLines = normalizeLines(currentContent);
@@ -1048,6 +1370,23 @@ function normalizeLines(content: string): string[] {
     .map((line) => line.trim())
     .filter(Boolean);
 }
+
+const STOP_HINTS = new Set([
+  "the",
+  "and",
+  "with",
+  "must",
+  "when",
+  "that",
+  "this",
+  "within",
+  "문서",
+  "기준",
+  "확인",
+  "합니다",
+  "그리고",
+  "반드시"
+]);
 
 async function findMarkdownFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });

@@ -2275,6 +2275,217 @@ pre {
   gap: 8px;
 }
 
+.indexExplainPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f7f9ff;
+}
+
+.indexExplainSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.indexExplainSummary div,
+.indexExplainSummary code {
+  min-height: 54px;
+  padding: 9px;
+  border: 1px solid #d5ddf6;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.indexExplainSummary span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.indexExplainSummary strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.indexExplainSummary code {
+  display: grid;
+  align-items: center;
+  overflow: hidden;
+  color: var(--info);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indexExplainPipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.indexExplainPipeline span {
+  display: inline-grid;
+  gap: 4px;
+  min-width: 132px;
+  border: 1px solid #d5ddf6;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.indexExplainPipeline strong {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.indexExplainPipeline code {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indexExplainChecks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.indexExplainCheck {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.indexExplainCheck.pass {
+  border: 1px solid rgba(15, 118, 110, 0.2);
+}
+
+.indexExplainCheck.review {
+  border: 1px solid rgba(161, 98, 7, 0.24);
+}
+
+.indexExplainCheck span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--info);
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.indexExplainCheck strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.indexExplainCheck p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.indexExplainOutline {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid #d5ddf6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.indexExplainOutline > strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.indexExplainOutline div,
+.indexExplainChunk div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.indexExplainOutline span,
+.indexExplainChunk div:last-child span {
+  border: 1px solid #d5ddf6;
+  border-radius: 999px;
+  background: #f7f9ff;
+  color: var(--info);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.indexExplainChunks {
+  display: grid;
+  gap: 8px;
+}
+
+.indexExplainChunk {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d5ddf6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.indexExplainChunk div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.indexExplainChunk strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indexExplainChunk code {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.indexExplainChunk p,
+.indexExplainRecommendations p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.indexExplainRecommendations {
+  display: grid;
+  gap: 6px;
+}
+
+.indexExplainRecommendations p {
+  padding: 9px 10px;
+  border: 1px solid #d5ddf6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #283768;
+}
+
 .impactPanel {
   display: grid;
   gap: 10px;
@@ -4043,6 +4254,9 @@ pre {
   .proofChecklist,
   .proofItem,
   .versionSummary,
+  .indexExplainSummary,
+  .indexExplainChecks,
+  .indexExplainChunk div:first-child,
   .impactSummary,
   .impactMetrics,
   .impactAnswerItem,

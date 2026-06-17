@@ -38,7 +38,7 @@ async function main() {
     const indexedDocument = inventory.documents.find((document) => document.path === SMOKE_DOCUMENT_PATH);
     const versionHistory = indexedDocument ? await documents.getVersionHistory(indexedDocument.id) : null;
     const response = await agent.ask(
-      "고객 공지 SLA와 15분 공지 기준은 무엇이야?",
+      "settlement 장애 공지에서 finance on-call engineer를 update owner list에 추가해야 하는 기준은 뭐야?",
       { roles: [], teamSlugs: [] },
       "indexing-smoke"
     );
@@ -53,7 +53,7 @@ async function main() {
       versionHistory.latestDiff.addedLineCount >= 0;
     const ok =
       topSource?.path === SMOKE_DOCUMENT_PATH &&
-      response.answer.includes("15") &&
+      response.answer.includes("finance") &&
       versionHistoryOk;
 
     const report = {

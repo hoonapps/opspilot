@@ -50,6 +50,15 @@ export class DocumentsController {
     return report;
   }
 
+  @Get(":id/index-explain")
+  async getDocumentIndexExplain(@Param("id") id: string) {
+    const report = await this.documentsService.getIndexExplainReport(id);
+    if (!report) {
+      throw new NotFoundException(`Document not found: ${id}`);
+    }
+    return report;
+  }
+
   @Post("markdown")
   upsertMarkdownDocument(@Body() body: UpsertMarkdownDocumentDto) {
     return this.documentsService.ingestMarkdown(body.path, body.markdown);

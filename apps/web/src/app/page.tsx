@@ -15,6 +15,7 @@ import {
   createIncidentPlan,
   createFeedback,
   DocumentImpactReport,
+  DocumentIndexExplainReport,
   DocumentInventoryItem,
   DocumentIndexQualityReport,
   DocumentVersionHistory,
@@ -29,6 +30,7 @@ import {
   getAnswerReplay,
   getAnswerTrace,
   getDocumentImpact,
+  getDocumentIndexExplain,
   getDocumentVersionHistory,
   getDocumentIndexQuality,
   getEvaluationCases,
@@ -203,6 +205,7 @@ export default function Home() {
   const [queuedIndexingJob, setQueuedIndexingJob] = useState<IndexingJobStatus | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
   const [documentVersionHistory, setDocumentVersionHistory] = useState<DocumentVersionHistory | null>(null);
+  const [documentIndexExplain, setDocumentIndexExplain] = useState<DocumentIndexExplainReport | null>(null);
   const [documentImpact, setDocumentImpact] = useState<DocumentImpactReport | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -220,6 +223,7 @@ export default function Home() {
     | "documents"
     | "queue"
     | "versions"
+    | "index-explain"
     | "impact"
     | "matrix"
     | "approval"
@@ -392,7 +396,7 @@ export default function Home() {
       const indexedDocument = nextDocuments.find((document) => document.path === nextIngest.path) ?? nextDocuments[0] ?? null;
       setSelectedDocumentId(indexedDocument?.id ?? null);
       if (indexedDocument) {
-        await loadDocumentVersions(indexedDocument.id);
+        await Promise.all([loadDocumentVersions(indexedDocument.id), loadDocumentIndexExplain(indexedDocument.id)]);
       }
       await verifyIndexedDocument(nextIngest, verificationQuery);
     } catch (requestError) {
@@ -529,6 +533,22 @@ export default function Home() {
       setDocumentVersionHistory(await getDocumentVersionHistory(documentId));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 버전 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadDocumentIndexExplain(documentId = selectedDocument?.id) {
+    if (!documentId) {
+      return;
+    }
+
+    setError(null);
+    setLoading((current) => current ?? "index-explain");
+    try {
+      setDocumentIndexExplain(await getDocumentIndexExplain(documentId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 색인 설명 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -2207,6 +2227,7 @@ export default function Home() {
                       onClick={() => {
                         setSelectedDocumentId(document.id);
                         setDocumentVersionHistory(null);
+                        setDocumentIndexExplain(null);
                         setDocumentImpact(null);
                       }}
                       type="button"
@@ -2232,6 +2253,9 @@ export default function Home() {
                         <div className="headerActions">
                           <button className="smallButton" disabled={loading === "versions"} onClick={() => loadDocumentVersions()} type="button">
 	                            {loading === "versions" ? "불러오는 중..." : `v${selectedDocument.latestVersion} 이력`}
+                          </button>
+                          <button className="smallButton" disabled={loading === "index-explain"} onClick={() => loadDocumentIndexExplain()} type="button">
+                            {loading === "index-explain" ? "분석 중..." : "색인 설명"}
                           </button>
                           <button className="smallButton" disabled={loading === "impact"} onClick={() => loadDocumentImpact()} type="button">
                             {loading === "impact" ? "분석 중..." : "영향 분석"}
@@ -2281,6 +2305,75 @@ export default function Home() {
 	                                  <small>초기 색인 버전</small>
                                 )}
                               </article>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+                      {documentIndexExplain?.document.id === selectedDocument.id ? (
+                        <section className="indexExplainPanel" aria-label="문서 색인 설명">
+                          <div className="indexExplainSummary">
+                            <div>
+                              <span>색인 준비</span>
+                              <strong>{documentIndexExplain.summary.searchReady ? "검색 가능" : "재색인 필요"}</strong>
+                            </div>
+                            <div>
+                              <span>임베딩</span>
+                              <strong>{formatPercent(documentIndexExplain.summary.embeddingCoverageRatio)}</strong>
+                            </div>
+                            <div>
+                              <span>헤딩 신호</span>
+                              <strong>{formatPercent(documentIndexExplain.summary.headingCoverageRatio)}</strong>
+                            </div>
+                            <code>{documentIndexExplain.pipeline.chunking}</code>
+                          </div>
+                          <div className="indexExplainPipeline">
+                            {Object.entries(documentIndexExplain.pipeline).map(([key, value]) => (
+                              <span key={key}>
+                                <strong>{formatPipelineKey(key)}</strong>
+                                <code>{value}</code>
+                              </span>
+                            ))}
+                          </div>
+                          <div className="indexExplainChecks">
+                            {documentIndexExplain.checks.map((check) => (
+                              <article className={check.status === "pass" ? "indexExplainCheck pass" : "indexExplainCheck review"} key={check.id}>
+                                <span>{formatGateStatus(check.status)}</span>
+                                <strong>{check.label}</strong>
+                                <p>{check.evidence}</p>
+                              </article>
+                            ))}
+                          </div>
+                          <div className="indexExplainOutline">
+                            <strong>헤딩 아웃라인</strong>
+                            <div>
+                              {documentIndexExplain.headingOutline.slice(0, 6).map((heading) => (
+                                <span key={heading.heading}>
+                                  {heading.heading} · #{heading.chunkIndexes.join(", #")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="indexExplainChunks">
+                            {documentIndexExplain.chunks.slice(0, 4).map((chunk) => (
+                              <article className="indexExplainChunk" key={chunk.id}>
+                                <div>
+                                  <strong>#{chunk.chunkIndex} {chunk.heading ?? "문서 본문"}</strong>
+                                  <code>
+                                    {chunk.contentLength}자 · 토큰 약 {chunk.tokenEstimate} · {chunk.embeddingDimensions}d
+                                  </code>
+                                </div>
+                                <p>{chunk.preview}</p>
+                                <div>
+                                  {chunk.retrievalHints.map((hint) => (
+                                    <span key={hint}>{hint}</span>
+                                  ))}
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                          <div className="indexExplainRecommendations">
+                            {documentIndexExplain.recommendations.map((recommendation) => (
+                              <p key={recommendation}>{recommendation}</p>
                             ))}
                           </div>
                         </section>
@@ -2837,6 +2930,19 @@ function formatIndexQualityStatus(status: string): string {
     critical: "위험"
   };
   return labels[status] ?? status;
+}
+
+function formatPipelineKey(key: string): string {
+  const labels: Record<string, string> = {
+    source: "소스",
+    parser: "파서",
+    redaction: "마스킹",
+    chunking: "청킹",
+    embedding: "임베딩",
+    vectorStore: "벡터 저장소",
+    lexicalMirror: "검색 미러"
+  };
+  return labels[key] ?? key;
 }
 
 function formatIncidentPlanStatus(status: string): string {
