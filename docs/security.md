@@ -45,6 +45,14 @@ pnpm redaction:smoke
 
 The smoke test ingests a document containing fake secrets, asks a RAG question, reconstructs the answer trace, and fails if any raw secret appears in persisted chunks, persisted document versions, answer text, returned sources, or trace previews.
 
+## Prompt Injection Guardrail
+
+Markdown ingestion also scans redacted content for prompt-injection patterns such as "ignore previous instructions", system prompt exfiltration requests, and Korean equivalents. The scan result is stored under `metadata.security.promptInjectionRisk` and copied to chunk metadata.
+
+Retrieval excludes chunks with `metadata.security.promptInjectionRisk=true` before ranking, before Elasticsearch re-check results are loaded from PostgreSQL, and before permission audit candidate windows are counted. The risky document can still remain in inventory for operator review, but it is not sent into answer context.
+
+`pnpm prompt-injection:smoke` indexes a safe document and a malicious document with the same keyword, then fails unless the malicious document is tagged, excluded from retrieval preview, excluded from `/ask` sources, and absent from answer trace previews.
+
 ## Search Security
 
 Elasticsearch is used only as a recall booster. In hybrid mode, Elasticsearch returns chunk ids, and OpsPilot reloads those chunks from PostgreSQL with the actor's permission filter before answer generation. PostgreSQL remains the authorization boundary.

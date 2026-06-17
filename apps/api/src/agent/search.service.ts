@@ -91,6 +91,7 @@ export class SearchService {
           from document_chunks c
           join documents d on d.id = c.document_id
           where ${access.sql}
+            and not coalesce((c.metadata #>> '{security,promptInjectionRisk}')::boolean, false)
         ),
         scored as (
           select
@@ -172,7 +173,8 @@ export class SearchService {
         from document_chunks c
         join documents d on d.id = c.document_id
         where c.id in (${chunkIds.map(() => "?::uuid").join(", ")})
-          and ${access.sql};
+          and ${access.sql}
+          and not coalesce((c.metadata #>> '{security,promptInjectionRisk}')::boolean, false);
       `,
       [...chunkIds, ...access.params]
     );
@@ -228,6 +230,7 @@ export class SearchService {
             greatest(0, 1 - (c.embedding <=> ?::vector)) as vector_score
           from document_chunks c
           join documents d on d.id = c.document_id
+          where not coalesce((c.metadata #>> '{security,promptInjectionRisk}')::boolean, false)
         ),
         scored as (
           select

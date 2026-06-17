@@ -197,7 +197,8 @@ export default function Home() {
       total: documents.length,
       chunks: documents.reduce((sum, document) => sum + document.chunkCount, 0),
       restricted: documents.filter((document) => document.visibility === "restricted").length,
-      redactions: documents.reduce((sum, document) => sum + getRedactionCount(document), 0)
+      redactions: documents.reduce((sum, document) => sum + getRedactionCount(document), 0),
+      promptRisks: documents.filter((document) => hasPromptInjectionRisk(document)).length
     }),
     [documents]
   );
@@ -1364,6 +1365,7 @@ export default function Home() {
 	              <Metric label="청크" value={String(documentStats.chunks)} />
 	              <Metric label="제한 문서" value={String(documentStats.restricted)} />
 	              <Metric label="마스킹" value={String(documentStats.redactions)} />
+	              <Metric label="주입 격리" value={String(documentStats.promptRisks)} />
             </div>
 
             {documents.length > 0 ? (
@@ -1404,6 +1406,9 @@ export default function Home() {
                       <div className="securityLine">
 	                        <span>팀: {selectedDocument.teamSlug ?? "public"}</span>
 	                        <span>마스킹: {getRedactionCount(selectedDocument)}</span>
+	                        <span className={hasPromptInjectionRisk(selectedDocument) ? "securityWarn" : ""}>
+	                          프롬프트 주입: {formatPromptInjectionRisk(selectedDocument)}
+	                        </span>
 	                        <span>해시: {selectedDocument.contentHash.slice(0, 10)}</span>
                       </div>
                       {documentVersionHistory?.document.id === selectedDocument.id ? (
@@ -2049,4 +2054,16 @@ function formatReviewReasonCode(code: AskResponse["reviewReasons"][number]["code
 
 function getRedactionCount(document: DocumentInventoryItem): number {
   return typeof document.metadata.security?.redactionCount === "number" ? document.metadata.security.redactionCount : 0;
+}
+
+function hasPromptInjectionRisk(document: DocumentInventoryItem): boolean {
+  return document.metadata.security?.promptInjectionRisk === true;
+}
+
+function formatPromptInjectionRisk(document: DocumentInventoryItem): string {
+  if (!hasPromptInjectionRisk(document)) {
+    return "정상";
+  }
+  const count = document.metadata.security?.promptInjectionPatternCount ?? document.metadata.security?.promptInjectionPatterns?.length ?? 0;
+  return `격리 ${count}개`;
 }

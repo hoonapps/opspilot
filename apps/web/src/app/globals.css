@@ -1603,7 +1603,7 @@ pre {
 
 .securityLine {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
@@ -1616,6 +1616,10 @@ pre {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.securityLine .securityWarn {
+  color: #b45309;
 }
 
 .chunkList {

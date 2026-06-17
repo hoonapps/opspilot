@@ -21,6 +21,7 @@
     "permission:smoke": "pnpm --filter @opspilot/api permission:smoke",
     "authn:smoke": "pnpm --filter @opspilot/api authn:smoke",
     "redaction:smoke": "pnpm --filter @opspilot/api redaction:smoke",
+    "prompt-injection:smoke": "pnpm --filter @opspilot/api prompt-injection:smoke",
     "readiness:smoke": "pnpm --filter @opspilot/api readiness:smoke",
     "agreement:smoke": "pnpm --filter @opspilot/api agreement:smoke",
     "queue:smoke": "pnpm --filter @opspilot/api queue:smoke",

@@ -58,6 +58,7 @@ async function main() {
     await page.locator(".documentList").getByText("public/status-page-policy.md", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".chunkItem span").getByText("고객 공지 SLA", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".securityLine").getByText("해시:", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("출처 적중", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -79,6 +80,7 @@ async function main() {
       .first()
       .isVisible();
     const securitySummaryVisible = await page.locator(".securityLine").getByText("마스킹:", { exact: false }).isVisible();
+    const promptInjectionSummaryVisible = await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).isVisible();
     const indexProofVisible = await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).isVisible();
     const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("출처 적중", { exact: true }).isVisible();
     const versionHistoryVisible = await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).isVisible();
@@ -242,6 +244,7 @@ async function main() {
         inventoryVisible &&
         chunkPreviewVisible &&
         securitySummaryVisible &&
+        promptInjectionSummaryVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
         versionHistoryVisible &&
@@ -288,6 +291,7 @@ async function main() {
         inventoryVisible,
         chunkPreviewVisible,
         securitySummaryVisible,
+        promptInjectionSummaryVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
         versionHistoryVisible,

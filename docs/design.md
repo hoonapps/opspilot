@@ -28,6 +28,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Render SLO guardrails in the Quality screen so answer grounding, review load, tool audit coverage, and eval gate state are visible as operating objectives.
 - Make permission boundaries visible through denied candidate counts and review reasons.
 - Show retrieval score breakdown before answer generation so vector, lexical, and permission behavior can be inspected without creating an answer record.
+- Show document security metadata, including redaction and prompt-injection isolation state, in the Documents screen.
 - Keep sensitive actions separate from automatic answers through the approval queue.
 - Expose evaluation metrics, previous-run regression deltas, and case-level expected-vs-actual source comparison in the same surface used for demos.
 - Keep document upsert, GitHub sync, permission boundary matrix, version diff, index inventory, and chunk previews in a dedicated Documents screen so re-indexing, document changes, and access policy can be demonstrated live without hiding the controls below the answer workflow.

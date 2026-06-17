@@ -40,6 +40,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can document versions and diffs prove what changed before retrieval behavior changes?
 - Can retrieval ranking be debugged before answer generation?
 - Can retrieval quality be measured and debugged against expected source documents case by case?
+- Can prompt-injection text inside uploaded Markdown be detected and kept out of answer context?
 - Can answer quality and review load be expressed as SLOs with error-budget style status?
 - Can a single answer produce a proof packet that summarizes grounding, policy, tool audit, approval boundary, and feedback evidence?
 
@@ -184,6 +185,12 @@ Verify that Markdown ingestion redacts secrets before storage, indexing, answers
 
 ```bash
 pnpm redaction:smoke
+```
+
+Verify that prompt-injection text inside indexed Markdown is tagged and excluded from retrieval context:
+
+```bash
+pnpm prompt-injection:smoke
 ```
 
 Verify production readiness checks for PostgreSQL, Redis, and optional Elasticsearch:
@@ -347,6 +354,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - BullMQ queued Markdown indexing API and worker
 - Optional signed actor token authentication boundary
 - Markdown secret redaction before document version storage, chunk storage, embedding, and Elasticsearch indexing
+- Markdown prompt-injection scan before retrieval context construction
 - Liveness and readiness endpoints for PostgreSQL, Redis, and optional Elasticsearch
 - Permission-aware retrieval filtering
 - Permission boundary matrix API for simulating document access across anonymous, team, ops admin, and security admin personas
@@ -397,6 +405,7 @@ Done:
 - Permission boundary smoke test and web audit summary
 - Signed actor token smoke test for missing, tampered, expired, and valid tokens
 - Secret redaction smoke test proving raw tokens do not appear in stored chunks, document versions, answers, or answer trace previews
+- Prompt-injection guardrail smoke test proving malicious document instructions are tagged and excluded from retrieval, answers, and trace previews
 - Readiness smoke test for PostgreSQL, Redis, and optional Elasticsearch state
 - Per-answer document agreement score in `/ask`, answer metadata, the web console, and CI smoke tests
 - Per-answer context package in answer metadata and trace UI for prompt budget debugging
@@ -426,8 +435,8 @@ Done:
 - Knowledge freshness smoke test proving document changes make the latest evaluation stale until the suite is rerun
 - Release gate smoke test proving deploy-style readiness evidence
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Korean Next.js web console and Playwright smoke test with screen navigation, in-app usage guide, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, release gate, SLO guardrails, answer-level document match, replay drift, context budget, source grounding coverage, answer proof packet, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, Docker image build, production compose smoke, eval, evaluation history, release gate, observability SLOs, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, answer replay drift, and browser smoke gates
+- Korean Next.js web console and Playwright smoke test with screen navigation, in-app usage guide, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, prompt-injection guardrail metadata, evaluation metrics, eval regression history, eval case explorer, operational telemetry, release gate, SLO guardrails, answer-level document match, replay drift, context budget, source grounding coverage, answer proof packet, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
+- GitHub Actions CI for build, Docker image build, production compose smoke, eval, evaluation history, release gate, observability SLOs, permission boundary, signed actor token auth, secret redaction, prompt-injection guardrail, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, answer replay drift, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
 
@@ -543,7 +552,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, knowledge freshness smoke, observability SLO smoke, release gate smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, answer replay drift smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, release gate, eval freshness, SLO guardrails, answer-level document match, replay drift, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, knowledge freshness smoke, observability SLO smoke, release gate smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, prompt-injection guardrail smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, answer replay drift smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, release gate, eval freshness, SLO guardrails, answer-level document match, replay drift, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

@@ -4,6 +4,13 @@ export type RedactionResult = {
   content: string;
   redactionCount: number;
   patterns: string[];
+  promptInjection: PromptInjectionScan;
+};
+
+export type PromptInjectionScan = {
+  risk: boolean;
+  patternCount: number;
+  patterns: string[];
 };
 
 type RedactionPattern = {
@@ -32,7 +39,8 @@ export class RedactionService {
     return {
       content: redacted,
       redactionCount,
-      patterns: [...patterns].sort()
+      patterns: [...patterns].sort(),
+      promptInjection: scanPromptInjection(redacted)
     };
   }
 }
@@ -65,3 +73,21 @@ const REDACTION_PATTERNS: RedactionPattern[] = [
     replace: (_match, key: string) => `${key}=${SECRET_PLACEHOLDER}`
   }
 ];
+
+const PROMPT_INJECTION_PATTERNS: Array<{ name: string; regex: RegExp }> = [
+  { name: "ignore_previous_instructions", regex: /\b(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\s+instructions\b/i },
+  { name: "system_prompt_exfiltration", regex: /\b(system|developer)\s+prompt\b.*\b(show|print|reveal|exfiltrate|leak)\b/i },
+  { name: "instruction_hierarchy_override", regex: /\b(act as|you are now|new instructions?|highest priority)\b/i },
+  { name: "korean_ignore_instructions", regex: /(이전|위의|기존)\s*(지시|명령|프롬프트)\s*(무시|잊어|삭제)/u },
+  { name: "korean_prompt_exfiltration", regex: /(시스템|개발자)\s*(프롬프트|지시)\s*(출력|공개|노출|유출)/u }
+];
+
+function scanPromptInjection(content: string): PromptInjectionScan {
+  const patterns = PROMPT_INJECTION_PATTERNS.filter((pattern) => pattern.regex.test(content)).map((pattern) => pattern.name);
+
+  return {
+    risk: patterns.length > 0,
+    patternCount: patterns.length,
+    patterns: [...new Set(patterns)].sort()
+  };
+}

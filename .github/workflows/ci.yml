@@ -116,6 +116,9 @@ jobs:
       - name: Secret redaction smoke
         run: pnpm redaction:smoke
 
+      - name: Prompt injection guardrail smoke
+        run: pnpm prompt-injection:smoke
+
       - name: Readiness smoke
         run: pnpm readiness:smoke
 

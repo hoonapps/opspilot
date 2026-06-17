@@ -317,7 +317,10 @@ export class DocumentsService {
           ...parsed.metadata,
           security: {
             redactionCount: redacted.redactionCount,
-            redactionPatterns: redacted.patterns
+            redactionPatterns: redacted.patterns,
+            promptInjectionRisk: redacted.promptInjection.risk,
+            promptInjectionPatternCount: redacted.promptInjection.patternCount,
+            promptInjectionPatterns: redacted.promptInjection.patterns
           }
         }),
         contentHash
@@ -360,7 +363,15 @@ export class DocumentsService {
           chunk.index,
           chunk.content,
           embedding,
-          JSON.stringify({ heading: chunk.heading, title: parsed.metadata.title, path })
+          JSON.stringify({
+            heading: chunk.heading,
+            title: parsed.metadata.title,
+            path,
+            security: {
+              promptInjectionRisk: redacted.promptInjection.risk,
+              promptInjectionPatterns: redacted.promptInjection.patterns
+            }
+          })
         ]
       );
       await this.elasticsearch.indexChunk({

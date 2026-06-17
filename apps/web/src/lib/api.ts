@@ -85,6 +85,9 @@ export type DocumentInventoryItem = {
     security?: {
       redactionCount?: number;
       redactionPatterns?: string[];
+      promptInjectionRisk?: boolean;
+      promptInjectionPatternCount?: number;
+      promptInjectionPatterns?: string[];
     };
     tags?: string[];
     [key: string]: unknown;
