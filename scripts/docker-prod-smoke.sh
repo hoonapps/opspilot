@@ -62,6 +62,6 @@ curl -fsS \
 grep -q '"sources"' "$response_file"
 grep -q 'Payment API Error Codes' "$response_file"
 
-curl -fsS "http://localhost:${WEB_PORT}" | grep -q "OpsPilot Console"
+curl -fsS "http://localhost:${WEB_PORT}" | grep -q "OpsPilot 콘솔"
 
 echo "Production compose smoke passed on API ${API_PORT} and web ${WEB_PORT}."
