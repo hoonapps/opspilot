@@ -733,6 +733,24 @@ export default function Home() {
                         </div>
                         <span>{formatPercent(source.coverageRatio)}</span>
 	                        <code>{source.matchedTokens.length > 0 ? source.matchedTokens.join(" ") : "겹치는 토큰 없음"}</code>
+                        <div className="evidenceSnippetList">
+                          {source.evidenceSnippets.length > 0 ? (
+                            source.evidenceSnippets.map((snippet, index) => (
+                              <blockquote key={`${source.rank}-snippet-${index}`}>
+                                {snippet.text}
+                                <small>
+                                  매칭 {snippet.matchedTokenCount}개 ·{" "}
+                                  {snippet.matchedTokens.length > 0 ? snippet.matchedTokens.join(" ") : "토큰 없음"}
+                                </small>
+                              </blockquote>
+                            ))
+                          ) : (
+                            <blockquote>
+                              근거 문장 추출 없음
+                              <small>매칭 토큰 부족</small>
+                            </blockquote>
+                          )}
+                        </div>
                       </article>
                     ))}
                   </div>

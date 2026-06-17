@@ -49,12 +49,12 @@ POST /retrieval/preview
 
 ## 답변 증거
 
-- `GET /answers/:id/trace`: 저장된 답변의 timeline, source, grounding, context budget, 도구 호출, approval, feedback을 복원합니다.
+- `GET /answers/:id/trace`: 저장된 답변의 timeline, source, grounding, 근거 스니펫, context budget, 도구 호출, approval, feedback을 복원합니다.
 - `GET /answers/:id/proof`: trace를 운영자용 pass/warn/fail checklist로 요약합니다.
 - `GET /answers/:id/replay`: 현재 문서 기준으로 이전 답변의 source drift를 확인합니다.
 - `GET /answers/:id/evidence-bundle`: trace, proof, replay를 하나로 묶고 actor 권한 재검사와 SHA-256 무결성 해시를 함께 반환합니다.
 
-면접 데모에서는 민감 작업 질문을 한 뒤 evidence bundle을 보여주면 좋습니다. 한 응답 안에서 “어떤 문서가 근거였는지”, “어떤 tool이 호출됐는지”, “사람 승인이 왜 필요했는지”, “현재 문서와 여전히 일치하는지”, “호출자가 같은 출처를 볼 권한이 있는지”를 모두 설명할 수 있습니다.
+면접 데모에서는 민감 작업 질문을 한 뒤 evidence bundle을 보여주면 좋습니다. 한 응답 안에서 “어떤 문서가 근거였는지”, “출처 문서의 어떤 문장이 답변 토큰을 지지하는지”, “어떤 tool이 호출됐는지”, “사람 승인이 왜 필요했는지”, “현재 문서와 여전히 일치하는지”, “호출자가 같은 출처를 볼 권한이 있는지”를 모두 설명할 수 있습니다.
 
 ## Guardrail
 

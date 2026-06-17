@@ -34,6 +34,11 @@ export type AnswerTrace = {
       matchedTokenCount: number;
       answerTokenCount: number;
       matchedTokens: string[];
+      evidenceSnippets: Array<{
+        text: string;
+        matchedTokenCount: number;
+        matchedTokens: string[];
+      }>;
     }>;
   };
   contextPackage: {
@@ -608,8 +613,10 @@ function buildGrounding(answerText: string, sources: SourceTraceRow[]): AnswerTr
   const sourceMatches = sources.map((source) => {
     const sourceTokens = new Set(tokenizeForAgreement(source.content));
     const matchedTokens = answerTokens.filter((token) => sourceTokens.has(token));
+    const evidenceSnippets = extractEvidenceSnippets(source.content, answerTokens);
     return {
       matchedTokens,
+      evidenceSnippets,
       rank: source.rank,
       path: source.path,
       title: source.title,
@@ -632,9 +639,41 @@ function buildGrounding(answerText: string, sources: SourceTraceRow[]): AnswerTr
       coverageRatio: source.coverageRatio,
       matchedTokenCount: source.matchedTokenCount,
       answerTokenCount: source.answerTokenCount,
-      matchedTokens: source.matchedTokens.slice(0, 12)
+      matchedTokens: source.matchedTokens.slice(0, 12),
+      evidenceSnippets: source.evidenceSnippets
     }))
   };
+}
+
+function extractEvidenceSnippets(
+  content: string,
+  answerTokens: string[]
+): AnswerTrace["grounding"]["sources"][number]["evidenceSnippets"] {
+  const answerTokenSet = new Set(answerTokens);
+  return splitEvidenceUnits(content)
+    .map((text) => {
+      const tokens = [...new Set(tokenizeForAgreement(text))].filter((token) => answerTokenSet.has(token));
+      return {
+        text: compactEvidenceText(text),
+        matchedTokenCount: tokens.length,
+        matchedTokens: tokens.slice(0, 8)
+      };
+    })
+    .filter((snippet) => snippet.matchedTokenCount > 0)
+    .sort((a, b) => b.matchedTokenCount - a.matchedTokenCount || b.text.length - a.text.length)
+    .slice(0, 2);
+}
+
+function splitEvidenceUnits(content: string): string[] {
+  return content
+    .split(/\n+|(?<=[.!?。])\s+/u)
+    .map((line) => line.replace(/^#+\s*/u, "").replace(/^[-*]\s*/u, "").trim())
+    .filter((line) => line.length >= 12);
+}
+
+function compactEvidenceText(text: string): string {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > 220 ? `${compact.slice(0, 217)}...` : compact;
 }
 
 function ratio(numerator: number, denominator: number): number {
@@ -653,6 +692,7 @@ function buildProofChecks(
   const reviewReasons = readReviewReasonCodes(trace.answer.metadata.reviewReasons);
   const needsSensitiveApproval = trace.summary.needsHumanReview || reviewReasons.includes("sensitive_action");
   const contextWithinBudget = trace.contextPackage.estimatedTokenCount <= trace.contextPackage.tokenBudget;
+  const evidenceSnippetCount = trace.grounding.sources.reduce((total, source) => total + source.evidenceSnippets.length, 0);
 
   return [
     {
@@ -685,6 +725,15 @@ function buildProofChecks(
       evidence: `${trace.grounding.coveredAnswerTokenCount}/${trace.grounding.answerTokenCount} answer tokens overlap retrieved sources.`,
       metric: trace.grounding.coverageRatio,
       threshold: thresholds.minGroundingCoverage
+    },
+    {
+      id: "evidence_snippets",
+      label: "Evidence snippets",
+      status: evidenceSnippetCount > 0 ? "pass" : "fail",
+      evidence:
+        evidenceSnippetCount > 0
+          ? `${evidenceSnippetCount} source snippets explain which document sentences support the answer.`
+          : "No supporting source snippets were extracted for this answer."
     },
     {
       id: "search_tool_audited",

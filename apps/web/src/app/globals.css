@@ -863,6 +863,31 @@ pre {
   font-weight: 900;
 }
 
+.evidenceSnippetList {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+}
+
+.evidenceSnippetList blockquote {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 9px 10px;
+  border-left: 3px solid #0f766e;
+  border-radius: 0 8px 8px 0;
+  background: #f8fffd;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.evidenceSnippetList small {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .contextPanel {
   display: grid;
   gap: 9px;

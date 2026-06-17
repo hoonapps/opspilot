@@ -447,6 +447,11 @@ export type AnswerTrace = {
       matchedTokenCount: number;
       answerTokenCount: number;
       matchedTokens: string[];
+      evidenceSnippets: Array<{
+        text: string;
+        matchedTokenCount: number;
+        matchedTokens: string[];
+      }>;
     }>;
   };
   contextPackage: {

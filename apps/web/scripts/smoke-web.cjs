@@ -13,6 +13,11 @@ const retrievalScreenshotPath = process.env.RETRIEVAL_SCREENSHOT_PATH
     ? process.env.RETRIEVAL_SCREENSHOT_PATH
     : join(repoRoot, process.env.RETRIEVAL_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-retrieval-lab.png");
+const groundingScreenshotPath = process.env.GROUNDING_SCREENSHOT_PATH
+  ? isAbsolute(process.env.GROUNDING_SCREENSHOT_PATH)
+    ? process.env.GROUNDING_SCREENSHOT_PATH
+    : join(repoRoot, process.env.GROUNDING_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-answer-grounding.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -175,6 +180,9 @@ async function main() {
     await page.locator(".tracePanel").getByText("커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".groundingPanel").getByText("근거 커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".groundingPanel").getByText("source_token_overlap_v1", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evidenceSnippetList").getByText("매칭", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".groundingPanel").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: groundingScreenshotPath, fullPage: false });
     await page.locator(".tracePanel").getByText("컨텍스트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextPanel").getByText("컨텍스트 예산", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextPanel").getByText("ranked_context_budget_v1", { exact: true }).waitFor({ timeout: 10000 });
@@ -203,6 +211,7 @@ async function main() {
     const traceVisible = await page.locator(".tracePanel").getByText("추적 새로고침", { exact: true }).isVisible();
     const traceTimelineVisible = await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).isVisible();
     const groundingVisible = await page.locator(".groundingPanel").getByText("근거 커버리지", { exact: true }).isVisible();
+    const evidenceSnippetVisible = await page.locator(".evidenceSnippetList").getByText("매칭", { exact: false }).first().isVisible();
     const contextPackageVisible = await page.locator(".contextPanel").getByText("컨텍스트 예산", { exact: true }).isVisible();
     const proofPacketVisible =
       (await page.locator(".proofPanel").getByText("증명 패킷", { exact: true }).isVisible()) &&
@@ -338,6 +347,7 @@ async function main() {
         traceVisible &&
         traceTimelineVisible &&
         groundingVisible &&
+        evidenceSnippetVisible &&
         contextPackageVisible &&
         proofPacketVisible &&
         replayDriftVisible &&
@@ -353,6 +363,7 @@ async function main() {
       baseUrl,
       screenshotPath,
       retrievalScreenshotPath,
+      groundingScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
@@ -392,6 +403,7 @@ async function main() {
         traceVisible,
         traceTimelineVisible,
         groundingVisible,
+        evidenceSnippetVisible,
         contextPackageVisible,
         proofPacketVisible,
         replayDriftVisible,

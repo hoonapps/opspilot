@@ -10,6 +10,8 @@
 
 ![OpsPilot RAG 검색 실험실](docs/assets/opspilot-retrieval-lab.png)
 
+![OpsPilot 답변 근거 스니펫](docs/assets/opspilot-answer-grounding.png)
+
 ## 핵심 가치
 
 OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
@@ -34,7 +36,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - GitHub Markdown 문서 동기화
 - `/ask` API와 출처 포함 답변
 - 검색 품질 진단, 실행 계획, 점수 격차, 출처 다양성, 컨텍스트 예산 미리보기
-- 답변별 문서 일치율, 출처 근거 커버리지, 증명 패킷
+- 답변별 문서 일치율, 출처 근거 커버리지, 근거 스니펫 매핑, 증명 패킷
 - 답변 추적/증명/재실행/증거 번들 API
 - 역할/팀 기반 문서 권한 필터링과 권한 경계 매트릭스
 - 프롬프트 주입 문서 격리

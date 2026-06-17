@@ -40,6 +40,7 @@ async function main() {
       proofChecks.source_access_rechecked?.status === "pass" &&
       proofChecks.document_agreement?.status === "pass" &&
       proofChecks.grounding_coverage?.status === "pass" &&
+      proofChecks.evidence_snippets?.status === "pass" &&
       proofChecks.search_tool_audited?.status === "pass" &&
       proofChecks.approval_boundary?.status === "pass" &&
       proofChecks.context_budget?.status === "pass" &&
@@ -58,6 +59,9 @@ async function main() {
       trace.grounding.sources.length === trace.sources.length &&
       trace.grounding.coverageRatio >= 0 &&
       trace.grounding.sources.some((source) => source.matchedTokenCount > 0 && source.matchedTokens.length > 0) &&
+      trace.grounding.sources.some((source) =>
+        source.evidenceSnippets.some((snippet) => snippet.text.length > 0 && snippet.matchedTokenCount > 0)
+      ) &&
       trace.contextPackage.method === "ranked_context_budget_v1" &&
       trace.contextPackage.chunks.length === trace.sources.length &&
       trace.contextPackage.includedChunkCount > 0 &&
