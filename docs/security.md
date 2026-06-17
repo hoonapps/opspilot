@@ -66,4 +66,6 @@ Elasticsearch는 recall booster일 뿐 권한 기준이 아닙니다. hybrid 모
 
 ## Trace 보안
 
-`GET /answers/:id/trace`, `proof`, `replay`는 저장된 source에 대해 현재 caller 권한을 다시 확인합니다. 권한 없는 사용자는 trace를 통해 restricted 출처 path나 preview를 추론할 수 없어야 합니다.
+`GET /answers/:id/trace`, `proof`, `replay`, `evidence-bundle`은 저장된 source에 대해 현재 caller 권한을 다시 확인합니다. 권한 없는 사용자는 trace나 증거 bundle을 통해 restricted 출처 path나 preview를 추론할 수 없어야 합니다.
+
+`evidence-bundle`의 SHA-256 해시는 반환된 감사 payload 전체를 대상으로 합니다. 해시는 권한을 우회하는 서명이 아니라, 허용된 caller에게 보여준 trace/proof/replay 증거가 나중에 바뀌지 않았는지 확인하기 위한 무결성 표시입니다.

@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { createHash } from "node:crypto";
 import { AuthzService } from "../authz/authz.service";
 import { RequestContext } from "../shared/request-context";
 import { calculateDocumentAgreement, removeAgreementBoilerplate, tokenizeForAgreement } from "./document-agreement";
@@ -180,6 +181,42 @@ export type AnswerReplay = {
     retrieval: SearchResult["retrieval"];
   }>;
   permissionAudit: PermissionBoundaryAudit;
+};
+
+export type AnswerEvidenceBundle = {
+  schemaVersion: "opspilot.answer_evidence_bundle.v1";
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  actorBoundary: {
+    roles: string[];
+    teamSlugs: string[];
+    sourceAccessRechecked: true;
+  };
+  summary: {
+    proofStatus: AnswerProof["status"];
+    proofScore: number;
+    replayStatus: AnswerReplay["status"];
+    needsHumanReview: boolean;
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    feedbackCount: number;
+    documentAgreementScore: number;
+    groundingCoverageRatio: number;
+    sourceOverlapRatio: number;
+    permissionDeniedCandidates: number;
+  };
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+  artifacts: {
+    trace: AnswerTrace;
+    proof: AnswerProof;
+    replay: AnswerReplay;
+  };
 };
 
 @Injectable()
@@ -458,6 +495,50 @@ export class AnswerTraceService {
       permissionAudit
     };
   }
+
+  async getEvidenceBundle(answerId: string, context: RequestContext): Promise<AnswerEvidenceBundle> {
+    const trace = await this.getTrace(answerId, context);
+    const [proof, replay] = await Promise.all([this.getProof(answerId, context), this.replay(answerId, context)]);
+    const unsigned = {
+      schemaVersion: "opspilot.answer_evidence_bundle.v1" as const,
+      answerId: trace.answer.id,
+      questionId: trace.answer.questionId,
+      generatedAt: new Date().toISOString(),
+      actorBoundary: {
+        roles: context.roles.slice().sort(),
+        teamSlugs: context.teamSlugs.slice().sort(),
+        sourceAccessRechecked: true as const
+      },
+      summary: {
+        proofStatus: proof.status,
+        proofScore: proof.score,
+        replayStatus: replay.status,
+        needsHumanReview: trace.summary.needsHumanReview,
+        sourceCount: trace.summary.sourceCount,
+        toolCallCount: trace.summary.toolCallCount,
+        approvalCount: trace.summary.approvalCount,
+        feedbackCount: trace.summary.feedbackCount,
+        documentAgreementScore: trace.summary.documentAgreementScore,
+        groundingCoverageRatio: trace.grounding.coverageRatio,
+        sourceOverlapRatio: replay.summary.sourceOverlapRatio,
+        permissionDeniedCandidates: replay.summary.permissionDeniedCandidates
+      },
+      artifacts: {
+        trace,
+        proof,
+        replay
+      }
+    };
+
+    return {
+      ...unsigned,
+      integrity: {
+        algorithm: "sha256",
+        canonicalization: "stable_json_v1",
+        hash: sha256StableJson(unsigned)
+      }
+    };
+  }
 }
 
 type AnswerTraceRow = {
@@ -711,6 +792,28 @@ function replayStatus(checks: AnswerReplay["checks"]): AnswerReplay["status"] {
     return "needs_review";
   }
   return "stable";
+}
+
+function sha256StableJson(value: unknown): string {
+  return createHash("sha256").update(stableStringify(value)).digest("hex");
+}
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) {
+    return "\"__undefined__\"";
+  }
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+
+  const object = value as Record<string, unknown>;
+  return `{${Object.keys(object)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(object[key])}`)
+    .join(",")}}`;
 }
 
 function readProofThreshold(name: string, fallback: number): number {

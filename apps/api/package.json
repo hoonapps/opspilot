@@ -28,6 +28,7 @@
     "queue:smoke": "ts-node src/cli/queue-indexing-smoke.ts",
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "trace:smoke": "ts-node src/cli/answer-trace-smoke.ts",
+    "evidence-bundle:smoke": "ts-node src/cli/evidence-bundle-smoke.ts",
     "replay:smoke": "ts-node src/cli/answer-replay-smoke.ts",
     "portfolio:demo": "ts-node src/cli/portfolio-demo.ts",
     "portfolio:report": "ts-node src/cli/portfolio-demo.ts --report ../../docs/demo-report.md",

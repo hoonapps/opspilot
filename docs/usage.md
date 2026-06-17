@@ -169,6 +169,7 @@ pnpm trace:smoke
 - context budget
 - answer proof packet
 - 답변 drift
+- answer evidence bundle
 - review reasons
 - permission audit
 - 도구 호출
@@ -180,9 +181,12 @@ pnpm eval
 pnpm agreement:smoke
 pnpm trace:smoke
 pnpm replay:smoke
+pnpm evidence-bundle:smoke
 ```
 
 `pnpm eval`은 출처 적중, 1순위 출처 accuracy, 사람 검토 accuracy, document agreement, citation accuracy를 threshold와 비교합니다.
+
+웹 콘솔 `질문` 화면에서는 proof packet 아래에 `증거 번들`이 표시됩니다. 이 영역은 trace/proof/replay를 한 번에 묶은 감사용 결과이며, `opspilot.answer_evidence_bundle.v1` schema와 `sha256` 해시를 함께 보여줍니다. 민감 작업 질문을 실행하면 출처 수, 도구 호출 수, 승인 수, 피드백 수, 권한 경계 재검사 결과까지 같이 확인할 수 있습니다.
 
 ## 10. Slack Bot 로컬 검증
 
@@ -244,6 +248,7 @@ pnpm redaction:smoke
 pnpm prompt-injection:smoke
 pnpm rate-limit:smoke
 pnpm release-gate:smoke
+pnpm evidence-bundle:smoke
 pnpm web:smoke
 ```
 
@@ -255,7 +260,8 @@ pnpm web:smoke
 2. 새 문서를 넣으면 바로 chunking과 검색 검증이 된다.
 3. 권한 없는 문서는 프롬프트에 들어가기 전에 제거된다.
 4. 답변은 출처와 문서 일치율을 함께 보여준다.
-5. runbook 질문은 도구 호출로 checklist를 만든다.
-6. 운영 DB 수정 같은 민감 작업은 사람 승인으로 분리된다.
-7. Slack mention도 같은 Agent workflow를 탄다.
+5. 증거 번들은 trace, proof, replay, 권한 재검사, 무결성 해시를 한 번에 묶는다.
+6. runbook 질문은 도구 호출로 checklist를 만든다.
+7. 운영 DB 수정 같은 민감 작업은 사람 승인으로 분리된다.
+8. Slack mention도 같은 Agent workflow를 탄다.
 8. 평가, 답변 drift, 배포 게이트로 운영 품질을 계속 검증한다.

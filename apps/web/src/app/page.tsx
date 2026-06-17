@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import {
   Approval,
+  AnswerEvidenceBundle,
   AnswerProof,
   AnswerReplay,
   AnswerTrace,
@@ -14,6 +15,7 @@ import {
   EvaluationHistory,
   EvaluationReport,
   getAnswerProof,
+  getAnswerEvidenceBundle,
   getAnswerReplay,
   getAnswerTrace,
   getDocumentVersionHistory,
@@ -142,6 +144,7 @@ export default function Home() {
   const [trace, setTrace] = useState<AnswerTrace | null>(null);
   const [proof, setProof] = useState<AnswerProof | null>(null);
   const [replay, setReplay] = useState<AnswerReplay | null>(null);
+  const [evidenceBundle, setEvidenceBundle] = useState<AnswerEvidenceBundle | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
@@ -210,11 +213,12 @@ export default function Home() {
     setLoading("ask");
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
-      const [nextTrace, nextProof, nextReplay] = await fetchAnswerEvidence(nextAnswer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle] = await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
+      setEvidenceBundle(nextEvidenceBundle);
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "질문 요청에 실패했습니다.");
@@ -247,10 +251,11 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`피드백 저장됨 (${feedback.rating > 0 ? "도움됨" : "개선 필요"})`);
       setFeedbackComment("");
-      const [nextTrace, nextProof, nextReplay] = await fetchAnswerEvidence(answer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle] = await fetchAnswerEvidence(answer.answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
+      setEvidenceBundle(nextEvidenceBundle);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "피드백 요청에 실패했습니다.");
     } finally {
@@ -480,10 +485,11 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      const [nextTrace, nextProof, nextReplay] = await fetchAnswerEvidence(answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle] = await fetchAnswerEvidence(answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
+      setEvidenceBundle(nextEvidenceBundle);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "답변 추적 요청에 실패했습니다.");
     } finally {
@@ -491,11 +497,12 @@ export default function Home() {
     }
   }
 
-  async function fetchAnswerEvidence(answerId: string): Promise<[AnswerTrace, AnswerProof, AnswerReplay]> {
+  async function fetchAnswerEvidence(answerId: string): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle]> {
     return Promise.all([
       getAnswerTrace({ answerId, teamSlugs, roles }),
       getAnswerProof({ answerId, teamSlugs, roles }),
-      getAnswerReplay({ answerId, teamSlugs, roles })
+      getAnswerReplay({ answerId, teamSlugs, roles }),
+      getAnswerEvidenceBundle({ answerId, teamSlugs, roles })
     ]);
   }
 
@@ -607,6 +614,7 @@ export default function Home() {
 	                  <code>pnpm eval</code>
 	                  <code>pnpm freshness:smoke</code>
 	                  <code>pnpm release-gate:smoke</code>
+	                  <code>pnpm evidence-bundle:smoke</code>
 	                  <code>품질 화면 → 평가 불러오기 · 운영 지표 불러오기</code>
 	                </div>
 	              </article>
@@ -624,7 +632,7 @@ export default function Home() {
 	            <div className="usageChecklist">
 	              <div>
 	                <strong>데모에서 보여줄 핵심 증거</strong>
-	                <p>문서 출처, 문서 일치율, 답변 drift, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트 상태를 순서대로 보여주면 됩니다.</p>
+	                <p>문서 출처, 문서 일치율, 답변 drift, 증거 번들 해시, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트 상태를 순서대로 보여주면 됩니다.</p>
 	              </div>
 	              <div>
 	                <strong>문서를 어디서 관리하나?</strong>
@@ -636,7 +644,7 @@ export default function Home() {
 	              </div>
 	              <div>
 	                <strong>문서 일치율은 어디서 보나?</strong>
-	                <p>`질문` 화면 답변 상단, trace, proof packet, `품질` 화면 평가 metric에서 답변과 근거 문서의 일치율을 확인합니다.</p>
+	                <p>`질문` 화면 답변 상단, trace, proof packet, 증거 번들, `품질` 화면 평가 metric에서 답변과 근거 문서의 일치율을 확인합니다.</p>
 	              </div>
 	            </div>
 	          </section>
@@ -864,6 +872,37 @@ export default function Home() {
 	                          <code>{formatProofMetric(check)}</code>
 	                        </article>
 	                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {evidenceBundle ? (
+                  <div className="proofPanel" aria-label="answer evidence bundle">
+                    <div className="proofHeader">
+                      <div>
+	                        <span>증거 번들</span>
+	                        <strong>{evidenceBundle.schemaVersion}</strong>
+                      </div>
+	                      <code>{evidenceBundle.integrity.algorithm}:{shortHash(evidenceBundle.integrity.hash)}</code>
+                    </div>
+                    <div className="replaySummary">
+                      <div>
+	                        <span>증명</span>
+	                        <strong>{formatProofStatus(evidenceBundle.summary.proofStatus)}</strong>
+                      </div>
+                      <div>
+                        <span>재실행</span>
+                        <strong>{formatReplayStatus(evidenceBundle.summary.replayStatus)}</strong>
+                      </div>
+                      <div>
+	                        <span>권한 재검사</span>
+	                        <strong>{evidenceBundle.actorBoundary.sourceAccessRechecked ? "완료" : "미확인"}</strong>
+                      </div>
+                    </div>
+                    <div className="proofEvidence">
+	                      <span>출처 {evidenceBundle.summary.sourceCount}</span>
+	                      <span>도구 {evidenceBundle.summary.toolCallCount}</span>
+	                      <span>승인 {evidenceBundle.summary.approvalCount}</span>
+	                      <span>피드백 {evidenceBundle.summary.feedbackCount}</span>
                     </div>
                   </div>
                 ) : null}
@@ -1706,6 +1745,10 @@ function formatShortDate(value: string): string {
 
 function shortId(value: string): string {
   return value.slice(0, 8);
+}
+
+function shortHash(value: string): string {
+  return `${value.slice(0, 10)}...${value.slice(-6)}`;
 }
 
 function formatDeltaPercent(value: number | null | undefined): string {

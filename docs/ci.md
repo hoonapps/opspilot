@@ -32,6 +32,7 @@ OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 - review workflow smoke
 - 답변 trace/proof smoke
 - answer 답변 drift smoke
+- answer evidence bundle smoke
 - portfolio demo/report
 - OpenAPI contract smoke
 - Playwright web smoke

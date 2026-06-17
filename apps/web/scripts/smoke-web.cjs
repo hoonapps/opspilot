@@ -142,6 +142,16 @@ async function main() {
     await page.locator(".replayPanel").getByText("답변 Drift", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".replayPanel").getByText("현재 문서 일치율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".replayPanel").getByText("권한 경계 재실행", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator("[aria-label='answer evidence bundle']").getByText("증거 번들", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page
+      .locator("[aria-label='answer evidence bundle']")
+      .getByText("opspilot.answer_evidence_bundle.v1", { exact: true })
+      .waitFor({ timeout: 10000 });
+    await page.locator("[aria-label='answer evidence bundle']").getByText("sha256:", { exact: false }).waitFor({
+      timeout: 10000
+    });
     await page.locator(".traceTimeline").getByText("질문 저장", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
@@ -160,6 +170,13 @@ async function main() {
       (await page.locator(".replayPanel").getByText("답변 Drift", { exact: true }).isVisible()) &&
       (await page.locator(".replayPanel").getByText("현재 문서 일치율", { exact: true }).isVisible()) &&
       (await page.locator(".replayPanel").getByText("권한 경계 재실행", { exact: true }).isVisible());
+    const evidenceBundleVisible =
+      (await page.locator("[aria-label='answer evidence bundle']").getByText("증거 번들", { exact: true }).isVisible()) &&
+      (await page
+        .locator("[aria-label='answer evidence bundle']")
+        .getByText("opspilot.answer_evidence_bundle.v1", { exact: true })
+        .isVisible()) &&
+      (await page.locator("[aria-label='answer evidence bundle']").getByText("sha256:", { exact: false }).isVisible());
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
@@ -228,7 +245,7 @@ async function main() {
       observabilityText.includes("피드백");
 
     await page.getByRole("button", { name: "질문 운영 문서에 질문하기" }).click();
-    await page.locator(".proofPanel").scrollIntoViewIfNeeded();
+    await page.locator("[aria-label='answer evidence bundle']").scrollIntoViewIfNeeded();
     await page.screenshot({ path: screenshotPath, fullPage: false });
 
     const report = {
@@ -270,6 +287,7 @@ async function main() {
         contextPackageVisible &&
         proofPacketVisible &&
         replayDriftVisible &&
+        evidenceBundleVisible &&
         toolRegistryVisible &&
         toolRegistryApprovalVisible &&
         slackProofVisible &&
@@ -317,6 +335,7 @@ async function main() {
         contextPackageVisible,
         proofPacketVisible,
         replayDriftVisible,
+        evidenceBundleVisible,
         toolRegistryVisible,
         toolRegistryApprovalVisible,
         slackProofVisible,

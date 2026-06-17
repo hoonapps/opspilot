@@ -22,4 +22,9 @@ export class AnswerTraceController {
   replay(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.answerTraceService.replay(id, parseRequestContext(headers));
   }
+
+  @Get(":id/evidence-bundle")
+  evidenceBundle(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.answerTraceService.getEvidenceBundle(id, parseRequestContext(headers));
+  }
 }

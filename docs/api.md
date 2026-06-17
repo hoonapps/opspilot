@@ -25,6 +25,7 @@ GET /docs-json
 - `GET /answers/{id}/trace`: 답변 실행 trace 복원
 - `GET /answers/{id}/proof`: 답변 증거 packet
 - `GET /answers/{id}/replay`: 현재 문서 기준 답변 drift 확인
+- `GET /answers/{id}/evidence-bundle`: trace, proof, replay, 권한 재검사, SHA-256 무결성 해시를 묶은 감사용 증거 bundle
 - `GET /tool-calls/registry`: Agent 도구 계약 확인
 - `GET /tool-calls/recent`: 최근 도구 호출 감사 로그
 - `GET /approvals`: 승인 대기열
@@ -45,3 +46,19 @@ pnpm openapi:smoke
 ```
 
 이 명령은 포트폴리오 핵심 API와 request schema, `x-opspilot-actor-token` security scheme이 OpenAPI 문서에 남아 있는지 검증합니다. 기능이 커져도 공개 API가 조용히 깨지지 않게 하는 장치입니다.
+
+## 답변 증거 번들
+
+```txt
+GET /answers/{id}/evidence-bundle
+```
+
+응답은 `opspilot.answer_evidence_bundle.v1` schema를 사용합니다. bundle에는 원본 trace, proof checklist, 현재 문서 기준 replay 결과, actor role/team 경계, source access recheck 여부, 문서 일치율, grounding coverage, tool/approval/feedback count가 들어갑니다.
+
+`integrity.hash`는 반환된 bundle payload를 안정 JSON으로 정규화한 뒤 SHA-256으로 계산합니다. 이 값은 “이 화면에서 보여준 감사 증거가 나중에 조용히 바뀌지 않았는지” 확인하기 위한 포트폴리오용 증거입니다.
+
+검증:
+
+```bash
+pnpm evidence-bundle:smoke
+```

@@ -487,6 +487,42 @@ export type AnswerReplay = {
   permissionAudit: AskResponse["permissionAudit"];
 };
 
+export type AnswerEvidenceBundle = {
+  schemaVersion: "opspilot.answer_evidence_bundle.v1";
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  actorBoundary: {
+    roles: string[];
+    teamSlugs: string[];
+    sourceAccessRechecked: true;
+  };
+  summary: {
+    proofStatus: AnswerProof["status"];
+    proofScore: number;
+    replayStatus: AnswerReplay["status"];
+    needsHumanReview: boolean;
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    feedbackCount: number;
+    documentAgreementScore: number;
+    groundingCoverageRatio: number;
+    sourceOverlapRatio: number;
+    permissionDeniedCandidates: number;
+  };
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+  artifacts: {
+    trace: AnswerTrace;
+    proof: AnswerProof;
+    replay: AnswerReplay;
+  };
+};
+
 export type ObservabilitySummary = {
   generatedAt: string;
   questions: {
@@ -864,4 +900,24 @@ export async function getAnswerReplay(input: { answerId: string; teamSlugs: stri
   }
 
   return response.json() as Promise<AnswerReplay>;
+}
+
+export async function getAnswerEvidenceBundle(input: {
+  answerId: string;
+  teamSlugs: string;
+  roles: string;
+}): Promise<AnswerEvidenceBundle> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/evidence-bundle`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerEvidenceBundle>;
 }

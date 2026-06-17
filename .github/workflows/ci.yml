@@ -143,6 +143,9 @@ jobs:
       - name: Answer trace smoke
         run: pnpm trace:smoke
 
+      - name: Answer evidence bundle smoke
+        run: pnpm evidence-bundle:smoke
+
       - name: Answer replay drift smoke
         run: pnpm replay:smoke
 
