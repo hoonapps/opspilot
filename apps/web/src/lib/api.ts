@@ -174,6 +174,66 @@ export type DocumentVersionDiff = {
   removedPreview: string[];
 };
 
+export type DocumentIndexQualityReport = {
+  generatedAt: string;
+  status: "healthy" | "warning" | "critical";
+  score: number;
+  summary: {
+    totalDocuments: number;
+    totalChunks: number;
+    avgChunksPerDocument: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    minChunkLength: number;
+    publicDocuments: number;
+    teamDocuments: number;
+    restrictedDocuments: number;
+    redactionCount: number;
+    promptInjectionRiskCount: number;
+    missingChunkDocuments: number;
+    oversizedChunkCount: number;
+    emptyChunkCount: number;
+    unversionedDocuments: number;
+  };
+  gates: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    message: string;
+  }>;
+  documents: Array<{
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    updatedAt: string;
+    contentHash: string;
+    chunkCount: number;
+    latestVersion: number;
+    contentLength: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    minChunkLength: number;
+    emptyChunkCount: number;
+    oversizedChunkCount: number;
+    tinyChunkCount: number;
+    headingCoverageRatio: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+    promptInjectionPatternCount: number;
+    checks: Array<{
+      id: string;
+      label: string;
+      status: "pass" | "warn" | "fail";
+      message: string;
+    }>;
+    recommendations: string[];
+  }>;
+};
+
 export type RetrievalPreviewResponse = {
   query: string;
   limit: number;
@@ -941,6 +1001,16 @@ export async function getDocumentVersionHistory(documentId: string): Promise<Doc
   }
 
   return response.json() as Promise<DocumentVersionHistory>;
+}
+
+export async function getDocumentIndexQuality(): Promise<DocumentIndexQualityReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/index-quality`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentIndexQualityReport>;
 }
 
 export async function getPermissionBoundaryMatrix(): Promise<PermissionBoundaryMatrix> {

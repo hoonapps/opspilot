@@ -17,6 +17,7 @@ GET /docs-json
 - `POST /ask`: RAG 답변 생성
 - `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
+- `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
 - `POST /documents/github/sync`: GitHub Markdown 동기화
@@ -62,6 +63,24 @@ pnpm openapi:smoke
 - `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
+
+## 색인 품질 리포트
+
+```txt
+GET /documents/index-quality
+```
+
+응답은 전체 지식 베이스가 RAG 검색에 쓸 수 있는 상태인지 서버에서 판정합니다.
+
+- `summary`: 문서 수, 청크 수, 평균 청크 길이, 공개/팀/제한 문서 분포, 마스킹 수, 프롬프트 주입 위험 수
+- `gates`: 문서 존재, 청크 커버리지, 버전 커버리지, 청크 크기, 보안 격리 게이트
+- `documents[]`: 문서별 청크 수, 최신 버전, 본문 길이, 헤딩 커버리지, 보안 상태, 권고 사항
+
+검증:
+
+```bash
+pnpm index-quality:smoke
+```
 
 ## `/ask` 멱등성
 

@@ -47,6 +47,28 @@ type DocumentVersionRow = {
   createdAt: Date | string;
 };
 
+type IndexQualityRow = {
+  id: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+  metadata: Record<string, unknown>;
+  contentHash: string;
+  updatedAt: Date | string;
+  chunkCount: number | string;
+  totalContentLength: number | string;
+  avgChunkLength: number | string | null;
+  maxChunkLength: number | string | null;
+  minChunkLength: number | string | null;
+  headingChunkCount: number | string;
+  emptyChunkCount: number | string;
+  oversizedChunkCount: number | string;
+  tinyChunkCount: number | string;
+  latestVersion: number | string;
+  latestContentLength: number | string;
+};
+
 export type DocumentInventoryItem = {
   id: string;
   path: string;
@@ -97,6 +119,66 @@ export type DocumentVersionDiff = {
   unchangedLineCount: number;
   addedPreview: string[];
   removedPreview: string[];
+};
+
+export type DocumentIndexQualityReport = {
+  generatedAt: string;
+  status: "healthy" | "warning" | "critical";
+  score: number;
+  summary: {
+    totalDocuments: number;
+    totalChunks: number;
+    avgChunksPerDocument: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    minChunkLength: number;
+    publicDocuments: number;
+    teamDocuments: number;
+    restrictedDocuments: number;
+    redactionCount: number;
+    promptInjectionRiskCount: number;
+    missingChunkDocuments: number;
+    oversizedChunkCount: number;
+    emptyChunkCount: number;
+    unversionedDocuments: number;
+  };
+  gates: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    message: string;
+  }>;
+  documents: Array<{
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    updatedAt: string;
+    contentHash: string;
+    chunkCount: number;
+    latestVersion: number;
+    contentLength: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    minChunkLength: number;
+    emptyChunkCount: number;
+    oversizedChunkCount: number;
+    tinyChunkCount: number;
+    headingCoverageRatio: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+    promptInjectionPatternCount: number;
+    checks: Array<{
+      id: string;
+      label: string;
+      status: "pass" | "warn" | "fail";
+      message: string;
+    }>;
+    recommendations: string[];
+  }>;
 };
 
 @Injectable()
@@ -281,6 +363,147 @@ export class DocumentsService {
     };
   }
 
+  async getIndexQualityReport(): Promise<DocumentIndexQualityReport> {
+    const connection = this.orm.em.fork().getConnection();
+    const rows = (await connection.execute<IndexQualityRow[]>(
+      `
+        select
+          d.id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.metadata,
+          d.content_hash as "contentHash",
+          d.updated_at as "updatedAt",
+          count(c.id)::int as "chunkCount",
+          coalesce(sum(char_length(c.content)), 0)::int as "totalContentLength",
+          coalesce(avg(char_length(c.content)), 0)::int as "avgChunkLength",
+          coalesce(max(char_length(c.content)), 0)::int as "maxChunkLength",
+          coalesce(min(char_length(c.content)), 0)::int as "minChunkLength",
+          count(c.id) filter (where coalesce(nullif(c.metadata ->> 'heading', ''), '') <> '')::int as "headingChunkCount",
+          count(c.id) filter (where btrim(c.content) = '')::int as "emptyChunkCount",
+          count(c.id) filter (where char_length(c.content) > 1400)::int as "oversizedChunkCount",
+          count(c.id) filter (where char_length(c.content) < 80)::int as "tinyChunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          coalesce(max(char_length(v.content)) filter (
+            where v.version = (
+              select max(v2.version)
+              from document_versions v2
+              where v2.document_id = d.id
+            )
+          ), 0)::int as "latestContentLength"
+        from documents d
+        left join document_chunks c on c.document_id = d.id
+        left join document_versions v on v.document_id = d.id
+        group by d.id
+        order by d.updated_at desc;
+      `
+    )) as IndexQualityRow[];
+
+    const documents = rows.map((row) => {
+      const chunkCount = Number(row.chunkCount);
+      const avgChunkLength = Number(row.avgChunkLength ?? 0);
+      const maxChunkLength = Number(row.maxChunkLength ?? 0);
+      const minChunkLength = Number(row.minChunkLength ?? 0);
+      const headingChunkCount = Number(row.headingChunkCount);
+      const emptyChunkCount = Number(row.emptyChunkCount);
+      const oversizedChunkCount = Number(row.oversizedChunkCount);
+      const tinyChunkCount = Number(row.tinyChunkCount);
+      const latestVersion = Number(row.latestVersion);
+      const redactionCount = getSecurityNumber(row.metadata, "redactionCount");
+      const promptInjectionRisk = getSecurityBoolean(row.metadata, "promptInjectionRisk");
+      const promptInjectionPatternCount = getSecurityNumber(row.metadata, "promptInjectionPatternCount");
+      const headingCoverageRatio = chunkCount === 0 ? 0 : headingChunkCount / chunkCount;
+      const checks = [
+        buildDocumentCheck(
+          "chunks_present",
+          "청크 생성",
+          chunkCount > 0 ? "pass" : "fail",
+          chunkCount > 0 ? `청크 ${chunkCount}개가 생성됐습니다.` : "검색 가능한 청크가 없습니다."
+        ),
+        buildDocumentCheck(
+          "versioned",
+          "버전 저장",
+          latestVersion > 0 ? "pass" : "fail",
+          latestVersion > 0 ? `최신 버전 v${latestVersion}가 저장됐습니다.` : "문서 변경 이력이 없습니다."
+        ),
+        buildDocumentCheck(
+          "chunk_size",
+          "청크 크기",
+          emptyChunkCount > 0 || oversizedChunkCount > 0 ? "warn" : "pass",
+          emptyChunkCount > 0 || oversizedChunkCount > 0
+            ? `빈 청크 ${emptyChunkCount}개, 과대 청크 ${oversizedChunkCount}개를 확인해야 합니다.`
+            : `평균 ${Math.round(avgChunkLength)}자로 검색 컨텍스트에 적합합니다.`
+        ),
+        buildDocumentCheck(
+          "heading_coverage",
+          "헤딩 보존",
+          chunkCount === 0 ? "fail" : headingCoverageRatio >= 0.5 ? "pass" : "warn",
+          `헤딩이 있는 청크 비율은 ${Math.round(headingCoverageRatio * 100)}%입니다.`
+        ),
+        buildDocumentCheck(
+          "prompt_injection",
+          "프롬프트 주입 격리",
+          promptInjectionRisk ? "warn" : "pass",
+          promptInjectionRisk
+            ? `위험 패턴 ${promptInjectionPatternCount}개가 탐지되어 메타데이터로 격리됐습니다.`
+            : "프롬프트 주입 위험 패턴이 없습니다."
+        )
+      ];
+
+      return {
+        id: row.id,
+        path: row.path,
+        title: row.title,
+        visibility: row.visibility,
+        teamSlug: row.teamSlug,
+        updatedAt: toIsoString(row.updatedAt),
+        contentHash: row.contentHash,
+        chunkCount,
+        latestVersion,
+        contentLength: Number(row.latestContentLength) || Number(row.totalContentLength),
+        avgChunkLength,
+        maxChunkLength,
+        minChunkLength,
+        emptyChunkCount,
+        oversizedChunkCount,
+        tinyChunkCount,
+        headingCoverageRatio,
+        redactionCount,
+        promptInjectionRisk,
+        promptInjectionPatternCount,
+        checks,
+        recommendations: buildIndexRecommendations({
+          chunkCount,
+          avgChunkLength,
+          maxChunkLength,
+          emptyChunkCount,
+          oversizedChunkCount,
+          tinyChunkCount,
+          headingCoverageRatio,
+          latestVersion,
+          promptInjectionRisk
+        })
+      };
+    });
+
+    const summary = buildQualitySummary(documents);
+    const gates = buildQualityGates(summary);
+    const passCount = gates.filter((gate) => gate.status === "pass").length;
+    const score = gates.length === 0 ? 0 : passCount / gates.length;
+    const status = gates.some((gate) => gate.status === "fail") ? "critical" : gates.some((gate) => gate.status === "warn") ? "warning" : "healthy";
+
+    return {
+      generatedAt: new Date().toISOString(),
+      status,
+      score,
+      summary,
+      gates,
+      documents
+    };
+  }
+
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {
     const parsed = parseMarkdownDocument(path, raw);
     const redacted = this.redaction.redactMarkdown(parsed.body);
@@ -399,6 +622,156 @@ export class DocumentsService {
       changed
     };
   }
+}
+
+function buildDocumentCheck(
+  id: string,
+  label: string,
+  status: "pass" | "warn" | "fail",
+  message: string
+): DocumentIndexQualityReport["documents"][number]["checks"][number] {
+  return { id, label, status, message };
+}
+
+function buildIndexRecommendations(input: {
+  chunkCount: number;
+  avgChunkLength: number;
+  maxChunkLength: number;
+  emptyChunkCount: number;
+  oversizedChunkCount: number;
+  tinyChunkCount: number;
+  headingCoverageRatio: number;
+  latestVersion: number;
+  promptInjectionRisk: boolean;
+}): string[] {
+  const recommendations: string[] = [];
+
+  if (input.chunkCount === 0) {
+    recommendations.push("문서를 다시 색인해 검색 가능한 청크를 생성하세요.");
+  }
+  if (input.latestVersion === 0) {
+    recommendations.push("문서 버전 이력이 없으므로 upsert 경로로 재등록하세요.");
+  }
+  if (input.emptyChunkCount > 0) {
+    recommendations.push("빈 청크가 생성되지 않도록 Markdown 공백과 frontmatter를 확인하세요.");
+  }
+  if (input.oversizedChunkCount > 0 || input.maxChunkLength > 1400) {
+    recommendations.push("긴 섹션은 헤딩이나 문단을 나눠 검색 컨텍스트 오염을 줄이세요.");
+  }
+  if (input.tinyChunkCount > 0 && input.avgChunkLength < 220) {
+    recommendations.push("너무 짧은 청크가 많으면 문단을 합쳐 검색 신호를 보강하세요.");
+  }
+  if (input.chunkCount > 0 && input.headingCoverageRatio < 0.5) {
+    recommendations.push("Markdown 헤딩을 추가해 청크의 주제 신호를 명확히 하세요.");
+  }
+  if (input.promptInjectionRisk) {
+    recommendations.push("프롬프트 주입 문구가 있는 문서는 운영 검토 후 공개 범위를 제한하세요.");
+  }
+
+  return recommendations.length > 0 ? recommendations : ["현재 색인 품질이 기준을 충족합니다."];
+}
+
+function buildQualitySummary(
+  documents: DocumentIndexQualityReport["documents"]
+): DocumentIndexQualityReport["summary"] {
+  const totalDocuments = documents.length;
+  const totalChunks = documents.reduce((sum, document) => sum + document.chunkCount, 0);
+  const avgChunkLength = totalChunks === 0
+    ? 0
+    : documents.reduce((sum, document) => sum + document.avgChunkLength * document.chunkCount, 0) / totalChunks;
+
+  return {
+    totalDocuments,
+    totalChunks,
+    avgChunksPerDocument: totalDocuments === 0 ? 0 : totalChunks / totalDocuments,
+    avgChunkLength,
+    maxChunkLength: Math.max(0, ...documents.map((document) => document.maxChunkLength)),
+    minChunkLength: documents.some((document) => document.chunkCount > 0)
+      ? Math.min(...documents.filter((document) => document.chunkCount > 0).map((document) => document.minChunkLength))
+      : 0,
+    publicDocuments: documents.filter((document) => document.visibility === "public").length,
+    teamDocuments: documents.filter((document) => document.visibility === "team").length,
+    restrictedDocuments: documents.filter((document) => document.visibility === "restricted").length,
+    redactionCount: documents.reduce((sum, document) => sum + document.redactionCount, 0),
+    promptInjectionRiskCount: documents.filter((document) => document.promptInjectionRisk).length,
+    missingChunkDocuments: documents.filter((document) => document.chunkCount === 0).length,
+    oversizedChunkCount: documents.reduce((sum, document) => sum + document.oversizedChunkCount, 0),
+    emptyChunkCount: documents.reduce((sum, document) => sum + document.emptyChunkCount, 0),
+    unversionedDocuments: documents.filter((document) => document.latestVersion === 0).length
+  };
+}
+
+function buildQualityGates(summary: DocumentIndexQualityReport["summary"]): DocumentIndexQualityReport["gates"] {
+  return [
+    {
+      id: "documents_present",
+      label: "문서 존재",
+      status: summary.totalDocuments > 0 ? "pass" : "fail",
+      metric: summary.totalDocuments,
+      threshold: 1,
+      message:
+        summary.totalDocuments > 0
+          ? `색인된 문서 ${summary.totalDocuments}개를 확인했습니다.`
+          : "색인된 문서가 없습니다."
+    },
+    {
+      id: "chunk_coverage",
+      label: "청크 커버리지",
+      status: summary.missingChunkDocuments === 0 ? "pass" : "fail",
+      metric: summary.missingChunkDocuments,
+      threshold: 0,
+      message:
+        summary.missingChunkDocuments === 0
+          ? "모든 문서에 검색 가능한 청크가 있습니다."
+          : `청크가 없는 문서 ${summary.missingChunkDocuments}개가 있습니다.`
+    },
+    {
+      id: "version_coverage",
+      label: "버전 커버리지",
+      status: summary.unversionedDocuments === 0 ? "pass" : "fail",
+      metric: summary.unversionedDocuments,
+      threshold: 0,
+      message:
+        summary.unversionedDocuments === 0
+          ? "모든 문서의 버전 이력이 저장됐습니다."
+          : `버전 이력이 없는 문서 ${summary.unversionedDocuments}개가 있습니다.`
+    },
+    {
+      id: "chunk_size",
+      label: "청크 크기",
+      status: summary.avgChunkLength >= 120 && summary.avgChunkLength <= 1200 ? "pass" : "warn",
+      metric: Math.round(summary.avgChunkLength),
+      threshold: 120,
+      message: `평균 청크 길이는 ${Math.round(summary.avgChunkLength)}자입니다.`
+    },
+    {
+      id: "security_isolation",
+      label: "보안 격리",
+      status: summary.promptInjectionRiskCount === 0 ? "pass" : "warn",
+      metric: summary.promptInjectionRiskCount,
+      threshold: 0,
+      message:
+        summary.promptInjectionRiskCount === 0
+          ? "프롬프트 주입 위험 문서가 없습니다."
+          : `프롬프트 주입 위험 문서 ${summary.promptInjectionRiskCount}개가 격리 메타데이터로 표시됐습니다.`
+    }
+  ];
+}
+
+function getSecurityNumber(metadata: Record<string, unknown>, key: string): number {
+  const security = getSecurityMetadata(metadata);
+  const value = security[key];
+  return typeof value === "number" ? value : 0;
+}
+
+function getSecurityBoolean(metadata: Record<string, unknown>, key: string): boolean {
+  const security = getSecurityMetadata(metadata);
+  return security[key] === true;
+}
+
+function getSecurityMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const security = metadata.security;
+  return security && typeof security === "object" && !Array.isArray(security) ? security as Record<string, unknown> : {};
 }
 
 function toIsoString(value: Date | string): string {

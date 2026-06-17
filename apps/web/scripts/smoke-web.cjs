@@ -18,6 +18,11 @@ const groundingScreenshotPath = process.env.GROUNDING_SCREENSHOT_PATH
     ? process.env.GROUNDING_SCREENSHOT_PATH
     : join(repoRoot, process.env.GROUNDING_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-answer-grounding.png");
+const indexQualityScreenshotPath = process.env.INDEX_QUALITY_SCREENSHOT_PATH
+  ? isAbsolute(process.env.INDEX_QUALITY_SCREENSHOT_PATH)
+    ? process.env.INDEX_QUALITY_SCREENSHOT_PATH
+    : join(repoRoot, process.env.INDEX_QUALITY_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-index-quality.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -86,6 +91,14 @@ async function main() {
     await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("출처 적중", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexQualityPanel").getByText("색인 품질 리포트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexQualityPanel").getByText("게이트 통과율", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".qualityGateList").getByText("청크 커버리지", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".qualityDocumentList").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({
+      timeout: 10000
+    });
+    await page.locator(".indexQualityPanel").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: indexQualityScreenshotPath, fullPage: false });
     await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).waitFor({ timeout: 10000 });
     const currentMarkdown = await page.getByLabel("Markdown").inputValue();
@@ -108,6 +121,11 @@ async function main() {
     const promptInjectionSummaryVisible = await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).isVisible();
     const indexProofVisible = await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).isVisible();
     const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("출처 적중", { exact: true }).isVisible();
+    const indexQualityVisible =
+      (await page.locator(".indexQualityPanel").getByText("색인 품질 리포트", { exact: true }).isVisible()) &&
+      (await page.locator(".indexQualityPanel").getByText("게이트 통과율", { exact: true }).isVisible()) &&
+      (await page.locator(".qualityGateList").getByText("청크 커버리지", { exact: true }).isVisible()) &&
+      (await page.locator(".qualityDocumentList").getByText("public/status-page-policy.md", { exact: false }).first().isVisible());
     const versionHistoryVisible = await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).isVisible();
     const versionDiffVisible = await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).isVisible();
     const permissionMatrixVisible = await page.locator(".permissionMatrixPanel").getByText("문서 접근 시뮬레이터", { exact: true }).isVisible();
@@ -325,6 +343,7 @@ async function main() {
         promptInjectionSummaryVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
+        indexQualityVisible &&
         versionHistoryVisible &&
         versionDiffVisible &&
         permissionMatrixVisible &&
@@ -364,6 +383,7 @@ async function main() {
       screenshotPath,
       retrievalScreenshotPath,
       groundingScreenshotPath,
+      indexQualityScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
@@ -381,6 +401,7 @@ async function main() {
         promptInjectionSummaryVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
+        indexQualityVisible,
         versionHistoryVisible,
         versionDiffVisible,
         permissionMatrixVisible,

@@ -1481,6 +1481,132 @@ pre {
   box-shadow: none;
 }
 
+.indexQualityPanel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #cfe4df;
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+  background: #f7fffc;
+}
+
+.qualityHead,
+.qualityDocumentTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.qualityHead h2 {
+  font-size: 17px;
+}
+
+.qualitySummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.qualitySummary .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.qualityGateList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.qualityGateItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.qualityGateItem strong,
+.qualityDocumentItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qualityGateItem p,
+.qualityDocumentTitle p,
+.qualityDocumentItem > p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.qualityGateItem code,
+.qualityDocumentTitle code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fcfdff;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.qualityDocumentList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.qualityDocumentItem {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.qualityChecks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.qualityChecks span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.qualityChecks span.allow {
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  background: #e6f6f2;
+  color: var(--accent-strong);
+}
+
+.qualityChecks span.deny {
+  border: 1px solid rgba(155, 28, 43, 0.18);
+  background: var(--error-bg);
+  color: var(--error);
+}
+
 .inventoryGrid {
   display: grid;
   grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
@@ -2991,6 +3117,12 @@ pre {
   .fieldGrid,
   .quickGrid,
   .inventoryStats,
+  .qualityHead,
+  .qualitySummary,
+  .qualityGateList,
+  .qualityGateItem,
+  .qualityDocumentList,
+  .qualityDocumentTitle,
   .matrixSummary,
   .policyRules p,
   .proofGrid,
@@ -3069,6 +3201,12 @@ pre {
   }
 
   .diagnosticBanner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .qualityHead,
+  .qualityDocumentTitle {
     align-items: flex-start;
     flex-direction: column;
   }

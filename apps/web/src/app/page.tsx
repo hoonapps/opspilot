@@ -12,6 +12,7 @@ import {
   AskResponse,
   createFeedback,
   DocumentInventoryItem,
+  DocumentIndexQualityReport,
   DocumentVersionHistory,
   enqueueMarkdownIndexingJob,
   EvaluationHistory,
@@ -22,6 +23,7 @@ import {
   getAnswerReplay,
   getAnswerTrace,
   getDocumentVersionHistory,
+  getDocumentIndexQuality,
   getEvaluationHistory,
   getIndexingQueueHealth,
   getLatestEvaluation,
@@ -167,6 +169,7 @@ export default function Home() {
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
+  const [indexQuality, setIndexQuality] = useState<DocumentIndexQualityReport | null>(null);
   const [queueHealth, setQueueHealth] = useState<IndexingQueueHealth | null>(null);
   const [queuedIndexingJob, setQueuedIndexingJob] = useState<IndexingJobStatus | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
@@ -180,6 +183,7 @@ export default function Home() {
     | "retrieval"
     | "ingest"
     | "verify"
+    | "quality-report"
     | "github"
     | "documents"
     | "queue"
@@ -302,6 +306,7 @@ export default function Home() {
       setQuestion(verificationQuery);
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
+      setIndexQuality(await getDocumentIndexQuality());
       const indexedDocument = nextDocuments.find((document) => document.path === nextIngest.path) ?? nextDocuments[0] ?? null;
       setSelectedDocumentId(indexedDocument?.id ?? null);
       if (indexedDocument) {
@@ -365,6 +370,7 @@ export default function Home() {
       setQuestion("OpsPilot의 권한 경계는 어디에서 적용돼?");
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
+      setIndexQuality(await getDocumentIndexQuality());
       setSelectedDocumentId(
         nextDocuments.find((document) => document.path.startsWith(result.source))?.id ?? nextDocuments[0]?.id ?? null
       );
@@ -407,11 +413,24 @@ export default function Home() {
     try {
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
+      setIndexQuality(await getDocumentIndexQuality());
       setSelectedDocumentId((currentId) =>
         currentId && nextDocuments.some((document) => document.id === currentId) ? currentId : nextDocuments[0]?.id ?? null
       );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 목록 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadIndexQuality() {
+    setError(null);
+    setLoading("quality-report");
+    try {
+      setIndexQuality(await getDocumentIndexQuality());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "색인 품질 리포트 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1553,6 +1572,73 @@ export default function Home() {
 	              <Metric label="주입 격리" value={String(documentStats.promptRisks)} />
             </div>
 
+            <section className="indexQualityPanel" aria-label="색인 품질 리포트">
+              <div className="qualityHead">
+                <div>
+                  <p className="eyebrow">품질 게이트</p>
+                  <h2>색인 품질 리포트</h2>
+                </div>
+                {indexQuality ? (
+                  <span className={indexQuality.status === "healthy" ? "badge" : "badge review"}>
+                    {formatIndexQualityStatus(indexQuality.status)}
+                  </span>
+                ) : null}
+                <button className="smallButton" disabled={loading === "quality-report"} onClick={loadIndexQuality} type="button">
+                  {loading === "quality-report" ? "검사 중..." : "품질 검사"}
+                </button>
+              </div>
+
+              {indexQuality ? (
+                <>
+                  <div className="qualitySummary">
+                    <Metric label="게이트 통과율" value={formatPercent(indexQuality.score)} />
+                    <Metric label="평균 청크" value={`${Math.round(indexQuality.summary.avgChunkLength)}자`} />
+                    <Metric label="문서당 청크" value={indexQuality.summary.avgChunksPerDocument.toFixed(1)} />
+                    <Metric label="보안 격리" value={`${indexQuality.summary.promptInjectionRiskCount}건`} />
+                  </div>
+                  <div className="qualityGateList">
+                    {indexQuality.gates.map((gate) => (
+                      <article className="qualityGateItem" key={gate.id}>
+                        <span className={gate.status === "pass" ? "badge" : "badge review"}>{formatGateStatus(gate.status)}</span>
+                        <div>
+                          <strong>{gate.label}</strong>
+                          <p>{gate.message}</p>
+                        </div>
+                        <code>
+                          {gate.metric}/{gate.threshold}
+                        </code>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="qualityDocumentList">
+                    {indexQuality.documents.slice(0, 4).map((document) => (
+                      <article className="qualityDocumentItem" key={document.id}>
+                        <div className="qualityDocumentTitle">
+                          <div>
+                            <strong>{document.title}</strong>
+                            <p>{document.path}</p>
+                          </div>
+                          <code>
+                            청크 {document.chunkCount}개 · 헤딩 {formatPercent(document.headingCoverageRatio)}
+                          </code>
+                        </div>
+                        <div className="qualityChecks">
+                          {document.checks.map((check) => (
+                            <span className={check.status === "pass" ? "allow" : "deny"} key={check.id} title={check.message}>
+                              {check.label}
+                            </span>
+                          ))}
+                        </div>
+                        <p>{document.recommendations[0]}</p>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="empty">품질 검사를 실행하면 문서 수, 청크 커버리지, 버전 커버리지, 헤딩 보존, 보안 격리 상태가 표시됩니다.</p>
+              )}
+            </section>
+
             {documents.length > 0 ? (
               <div className="inventoryGrid">
                 <div className="documentList" aria-label="색인된 문서">
@@ -2075,6 +2161,15 @@ function formatGateStatus(status: string): string {
     fail: "실패",
     ok: "정상",
     breach: "위반"
+  };
+  return labels[status] ?? status;
+}
+
+function formatIndexQualityStatus(status: string): string {
+  const labels: Record<string, string> = {
+    healthy: "정상",
+    warning: "주의",
+    critical: "위험"
   };
   return labels[status] ?? status;
 }

@@ -107,6 +107,9 @@ jobs:
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
+      - name: Index quality report smoke
+        run: pnpm index-quality:smoke
+
       - name: Permission boundary smoke
         run: pnpm permission:smoke
 

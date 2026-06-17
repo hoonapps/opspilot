@@ -18,6 +18,7 @@
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",
+    "index-quality:smoke": "ts-node src/cli/index-quality-smoke.ts",
     "permission:smoke": "ts-node src/cli/permission-boundary-smoke.ts",
     "authn:smoke": "ts-node src/cli/authn-smoke.ts",
     "redaction:smoke": "ts-node src/cli/redaction-smoke.ts",

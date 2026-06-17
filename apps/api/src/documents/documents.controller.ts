@@ -27,6 +27,11 @@ export class DocumentsController {
     return this.documentsService.listInventory();
   }
 
+  @Get("index-quality")
+  getIndexQualityReport() {
+    return this.documentsService.getIndexQualityReport();
+  }
+
   @Get(":id/versions")
   async getDocumentVersions(@Param("id") id: string) {
     const history = await this.documentsService.getVersionHistory(id);
