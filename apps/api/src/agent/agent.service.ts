@@ -52,6 +52,7 @@ export type RetrievalPreviewResponse = {
   query: string;
   limit: number;
   permissionAudit: PermissionBoundaryAudit;
+  diagnostics: RetrievalDiagnostics;
   candidates: Array<{
     rank: number;
     chunkId: string;
@@ -64,6 +65,29 @@ export type RetrievalPreviewResponse = {
     retrieval: SearchResult["retrieval"];
     heading?: string | null;
     contentPreview: string;
+  }>;
+};
+
+export type RetrievalDiagnostics = {
+  status: "ready" | "review" | "blocked";
+  recommendedAction: "answer" | "answer_with_context_review" | "human_review" | "clarify_or_expand_sources";
+  confidenceEstimate: number;
+  topScore: number;
+  scoreGap: number;
+  queryTerms: string[];
+  sourceDiversity: {
+    uniqueDocumentCount: number;
+    uniquePathCount: number;
+    duplicatePathCount: number;
+  };
+  contextPackage: ContextPackage;
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric?: number;
+    threshold?: number;
+    message: string;
   }>;
 };
 
@@ -238,6 +262,7 @@ export class AgentService {
       query: question,
       limit: safeLimit,
       permissionAudit,
+      diagnostics: buildRetrievalDiagnostics(question, results, permissionAudit),
       candidates: results.map((result, index) => ({
         rank: index + 1,
         chunkId: result.chunkId,
@@ -300,7 +325,10 @@ function calculateConfidence(sources: SearchResult[]): number {
   return Number(Math.min(0.99, top * 0.8 + Math.max(0, top - second) * 0.2).toFixed(3));
 }
 
-function normalizeRetrievalScore(source: SearchResult): number {
+function normalizeRetrievalScore(source: SearchResult | undefined): number {
+  if (!source) {
+    return 0;
+  }
   if (source.retrieval.mode === "hybrid") {
     return Math.max(
       Math.min(0.99, source.score * 24),
@@ -310,6 +338,142 @@ function normalizeRetrievalScore(source: SearchResult): number {
   }
 
   return source.score;
+}
+
+function buildRetrievalDiagnostics(
+  question: string,
+  sources: SearchResult[],
+  permissionAudit: PermissionBoundaryAudit
+): RetrievalDiagnostics {
+  const confidenceEstimate = calculateConfidence(sources);
+  const topScore = normalizeRetrievalScore(sources[0]);
+  const secondScore = normalizeRetrievalScore(sources[1]);
+  const scoreGap = Number(Math.max(0, topScore - secondScore).toFixed(3));
+  const contextPackage = buildContextPackage(sources);
+  const uniquePathCount = new Set(sources.map((source) => source.path)).size;
+  const uniqueDocumentCount = new Set(sources.map((source) => source.documentId)).size;
+  const duplicatePathCount = Math.max(0, sources.length - uniquePathCount);
+  const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
+  const topScoreThreshold = Number(process.env.RETRIEVAL_PREVIEW_TOP_SCORE_THRESHOLD ?? 0.25);
+  const diversityThreshold = Math.min(2, sources.length);
+
+  const checks: RetrievalDiagnostics["checks"] = [
+    {
+      id: "candidate_presence",
+      label: "허용 후보",
+      status: sources.length > 0 ? "pass" : "fail",
+      metric: sources.length,
+      threshold: 1,
+      message:
+        sources.length > 0
+          ? `${sources.length}개 허용 후보가 답변 컨텍스트 후보로 검색됐습니다.`
+          : "권한을 통과한 검색 후보가 없어 답변을 생성하면 근거 부족 상태가 됩니다."
+    },
+    {
+      id: "confidence_estimate",
+      label: "신뢰도 추정",
+      status: thresholdStatus(confidenceEstimate, confidenceThreshold),
+      metric: confidenceEstimate,
+      threshold: confidenceThreshold,
+      message:
+        confidenceEstimate >= confidenceThreshold
+          ? "상위 후보 점수와 점수 격차가 최소 신뢰도 기준을 넘었습니다."
+          : "상위 후보 점수나 점수 격차가 낮아 담당자 확인 또는 질문 보강이 필요합니다."
+    },
+    {
+      id: "top_score",
+      label: "최고 점수",
+      status: thresholdStatus(topScore, topScoreThreshold),
+      metric: topScore,
+      threshold: topScoreThreshold,
+      message:
+        topScore >= topScoreThreshold
+          ? "최상위 후보가 답변 근거로 사용할 수 있는 최소 검색 점수를 넘었습니다."
+          : "최상위 후보 점수가 낮습니다. 키워드, 문서 제목, 팀 권한을 확인해야 합니다."
+    },
+    {
+      id: "source_diversity",
+      label: "출처 다양성",
+      status: uniquePathCount >= diversityThreshold ? "pass" : sources.length > 0 ? "warn" : "fail",
+      metric: uniquePathCount,
+      threshold: diversityThreshold,
+      message:
+        uniquePathCount >= diversityThreshold
+          ? `${uniquePathCount}개 문서 경로에서 근거가 분산되어 단일 청크 과의존이 낮습니다.`
+          : "후보가 같은 문서에 몰려 있습니다. 장애/정책 답변은 관련 런북이나 정책 문서가 함께 검색되는지 확인해야 합니다."
+    },
+    {
+      id: "context_budget",
+      label: "컨텍스트 예산",
+      status: contextPackage.omittedChunkCount === 0 ? "pass" : "warn",
+      metric: contextPackage.includedChunkCount,
+      threshold: Math.min(sources.length, Number(process.env.CONTEXT_MAX_CHUNKS ?? 4)),
+      message:
+        contextPackage.omittedChunkCount === 0
+          ? "검색 후보가 현재 컨텍스트 예산 안에 모두 들어갑니다."
+          : `${contextPackage.omittedChunkCount}개 후보가 rank 또는 token 예산 때문에 답변 컨텍스트에서 제외됩니다.`
+    },
+    {
+      id: "permission_boundary",
+      label: "권한 경계",
+      status: permissionAudit.deniedCandidateCount > 0 ? "warn" : "pass",
+      metric: permissionAudit.deniedCandidateCount,
+      threshold: 0,
+      message:
+        permissionAudit.deniedCandidateCount > 0
+          ? `${permissionAudit.deniedCandidateCount}개 후보가 권한 경계에서 차단됐습니다. 답변에는 허용된 출처만 사용됩니다.`
+          : "검색 후보가 권한 경계에서 추가 차단 없이 통과했습니다."
+    }
+  ];
+
+  const failed = checks.some((check) => check.status === "fail");
+  const warned = checks.some((check) => check.status === "warn");
+  const status = failed ? "blocked" : warned ? "review" : "ready";
+  const humanReviewWarningIds = new Set(["confidence_estimate", "top_score", "permission_boundary"]);
+  const hasHumanReviewWarning = checks.some((check) => check.status === "warn" && humanReviewWarningIds.has(check.id));
+  const recommendedAction: RetrievalDiagnostics["recommendedAction"] =
+    status === "ready"
+      ? "answer"
+      : failed
+        ? "clarify_or_expand_sources"
+        : hasHumanReviewWarning
+          ? "human_review"
+          : "answer_with_context_review";
+
+  return {
+    status,
+    recommendedAction,
+    confidenceEstimate,
+    topScore,
+    scoreGap,
+    queryTerms: extractQueryTerms(question),
+    sourceDiversity: {
+      uniqueDocumentCount,
+      uniquePathCount,
+      duplicatePathCount
+    },
+    contextPackage,
+    checks
+  };
+}
+
+function thresholdStatus(value: number, threshold: number): "pass" | "warn" | "fail" {
+  if (value >= threshold) {
+    return "pass";
+  }
+  return value > 0 ? "warn" : "fail";
+}
+
+function extractQueryTerms(question: string): string[] {
+  return Array.from(
+    new Set(
+      question
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}_-]+/u)
+        .map((term) => term.trim())
+        .filter((term) => term.length >= 2)
+    )
+  ).slice(0, 12);
 }
 
 function buildContextPackage(sources: SearchResult[]): ContextPackage {

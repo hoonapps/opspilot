@@ -963,31 +963,92 @@ export default function Home() {
           <section className="retrievalPanel">
             <div className="sectionHeader compact">
               <div>
-	                <p className="eyebrow">권한</p>
-	                <h2>권한 감사</h2>
+                <p className="eyebrow">권한</p>
+                <h2>권한 감사</h2>
               </div>
               {retrievalPreview ? <span className="badge">{formatPermissionEnforcement(retrievalPreview.permissionAudit.enforcement)}</span> : null}
             </div>
             {retrievalPreview ? (
               <>
                 <div className="retrievalStats">
-	                  <Metric label="허용" value={String(retrievalPreview.permissionAudit.allowedCandidateCount)} />
-	                  <Metric label="차단" value={String(retrievalPreview.permissionAudit.deniedCandidateCount)} />
-	                  <Metric label="후보 범위" value={String(retrievalPreview.permissionAudit.candidateWindow)} />
-	                  <Metric label="최고 점수" value={topRetrievalCandidate ? formatScore(topRetrievalCandidate.score) : "0.000"} />
+                  <Metric label="허용" value={String(retrievalPreview.permissionAudit.allowedCandidateCount)} />
+                  <Metric label="차단" value={String(retrievalPreview.permissionAudit.deniedCandidateCount)} />
+                  <Metric label="후보 범위" value={String(retrievalPreview.permissionAudit.candidateWindow)} />
+                  <Metric label="최고 점수" value={topRetrievalCandidate ? formatScore(topRetrievalCandidate.score) : "0.000"} />
                 </div>
                 <div className="opsBreakdown">
-	                  <span>사용자</span>
+                  <span>사용자</span>
                   <code>
                     역할:{retrievalPreview.permissionAudit.actor.roles.join("|") || "없음"} 팀:
                     {retrievalPreview.permissionAudit.actor.teamSlugs.join("|") || "없음"}
                   </code>
-	                  <span>차단</span>
+                  <span>차단</span>
                   <code>{formatDeniedVisibility(retrievalPreview.permissionAudit.deniedByVisibility)}</code>
                 </div>
               </>
             ) : (
-	              <p className="empty">답변 생성 전에 검색을 미리 실행해 허용 후보, 차단 범위, 권한 적용 방식을 확인합니다.</p>
+              <p className="empty">답변 생성 전에 검색을 미리 실행해 허용 후보, 차단 범위, 권한 적용 방식을 확인합니다.</p>
+            )}
+          </section>
+
+          <section className="retrievalDiagnostics" aria-label="검색 품질 진단">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">진단</p>
+                <h2>검색 품질 진단</h2>
+              </div>
+              {retrievalPreview ? (
+                <span className={retrievalPreview.diagnostics.status === "ready" ? "badge" : "badge review"}>
+                  {formatRetrievalHealth(retrievalPreview.diagnostics.status)}
+                </span>
+              ) : null}
+            </div>
+            {retrievalPreview ? (
+              <>
+                <div className="diagnosticStats">
+                  <Metric label="신뢰도 추정" value={formatPercent(retrievalPreview.diagnostics.confidenceEstimate)} />
+                  <Metric label="점수 격차" value={formatScore(retrievalPreview.diagnostics.scoreGap)} />
+                  <Metric label="출처 경로" value={String(retrievalPreview.diagnostics.sourceDiversity.uniquePathCount)} />
+                  <Metric label="컨텍스트 포함" value={String(retrievalPreview.diagnostics.contextPackage.includedChunkCount)} />
+                </div>
+                <div className="diagnosticBanner">
+                  <span>{formatRecommendedAction(retrievalPreview.diagnostics.recommendedAction)}</span>
+                  <code>
+                    컨텍스트 예산 {retrievalPreview.diagnostics.contextPackage.estimatedTokenCount}/
+                    {retrievalPreview.diagnostics.contextPackage.tokenBudget} tokens
+                  </code>
+                </div>
+                <div className="queryTermList">
+                  {retrievalPreview.diagnostics.queryTerms.length > 0 ? (
+                    retrievalPreview.diagnostics.queryTerms.map((term) => <code key={term}>{term}</code>)
+                  ) : (
+                    <span>분리된 검색어 없음</span>
+                  )}
+                </div>
+                <div className="diagnosticChecks">
+                  {retrievalPreview.diagnostics.checks.map((check) => (
+                    <article className="diagnosticCheck" key={check.id}>
+                      <div>
+                        <span className={`statusDot ${check.status}`} />
+                        <strong>{check.label}</strong>
+                        <code>{formatDiagnosticMetric(check)}</code>
+                      </div>
+                      <p>{check.message}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="contextChunkList">
+                  {retrievalPreview.diagnostics.contextPackage.chunks.slice(0, 4).map((chunk) => (
+                    <div className="contextChunkItem" key={`${chunk.rank}-${chunk.path}`}>
+                      <span>{chunk.rank}</span>
+                      <strong>{chunk.path}</strong>
+                      <code>{chunk.estimatedTokens} tokens · {formatContextReason(chunk.reason)}</code>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="empty">검색 미리보기를 실행하면 신뢰도 추정, 점수 격차, 출처 다양성, 컨텍스트 예산 진단을 확인합니다.</p>
             )}
           </section>
 
@@ -2027,6 +2088,47 @@ function formatRetrievalMode(mode: string): string {
     hybrid: "하이브리드 검색"
   };
   return labels[mode] ?? mode;
+}
+
+function formatRetrievalHealth(status: string): string {
+  const labels: Record<string, string> = {
+    ready: "답변 가능",
+    review: "검토 권고",
+    blocked: "근거 부족"
+  };
+  return labels[status] ?? status;
+}
+
+function formatRecommendedAction(action: string): string {
+  const labels: Record<string, string> = {
+    answer: "리뷰 없이 답변 생성 가능",
+    answer_with_context_review: "답변 가능, 제외 청크만 확인",
+    human_review: "답변 전 담당자 검토 권고",
+    clarify_or_expand_sources: "질문 보강 또는 문서 추가 필요"
+  };
+  return labels[action] ?? action;
+}
+
+function formatDiagnosticMetric(check: RetrievalPreviewResponse["diagnostics"]["checks"][number]): string {
+  if (typeof check.metric !== "number") {
+    return "측정값 없음";
+  }
+  if (typeof check.threshold !== "number") {
+    return formatDiagnosticNumber(check.metric, check.metric);
+  }
+  const value = formatDiagnosticNumber(check.metric, check.threshold);
+  const threshold = formatDiagnosticNumber(check.threshold, check.metric);
+  return `${value} / ${threshold}`;
+}
+
+function formatDiagnosticNumber(value: number, pairedValue: number): string {
+  if (value <= 1 && pairedValue <= 1) {
+    return formatPercent(value);
+  }
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+  return formatScore(value);
 }
 
 function formatToolCategory(category: string): string {

@@ -178,6 +178,44 @@ export type RetrievalPreviewResponse = {
   query: string;
   limit: number;
   permissionAudit: AskResponse["permissionAudit"];
+  diagnostics: {
+    status: "ready" | "review" | "blocked";
+    recommendedAction: "answer" | "answer_with_context_review" | "human_review" | "clarify_or_expand_sources";
+    confidenceEstimate: number;
+    topScore: number;
+    scoreGap: number;
+    queryTerms: string[];
+    sourceDiversity: {
+      uniqueDocumentCount: number;
+      uniquePathCount: number;
+      duplicatePathCount: number;
+    };
+    contextPackage: {
+      method: "ranked_context_budget_v1";
+      tokenBudget: number;
+      estimatedTokenCount: number;
+      remainingTokenBudget: number;
+      includedChunkCount: number;
+      omittedChunkCount: number;
+      chunks: Array<{
+        rank: number;
+        title: string;
+        path: string;
+        score: number;
+        estimatedTokens: number;
+        included: boolean;
+        reason: "within_budget" | "rank_cutoff" | "budget_exceeded";
+      }>;
+    };
+    checks: Array<{
+      id: string;
+      label: string;
+      status: "pass" | "warn" | "fail";
+      metric?: number;
+      threshold?: number;
+      message: string;
+    }>;
+  };
   candidates: Array<{
     rank: number;
     chunkId: string;

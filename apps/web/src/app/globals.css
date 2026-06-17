@@ -1737,6 +1737,7 @@ pre {
 .auditPanel,
 .approvalPanel,
 .retrievalPanel,
+.retrievalDiagnostics,
 .retrievalResults {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1756,16 +1757,153 @@ pre {
   box-shadow: none;
 }
 
+.retrievalDiagnostics {
+  display: grid;
+  gap: 12px;
+  border-top: 3px solid var(--warning);
+  box-shadow: none;
+}
+
 .retrievalStats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
-.retrievalStats .metric {
+.retrievalStats .metric,
+.diagnosticStats .metric {
   min-height: 72px;
   padding: 12px;
   box-shadow: none;
+}
+
+.diagnosticStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diagnosticBanner {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #7c2d12;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.diagnosticBanner code {
+  color: #7c2d12;
+}
+
+.queryTermList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.queryTermList code {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #312e81;
+}
+
+.diagnosticChecks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diagnosticCheck {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.diagnosticCheck > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.diagnosticCheck strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.diagnosticCheck p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.statusDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.statusDot.pass {
+  background: var(--success);
+}
+
+.statusDot.warn {
+  background: var(--warning);
+}
+
+.statusDot.fail {
+  background: var(--danger);
+}
+
+.contextChunkList {
+  display: grid;
+  gap: 6px;
+}
+
+.contextChunkItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.contextChunkItem span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.contextChunkItem strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #0f172a;
 }
 
 .candidateList {
@@ -2596,6 +2734,8 @@ pre {
   .proofDetails,
   .inventoryGrid,
   .retrievalStats,
+  .diagnosticStats,
+  .diagnosticChecks,
   .scoreBars,
   .evalGrid,
   .evalCaseMetrics,
@@ -2640,6 +2780,11 @@ pre {
 
   .securityLine {
     grid-template-columns: 1fr;
+  }
+
+  .diagnosticBanner {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

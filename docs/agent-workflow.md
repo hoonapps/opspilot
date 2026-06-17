@@ -19,7 +19,7 @@ registry는 도구의 category, side effect, approval policy, 입력/출력 sche
 
 ## 판단 순서
 
-1. `/retrieval/preview`가 호출되면 부작용 없이 검색 후보와 권한 감사를 먼저 보여줍니다.
+1. `/retrieval/preview`가 호출되면 부작용 없이 검색 후보, 권한 감사, 검색 품질 진단을 먼저 보여줍니다.
 2. `/ask`, Slack mention, 평가 script에서 질문을 받습니다.
 3. actor context를 구성합니다.
 4. `x-idempotency-key`가 있으면 actor scope와 request hash를 확인합니다.
@@ -45,7 +45,7 @@ registry는 도구의 category, side effect, approval policy, 입력/출력 sche
 POST /retrieval/preview
 ```
 
-검색 미리보기는 `/ask`와 같은 검색 경로를 타지만 질문 저장, 답변 생성, 도구 호출 저장, approval 생성을 하지 않습니다. 면접 데모에서는 이 화면으로 “어떤 chunk가 왜 선택됐는지”와 “권한 때문에 어떤 후보가 차단됐는지”를 먼저 보여주면 좋습니다.
+검색 미리보기는 `/ask`와 같은 검색 경로를 타지만 질문 저장, 답변 생성, 도구 호출 저장, approval 생성을 하지 않습니다. 응답에는 후보 청크, 권한 감사, 신뢰도 추정, 최고 점수, 점수 격차, 출처 다양성, 컨텍스트 예산, 리뷰 권고가 포함됩니다. 면접 데모에서는 이 화면으로 “어떤 chunk가 왜 선택됐는지”, “권한 때문에 어떤 후보가 차단됐는지”, “이 검색 결과로 바로 답변해도 되는지”를 먼저 보여주면 좋습니다.
 
 ## 답변 증거
 

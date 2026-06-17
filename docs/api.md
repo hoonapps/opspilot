@@ -15,7 +15,7 @@ GET /docs-json
 ## 주요 API
 
 - `POST /ask`: RAG 답변 생성
-- `POST /retrieval/preview`: 답변 생성 전 검색 후보와 권한 감사 확인
+- `POST /retrieval/preview`: 답변 생성 전 검색 후보, 권한 감사, 검색 품질 진단 확인
 - `GET /documents`: 문서 목록, chunk 수, 보안 metadata 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
