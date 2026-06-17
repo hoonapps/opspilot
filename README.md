@@ -15,7 +15,7 @@ OpsPilot is a portfolio-grade AI agent project focused on operational support. I
 The screenshot above is generated from the working Next.js console by `pnpm web:smoke`. It exercises the core portfolio flow end to end:
 
 - render an Open Design-inspired operations dashboard shell with workspace rail, screen list navigation, KPI strip, evidence panel, quality gates, approval queue, audit feed, and a dedicated document management screen
-- load evaluation metrics, document match gates, and case-level expected-vs-actual source comparisons
+- load evaluation metrics, document match gates, regression history, and case-level expected-vs-actual source comparisons
 - load operational telemetry for questions, human review rate, document match, tool calls, approvals, feedback, and indexed knowledge
 - upsert and update a Markdown document, inspect index inventory, version diff, and chunk previews, then verify the indexed document through retrieval preview plus a grounded answer
 - preview retrieval ranking before answer generation with vector/lexical scores and permission-denied candidate counts
@@ -337,7 +337,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Human approval request creation for sensitive work
 - Approval queue API and feedback logging API
 - Evaluation script with quality thresholds, expected source hit rate, document agreement score, citation accuracy, and negative gate smoke
-- Latest evaluation API and web quality gate plus case explorer panel
+- Latest evaluation API, evaluation history API, and web quality gate with regression history plus case explorer panel
 - New document indexing smoke test
 - Next.js web console with separate Ask, Retrieval, Documents, Quality, Review, and Audit screens for asking questions, previewing retrieval ranking, inspecting operational telemetry, syncing GitHub Markdown, upserting Markdown documents, reviewing version diffs, verifying indexed documents through retrieval and answer agreement, reviewing permission boundary matrix, index inventory, and chunk previews, saving feedback, and resolving approval requests
 - Open Design-inspired console shell with design artifact documentation tying the product board and real browser screenshot to the demo path
@@ -379,8 +379,8 @@ Done:
 - `GET /answers/:id/trace` answer trace API with timeline summary, source-level grounding coverage, and document access re-check
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
-- Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, and negative gate smoke
-- Latest evaluation API and web console quality gate plus expected-vs-actual case explorer
+- Evaluation command with CI-failing quality thresholds, expected source hit rate, deterministic document agreement score, citation accuracy, negative gate smoke, and history smoke
+- Latest evaluation API, evaluation history API, and web console quality gate plus regression history and expected-vs-actual case explorer
 - Runtime Markdown document upsert API and indexing smoke test
 - Document version history endpoint and line-level diff summary for changed Markdown
 - GitHub Markdown sync API and offline sync smoke test
@@ -391,8 +391,8 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval case explorer, operational telemetry, answer-level document match, context budget, source grounding coverage, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, answer-level document match, context budget, source grounding coverage, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
+- GitHub Actions CI for build, Docker image build, production compose smoke, eval, evaluation history, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
 
@@ -506,7 +506,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval case explorer, answer-level document match, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, answer-level document match, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

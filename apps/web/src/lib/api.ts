@@ -227,6 +227,22 @@ export type EvaluationReport = {
   }>;
 };
 
+export type EvaluationHistory = {
+  suiteName: string;
+  count: number;
+  items: Array<{
+    runId: string;
+    suiteName: string;
+    createdAt: string;
+    total: number;
+    passed: boolean;
+    metrics: EvaluationReport["metrics"];
+    thresholds: EvaluationReport["thresholds"];
+    gates: EvaluationReport["gates"];
+    deltas: Partial<Record<keyof EvaluationReport["metrics"], number | null>>;
+  }>;
+};
+
 export type ToolCallAuditItem = {
   id: string;
   questionId: string | null;
@@ -584,6 +600,16 @@ export async function getLatestEvaluation(): Promise<EvaluationReport | null> {
 
   const data = (await response.json()) as { report: EvaluationReport | null };
   return data.report;
+}
+
+export async function getEvaluationHistory(limit = 6): Promise<EvaluationHistory> {
+  const response = await fetch(`${API_BASE_URL}/evaluations/history?limit=${limit}`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<EvaluationHistory>;
 }
 
 export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {

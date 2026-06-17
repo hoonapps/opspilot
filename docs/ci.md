@@ -14,6 +14,7 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - run Jest package tests
 - run seed RAG evaluation as a hard quality gate, including source hit, top source, human review, document agreement, and citation thresholds
 - verify the evaluation gate fails on a deliberate negative source case with `pnpm eval:gate-smoke`
+- verify evaluation run history and previous-run deltas with `pnpm eval:history-smoke`
 - verify permission boundary audit behavior with `pnpm permission:smoke`
 - verify signed actor token authentication behavior with `pnpm authn:smoke`
 - verify Markdown secret redaction before storage, retrieval, answers, and trace previews with `pnpm redaction:smoke`
@@ -29,6 +30,6 @@ OpsPilot runs a GitHub Actions pipeline on pushes and pull requests to `main`.
 - generate the Markdown portfolio proof report with `pnpm portfolio:report`
 - verify operational telemetry aggregation with `pnpm observability:smoke`
 - verify the generated OpenAPI contract with `pnpm openapi:smoke`
-- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, operational telemetry, answer-level document match, permission audit, review reasons, answer trace, tool call audit, GitHub sync, answer, feedback, and approval flows
+- start the API and web console, then run Playwright `pnpm web:smoke` against evaluation metrics, evaluation regression history, operational telemetry, answer-level document match, permission audit, review reasons, answer trace, tool call audit, GitHub sync, answer, feedback, and approval flows
 
-The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, citation accuracy, document agreement scoring, answer-level match visibility, evaluation hard gates, signed actor authentication, secret redaction before indexing, dependency readiness, permission boundary enforcement, structured review reasons, permission-checked answer trace, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, operational telemetry aggregation, compact JSON and Markdown portfolio demo reports, OpenAPI contract stability, Docker-buildable and Docker-bootable deployment artifacts, and a working browser demo.
+The CI workflow intentionally exercises the portfolio claims that matter most: grounded retrieval, citation accuracy, document agreement scoring, answer-level match visibility, evaluation hard gates, evaluation history regression visibility, signed actor authentication, secret redaction before indexing, dependency readiness, permission boundary enforcement, structured review reasons, permission-checked answer trace, async queue indexing, GitHub document sync, runbook tool calling, auditable tool calls, human approval separation, feedback logging, operational telemetry aggregation, compact JSON and Markdown portfolio demo reports, OpenAPI contract stability, Docker-buildable and Docker-bootable deployment artifacts, and a working browser demo.

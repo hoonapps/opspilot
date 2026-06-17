@@ -9,9 +9,11 @@ import {
   createFeedback,
   DocumentInventoryItem,
   DocumentVersionHistory,
+  EvaluationHistory,
   EvaluationReport,
   getAnswerTrace,
   getDocumentVersionHistory,
+  getEvaluationHistory,
   getLatestEvaluation,
   getObservabilitySummary,
   getPermissionBoundaryMatrix,
@@ -126,6 +128,7 @@ export default function Home() {
   const [trace, setTrace] = useState<AnswerTrace | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
+  const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
@@ -379,7 +382,9 @@ export default function Home() {
     setError(null);
     setLoading("evaluation");
     try {
-      setEvaluation(await getLatestEvaluation());
+      const [latest, history] = await Promise.all([getLatestEvaluation(), getEvaluationHistory()]);
+      setEvaluation(latest);
+      setEvaluationHistory(history);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Evaluation request failed");
     } finally {
@@ -898,6 +903,30 @@ export default function Home() {
                   {evaluation.suiteName} · {evaluation.total} cases · {evaluation.rows.filter((row) => row.hit).length} hits ·{" "}
                   {formatPercent(evaluation.metrics.documentAgreementScore)} match · {formatPercent(evaluation.metrics.citationAccuracy)} citations
                 </p>
+                {evaluationHistory && evaluationHistory.items.length > 0 ? (
+                  <div className="evalHistory" aria-label="evaluation history">
+                    <div className="evalHistoryHead">
+                      <span>Regression history</span>
+                      <code>{evaluationHistory.count} runs</code>
+                    </div>
+                    {evaluationHistory.items.slice(0, 4).map((item) => (
+                      <article className="evalHistoryItem" key={item.runId}>
+                        <div>
+                          <strong>{item.passed ? "Passed" : "Failed"}</strong>
+                          <p>
+                            {formatShortDate(item.createdAt)} · {item.total} cases · {shortId(item.runId)}
+                          </p>
+                        </div>
+                        <div className="evalHistoryMetrics">
+                          <span>Hit {formatPercent(item.metrics.sourceHitRate)}</span>
+                          <span>Match {formatPercent(item.metrics.documentAgreementScore)}</span>
+                          <span>Cite {formatPercent(item.metrics.citationAccuracy)}</span>
+                          <span>Δ Match {formatDeltaPercent(item.deltas.documentAgreementScore)}</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="evalCaseExplorer" aria-label="evaluation case explorer">
                   {evaluation.rows.map((row) => (
                     <article className="evalCaseItem" key={row.id}>
@@ -1408,6 +1437,19 @@ function formatShortDate(value: string): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function shortId(value: string): string {
+  return value.slice(0, 8);
+}
+
+function formatDeltaPercent(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "n/a";
+  }
+
+  const rounded = Math.round(value * 100);
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
 }
 
 function summarizeToolOutput(output: Record<string, unknown>): string {

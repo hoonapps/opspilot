@@ -101,6 +101,9 @@ jobs:
       - name: Evaluation gate negative smoke
         run: pnpm eval:gate-smoke
 
+      - name: Evaluation history smoke
+        run: pnpm eval:history-smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

@@ -20,8 +20,10 @@ async function main() {
     await page.getByText("Source hit", { exact: false }).waitFor({ timeout: 10000 });
     await page.getByText("Document match", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalGrid").getByText("Citation", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".evalPanel").getByText("Passed", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evalPanel .sectionHeader").getByText("Passed", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByText("seed-ops-wiki", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".evalHistory").getByText("Regression history", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evalHistoryItem").first().getByText("Δ Match", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".evalCaseExplorer").getByText("error-e102", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalSourceCompare").getByText("public/payment-error-codes.md", { exact: false }).first().waitFor({
       timeout: 10000
@@ -29,7 +31,9 @@ async function main() {
     const evaluationVisible = await page.getByText("Human review", { exact: true }).first().isVisible();
     const documentMatchVisible = await page.getByText("Document match", { exact: true }).first().isVisible();
     const citationVisible = await page.getByText("Citation", { exact: true }).first().isVisible();
-    const qualityGatePassed = await page.locator(".evalPanel").getByText("Passed", { exact: true }).isVisible();
+    const qualityGatePassed = await page.locator(".evalPanel .sectionHeader").getByText("Passed", { exact: true }).isVisible();
+    const evalHistoryVisible = await page.locator(".evalHistory").getByText("Regression history", { exact: true }).isVisible();
+    const evalHistoryDeltaVisible = await page.locator(".evalHistoryItem").first().getByText("Δ Match", { exact: false }).isVisible();
     const evalCaseExplorerVisible = await page.locator(".evalCaseExplorer").getByText("error-e102", { exact: true }).isVisible();
     const evalSourceCompareVisible = await page
       .locator(".evalSourceCompare")
@@ -205,6 +209,8 @@ async function main() {
         documentMatchVisible &&
         citationVisible &&
         qualityGatePassed &&
+        evalHistoryVisible &&
+        evalHistoryDeltaVisible &&
         evalCaseExplorerVisible &&
         evalSourceCompareVisible &&
         boundaryAuditVisible &&
@@ -246,6 +252,8 @@ async function main() {
         documentMatchVisible,
         citationVisible,
         qualityGatePassed,
+        evalHistoryVisible,
+        evalHistoryDeltaVisible,
         evalCaseExplorerVisible,
         evalSourceCompareVisible,
         boundaryAuditVisible,

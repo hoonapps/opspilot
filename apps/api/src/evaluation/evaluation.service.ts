@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { randomUUID } from "node:crypto";
 import { AgentService } from "../agent/agent.service";
 import { calculateDocumentAgreement } from "../agent/document-agreement";
 import { RequestContext } from "../shared/request-context";
@@ -66,12 +67,58 @@ export type LatestEvalReport = {
   rows: EvalReport["rows"];
 } | null;
 
+export type EvaluationHistoryItem = {
+  runId: string;
+  suiteName: string;
+  createdAt: string;
+  total: number;
+  passed: boolean;
+  metrics: EvaluationMetrics;
+  thresholds: EvaluationThresholds;
+  gates: EvaluationGate[];
+  deltas: Partial<Record<keyof EvaluationMetrics, number | null>>;
+};
+
+export type EvaluationHistory = {
+  suiteName: string;
+  count: number;
+  items: EvaluationHistoryItem[];
+};
+
+export type EvaluationMetrics = {
+  sourceHitRate: number;
+  topSourceAccuracy: number;
+  humanReviewAccuracy: number;
+  documentAgreementScore: number;
+  citationAccuracy: number;
+};
+
 type EvaluationMetricRow = {
   metric_name: string;
   score: number;
-  details: { total?: number; rows?: EvalReport["rows"]; thresholds?: EvaluationThresholds; gates?: EvaluationGate[]; passed?: boolean };
+  details: EvaluationMetricDetails;
   created_at: Date | string;
 };
+
+type EvaluationMetricDetails = {
+  runId?: string;
+  total?: number;
+  rows?: EvalReport["rows"];
+  thresholds?: EvaluationThresholds;
+  gates?: EvaluationGate[];
+  metrics?: EvaluationMetrics;
+  passed?: boolean;
+};
+
+const METRIC_NAMES = {
+  source_hit_rate: "sourceHitRate",
+  top_source_accuracy: "topSourceAccuracy",
+  human_review_accuracy: "humanReviewAccuracy",
+  document_agreement_score: "documentAgreementScore",
+  citation_accuracy: "citationAccuracy"
+} as const;
+
+type StoredMetricName = keyof typeof METRIC_NAMES;
 
 @Injectable()
 export class EvaluationService {
@@ -81,6 +128,7 @@ export class EvaluationService {
   ) {}
 
   async run(suiteName: string, questions: EvalQuestion[]): Promise<EvalReport> {
+    const runId = randomUUID();
     const rows = [];
     for (const item of questions) {
       const response = await this.agent.ask(item.question, item.actor, "eval");
@@ -117,17 +165,15 @@ export class EvaluationService {
     );
     const documentAgreementScore = average(rows.map((row) => row.documentAgreement));
     const citationAccuracy = ratio(rows.filter((row) => row.citationPresent).length, rows.length);
+    const metrics = {
+      sourceHitRate,
+      topSourceAccuracy,
+      humanReviewAccuracy,
+      documentAgreementScore,
+      citationAccuracy
+    };
     const thresholds = evaluationThresholdsFromEnv();
-    const gates = buildEvaluationGates(
-      {
-        sourceHitRate,
-        topSourceAccuracy,
-        humanReviewAccuracy,
-        documentAgreementScore,
-        citationAccuracy
-      },
-      thresholds
-    );
+    const gates = buildEvaluationGates(metrics, thresholds);
     const passed = gates.every((gate) => gate.passed);
 
     const report: EvalReport = {
@@ -143,7 +189,7 @@ export class EvaluationService {
       gates,
       rows
     };
-    const details = JSON.stringify({ total: rows.length, rows, thresholds, gates, passed });
+    const details = JSON.stringify({ runId, total: rows.length, rows, thresholds, gates, metrics, passed });
 
     await this.orm.em.fork().getConnection().execute(
       `
@@ -180,14 +226,11 @@ export class EvaluationService {
   async latest(suiteName: string): Promise<{ report: LatestEvalReport }> {
     const rows = (await this.orm.em.fork().getConnection().execute(
       `
-        select distinct on (metric_name)
-          metric_name,
-          score,
-          details,
-          created_at
+        select metric_name, score, details, created_at
         from evaluation_results
         where suite_name = ?
-        order by metric_name, created_at desc;
+        order by created_at desc
+        limit 50;
       `,
       [suiteName]
     )) as EvaluationMetricRow[];
@@ -196,32 +239,55 @@ export class EvaluationService {
       return { report: null };
     }
 
-    const byMetric = new Map(rows.map((row) => [row.metric_name, row]));
-    const details = byMetric.get("source_hit_rate")?.details ?? rows[0].details;
-    const createdAt = rows
-      .map((row) => new Date(row.created_at))
-      .reduce((latest, value) => (value > latest ? value : latest), new Date(rows[0].created_at));
-    const metrics = {
-      sourceHitRate: byMetric.get("source_hit_rate")?.score ?? 0,
-      topSourceAccuracy: byMetric.get("top_source_accuracy")?.score ?? 0,
-      humanReviewAccuracy: byMetric.get("human_review_accuracy")?.score ?? 0,
-      documentAgreementScore: byMetric.get("document_agreement_score")?.score ?? 0,
-      citationAccuracy: byMetric.get("citation_accuracy")?.score ?? 0
-    };
-    const thresholds = details.thresholds ?? evaluationThresholdsFromEnv();
-    const gates = details.gates ?? buildEvaluationGates(metrics, thresholds);
+    const grouped = groupEvaluationRows(rows);
+    const [runId, latestRows] = [...grouped.entries()].sort(
+      ([, leftRows], [, rightRows]) => getNewestTimestamp(rightRows) - getNewestTimestamp(leftRows)
+    )[0];
+    const item = buildHistoryItem(suiteName, runId, latestRows);
+    const details = normalizeDetails(getNewestRow(latestRows).details);
 
     return {
       report: {
         suiteName,
-        createdAt: createdAt.toISOString(),
-        total: details.total ?? details.rows?.length ?? 0,
-        passed: details.passed ?? gates.every((gate) => gate.passed),
-        thresholds,
-        gates,
-        metrics,
+        createdAt: item.createdAt,
+        total: item.total,
+        passed: item.passed,
+        thresholds: item.thresholds,
+        gates: item.gates,
+        metrics: item.metrics,
         rows: details.rows ?? []
       }
+    };
+  }
+
+  async history(suiteName: string, limit = 8): Promise<EvaluationHistory> {
+    const requestedLimit = Number.isFinite(limit) ? limit : 8;
+    const boundedLimit = Math.max(1, Math.min(requestedLimit, 20));
+    const rows = (await this.orm.em.fork().getConnection().execute(
+      `
+        select metric_name, score, details, created_at
+        from evaluation_results
+        where suite_name = ?
+        order by created_at desc
+        limit ?;
+      `,
+      [suiteName, boundedLimit * 10]
+    )) as EvaluationMetricRow[];
+
+    const grouped = groupEvaluationRows(rows);
+
+    const items = [...grouped.entries()]
+      .map(([runId, groupRows]) => buildHistoryItem(suiteName, runId, groupRows))
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+      .slice(0, boundedLimit);
+
+    return {
+      suiteName,
+      count: items.length,
+      items: items.map((item, index) => ({
+        ...item,
+        deltas: buildMetricDeltas(item.metrics, items[index + 1]?.metrics)
+      }))
     };
   }
 
@@ -304,4 +370,105 @@ function answerCitesReturnedSource(answer: string, sources: Array<{ title: strin
 
 function normalizeCitationText(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function buildHistoryItem(suiteName: string, runId: string, rows: EvaluationMetricRow[]): EvaluationHistoryItem {
+  const newestRow = getNewestRow(rows);
+  const details = normalizeDetails(newestRow.details);
+  const metrics = details.metrics ?? metricsFromRows(rows) ?? metricsFromGates(details.gates) ?? emptyMetrics();
+  const thresholds = details.thresholds ?? evaluationThresholdsFromEnv();
+  const gates = details.gates ?? buildEvaluationGates(metrics, thresholds);
+
+  return {
+    runId,
+    suiteName,
+    createdAt: new Date(newestRow.created_at).toISOString(),
+    total: details.total ?? details.rows?.length ?? 0,
+    passed: details.passed ?? gates.every((gate) => gate.passed),
+    metrics,
+    thresholds,
+    gates,
+    deltas: {}
+  };
+}
+
+function groupEvaluationRows(rows: EvaluationMetricRow[]): Map<string, EvaluationMetricRow[]> {
+  const grouped = new Map<string, EvaluationMetricRow[]>();
+  for (const row of rows) {
+    row.details = normalizeDetails(row.details);
+    const runKey = row.details.runId ?? new Date(row.created_at).toISOString();
+    grouped.set(runKey, [...(grouped.get(runKey) ?? []), row]);
+  }
+
+  return grouped;
+}
+
+function getNewestRow(rows: EvaluationMetricRow[]): EvaluationMetricRow {
+  return rows.reduce((latest, row) => (new Date(row.created_at) > new Date(latest.created_at) ? row : latest), rows[0]);
+}
+
+function getNewestTimestamp(rows: EvaluationMetricRow[]): number {
+  return new Date(getNewestRow(rows).created_at).getTime();
+}
+
+function normalizeDetails(details: EvaluationMetricDetails | string | null | undefined): EvaluationMetricDetails {
+  if (!details) {
+    return {};
+  }
+
+  if (typeof details === "string") {
+    return JSON.parse(details) as EvaluationMetricDetails;
+  }
+
+  return details;
+}
+
+function metricsFromRows(rows: EvaluationMetricRow[]): EvaluationMetrics | null {
+  const metrics = emptyMetrics();
+  let found = 0;
+  for (const row of rows) {
+    const metricName = METRIC_NAMES[row.metric_name as StoredMetricName];
+    if (metricName) {
+      metrics[metricName] = Number(row.score);
+      found += 1;
+    }
+  }
+
+  return found > 0 ? metrics : null;
+}
+
+function metricsFromGates(gates?: EvaluationGate[]): EvaluationMetrics | null {
+  if (!gates || gates.length === 0) {
+    return null;
+  }
+
+  const metrics = emptyMetrics();
+  for (const gate of gates) {
+    metrics[gate.metric] = gate.score;
+  }
+
+  return metrics;
+}
+
+function emptyMetrics(): EvaluationMetrics {
+  return {
+    sourceHitRate: 0,
+    topSourceAccuracy: 0,
+    humanReviewAccuracy: 0,
+    documentAgreementScore: 0,
+    citationAccuracy: 0
+  };
+}
+
+function buildMetricDeltas(
+  current: EvaluationMetrics,
+  previous?: EvaluationMetrics
+): Partial<Record<keyof EvaluationMetrics, number | null>> {
+  return (Object.keys(current) as Array<keyof EvaluationMetrics>).reduce<Partial<Record<keyof EvaluationMetrics, number | null>>>(
+    (deltas, metric) => ({
+      ...deltas,
+      [metric]: previous ? Number((current[metric] - previous[metric]).toFixed(3)) : null
+    }),
+    {}
+  );
 }

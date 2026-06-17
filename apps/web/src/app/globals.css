@@ -1661,6 +1661,77 @@ pre {
   white-space: nowrap;
 }
 
+.evalHistory {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #d6def0;
+  border-radius: 8px;
+  background: #f5f8ff;
+}
+
+.evalHistoryHead,
+.evalHistoryItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.evalHistoryHead span {
+  color: var(--info);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.evalHistoryHead code {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.evalHistoryItem {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.evalHistoryItem strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.evalHistoryItem p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evalHistoryMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.evalHistoryMetrics span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fcfdff;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .approvalPanel {
   border-top: 3px solid #f59e0b;
 }
@@ -1973,6 +2044,8 @@ pre {
   .evalGrid,
   .evalCaseMetrics,
   .evalSourceCompare,
+  .evalHistoryHead,
+  .evalHistoryItem,
   .opsGrid,
   .toolRegistryItem,
   .toolSchemaGrid,

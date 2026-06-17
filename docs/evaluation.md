@@ -39,16 +39,22 @@ The JSON report includes `passed`, `thresholds`, and per-metric `gates` so CI lo
 
 `pnpm eval:gate-smoke` runs a deliberate negative case with an impossible expected source. The command succeeds only when the evaluation report fails the source hit and top source gates. This proves the gate itself is being tested, not only the happy-path eval set.
 
-## Latest Report API
+## Report APIs
 
 ```txt
 GET /evaluations/latest
 GET /evaluations/latest?suiteName=seed-ops-wiki
+GET /evaluations/history
+GET /evaluations/history?suiteName=seed-ops-wiki&limit=8
 ```
 
 The API returns the latest source hit rate, top source accuracy, human review accuracy, document agreement score, citation accuracy, pass/fail state, thresholds, total case count, and per-question rows for the requested suite. The web console uses this endpoint for the quality gate panel and case explorer.
 
+The history endpoint groups metric rows by evaluation run id and returns recent pass/fail states, metric snapshots, thresholds, gates, and previous-run deltas. This makes retrieval regressions visible after document, chunking, prompt, or search changes instead of only showing the latest aggregate.
+
 The case explorer renders each row with expected sources, actual ranked sources, source hit/miss, confidence, document agreement, citation state, and human review state. This makes eval failures debuggable from the browser instead of reducing quality to one aggregate score.
+
+`pnpm eval:history-smoke` runs the same suite twice and fails unless the two runs are recorded separately with stable metric deltas. This protects the regression history contract in CI.
 
 ## Planned Additions
 

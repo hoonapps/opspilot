@@ -11,4 +11,9 @@ export class EvaluationController {
   latest(@Query("suiteName") suiteName?: string) {
     return this.evaluationService.latest(suiteName ?? "seed-ops-wiki");
   }
+
+  @Get("history")
+  history(@Query("suiteName") suiteName?: string, @Query("limit") limit?: string) {
+    return this.evaluationService.history(suiteName ?? "seed-ops-wiki", Number(limit ?? 8));
+  }
 }
