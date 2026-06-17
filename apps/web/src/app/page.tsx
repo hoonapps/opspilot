@@ -12,6 +12,7 @@ import {
   AskResponse,
   createIncidentPlan,
   createFeedback,
+  DocumentImpactReport,
   DocumentInventoryItem,
   DocumentIndexQualityReport,
   DocumentVersionHistory,
@@ -24,6 +25,7 @@ import {
   getAnswerEvidenceBundle,
   getAnswerReplay,
   getAnswerTrace,
+  getDocumentImpact,
   getDocumentVersionHistory,
   getDocumentIndexQuality,
   getEvaluationCases,
@@ -192,6 +194,7 @@ export default function Home() {
   const [queuedIndexingJob, setQueuedIndexingJob] = useState<IndexingJobStatus | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
   const [documentVersionHistory, setDocumentVersionHistory] = useState<DocumentVersionHistory | null>(null);
+  const [documentImpact, setDocumentImpact] = useState<DocumentImpactReport | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
@@ -207,6 +210,7 @@ export default function Home() {
     | "documents"
     | "queue"
     | "versions"
+    | "impact"
     | "matrix"
     | "approval"
     | "audit"
@@ -489,6 +493,21 @@ export default function Home() {
       setDocumentVersionHistory(await getDocumentVersionHistory(documentId));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 버전 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadDocumentImpact(documentId = selectedDocument?.id) {
+    if (!documentId) {
+      return;
+    }
+    setError(null);
+    setLoading((current) => current ?? "impact");
+    try {
+      setDocumentImpact(await getDocumentImpact(documentId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 영향 분석 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1997,6 +2016,7 @@ export default function Home() {
                       onClick={() => {
                         setSelectedDocumentId(document.id);
                         setDocumentVersionHistory(null);
+                        setDocumentImpact(null);
                       }}
                       type="button"
                     >
@@ -2018,9 +2038,14 @@ export default function Home() {
                           <strong>{selectedDocument.title}</strong>
                           <p>{selectedDocument.path}</p>
                         </div>
-                        <button className="smallButton" disabled={loading === "versions"} onClick={() => loadDocumentVersions()} type="button">
-	                          {loading === "versions" ? "불러오는 중..." : `v${selectedDocument.latestVersion} 이력`}
-                        </button>
+                        <div className="headerActions">
+                          <button className="smallButton" disabled={loading === "versions"} onClick={() => loadDocumentVersions()} type="button">
+	                            {loading === "versions" ? "불러오는 중..." : `v${selectedDocument.latestVersion} 이력`}
+                          </button>
+                          <button className="smallButton" disabled={loading === "impact"} onClick={() => loadDocumentImpact()} type="button">
+                            {loading === "impact" ? "분석 중..." : "영향 분석"}
+                          </button>
+                        </div>
                       </div>
                       <div className="securityLine">
 	                        <span>팀: {selectedDocument.teamSlug ?? "전체 공개"}</span>
@@ -2066,6 +2091,57 @@ export default function Home() {
                                 )}
                               </article>
                             ))}
+                          </div>
+                        </section>
+                      ) : null}
+                      {documentImpact?.document.id === selectedDocument.id ? (
+                        <section className="impactPanel" aria-label="문서 변경 영향 분석">
+                          <div className="impactSummary">
+                            <div>
+                              <span>영향 분석</span>
+                              <strong>{formatImpactRisk(documentImpact.summary.riskLevel)}</strong>
+                            </div>
+                            <div>
+                              <span>영향 답변</span>
+                              <strong>{documentImpact.summary.affectedAnswerCount}개</strong>
+                            </div>
+                            <div>
+                              <span>재검증 필요</span>
+                              <strong>{documentImpact.summary.staleAnswerCount}개</strong>
+                            </div>
+                            <code>v{documentImpact.document.latestVersion} · {shortHash(documentImpact.document.contentHash)}</code>
+                          </div>
+                          <div className="impactMetrics">
+                            <Metric label="질문" value={`${documentImpact.summary.affectedQuestionCount}개`} />
+                            <Metric label="1순위 근거" value={`${documentImpact.summary.topSourceAnswerCount}개`} />
+                            <Metric label="사람 검토" value={`${documentImpact.summary.humanReviewAnswerCount}개`} />
+                            <Metric label="최근 답변" value={documentImpact.summary.latestAnswerAt ? formatShortDate(documentImpact.summary.latestAnswerAt) : "없음"} />
+                          </div>
+                          <div className="impactRecommendations">
+                            {documentImpact.recommendations.map((recommendation) => (
+                              <p key={recommendation}>{recommendation}</p>
+                            ))}
+                          </div>
+                          <div className="impactAnswerList">
+                            {documentImpact.affectedAnswers.length > 0 ? (
+                              documentImpact.affectedAnswers.slice(0, 4).map((item) => (
+                                <article className="impactAnswerItem" key={item.answerId}>
+                                  <div>
+                                    <strong>{item.question}</strong>
+                                    <p>{item.answerPreview}</p>
+                                  </div>
+                                  <div className="impactAnswerMeta">
+                                    <span className={item.staleAfterDocumentUpdate ? "badge review" : "badge"}>
+                                      {item.staleAfterDocumentUpdate ? "재검증" : "최신"}
+                                    </span>
+                                    <code>근거 #{item.sourceRank} · {formatScore(item.sourceScore)}</code>
+                                    <code>{shortId(item.answerId)}</code>
+                                  </div>
+                                </article>
+                              ))
+                            ) : (
+                              <p className="empty">이 문서를 출처로 사용한 저장 답변이 아직 없습니다.</p>
+                            )}
                           </div>
                         </section>
                       ) : null}
@@ -2539,6 +2615,15 @@ function formatRiskLevel(level: string): string {
     low: "낮음",
     medium: "중간",
     high: "높음"
+  };
+  return labels[level] ?? level;
+}
+
+function formatImpactRisk(level: string): string {
+  const labels: Record<string, string> = {
+    low: "낮은 영향",
+    medium: "검토 필요",
+    high: "우선 재검증"
   };
   return labels[level] ?? level;
 }

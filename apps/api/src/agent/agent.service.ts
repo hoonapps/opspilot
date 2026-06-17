@@ -228,6 +228,14 @@ export class AgentService {
         JSON.stringify({
           sensitiveAction,
           sourceCount: sources.length,
+          sources: sources.map((source, index) => ({
+            documentId: source.documentId,
+            chunkId: source.chunkId,
+            path: source.path,
+            title: source.title,
+            score: source.score,
+            rank: index + 1
+          })),
           documentAgreement,
           contextPackage,
           reviewReasons,

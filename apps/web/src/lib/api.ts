@@ -174,6 +174,43 @@ export type DocumentVersionDiff = {
   removedPreview: string[];
 };
 
+export type DocumentImpactReport = {
+  generatedAt: string;
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    latestVersion: number;
+    updatedAt: string;
+    contentHash: string;
+  };
+  summary: {
+    affectedAnswerCount: number;
+    affectedQuestionCount: number;
+    topSourceAnswerCount: number;
+    staleAnswerCount: number;
+    humanReviewAnswerCount: number;
+    latestAnswerAt: string | null;
+    riskLevel: "low" | "medium" | "high";
+  };
+  recommendations: string[];
+  affectedAnswers: Array<{
+    answerId: string;
+    questionId: string;
+    question: string;
+    answerPreview: string;
+    confidence: number;
+    needsHumanReview: boolean;
+    answerCreatedAt: string;
+    sourceRank: number;
+    sourceScore: number;
+    sourceChunkCount: number;
+    staleAfterDocumentUpdate: boolean;
+  }>;
+};
+
 export type DocumentIndexQualityReport = {
   generatedAt: string;
   status: "healthy" | "warning" | "critical";
@@ -1200,6 +1237,16 @@ export async function getDocumentVersionHistory(documentId: string): Promise<Doc
   }
 
   return response.json() as Promise<DocumentVersionHistory>;
+}
+
+export async function getDocumentImpact(documentId: string): Promise<DocumentImpactReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}/impact`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentImpactReport>;
 }
 
 export async function getDocumentIndexQuality(): Promise<DocumentIndexQualityReport> {

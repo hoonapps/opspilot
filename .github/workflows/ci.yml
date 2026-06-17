@@ -113,6 +113,9 @@ jobs:
       - name: Index quality report smoke
         run: pnpm index-quality:smoke
 
+      - name: Document impact smoke
+        run: pnpm document-impact:smoke
+
       - name: Permission boundary smoke
         run: pnpm permission:smoke
 

@@ -23,6 +23,11 @@ const indexQualityScreenshotPath = process.env.INDEX_QUALITY_SCREENSHOT_PATH
     ? process.env.INDEX_QUALITY_SCREENSHOT_PATH
     : join(repoRoot, process.env.INDEX_QUALITY_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-index-quality.png");
+const documentImpactScreenshotPath = process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH
+  ? isAbsolute(process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH)
+    ? process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH
+    : join(repoRoot, process.env.DOCUMENT_IMPACT_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-document-impact.png");
 const incidentPlanScreenshotPath = process.env.INCIDENT_PLAN_SCREENSHOT_PATH
   ? isAbsolute(process.env.INCIDENT_PLAN_SCREENSHOT_PATH)
     ? process.env.INCIDENT_PLAN_SCREENSHOT_PATH
@@ -116,6 +121,12 @@ async function main() {
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).click();
     await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "영향 분석" }).click();
+    await page.locator(".impactPanel").getByText("영향 분석", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".impactPanel").getByText("재검증 필요", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".impactPanel").getByText("고객 공지 SLA와 15분 공지 기준", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".impactPanel").scrollIntoViewIfNeeded();
+    await page.locator(".impactPanel").screenshot({ path: documentImpactScreenshotPath });
     await page.getByRole("button", { name: "매트릭스 불러오기" }).click();
     await page.locator(".permissionMatrixPanel").getByText("문서 접근 시뮬레이터", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".matrixTable").getByText("운영 데이터베이스 접근 정책", { exact: false }).waitFor({ timeout: 10000 });
@@ -138,6 +149,10 @@ async function main() {
       (await page.locator(".qualityDocumentList").getByText("public/status-page-policy.md", { exact: false }).first().isVisible());
     const versionHistoryVisible = await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).isVisible();
     const versionDiffVisible = await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).isVisible();
+    const documentImpactVisible =
+      (await page.locator(".impactPanel").getByText("영향 분석", { exact: true }).isVisible()) &&
+      (await page.locator(".impactPanel").getByText("재검증 필요", { exact: true }).isVisible()) &&
+      (await page.locator(".impactAnswerList").getByText("고객 공지 SLA와 15분 공지 기준", { exact: false }).first().isVisible());
     const permissionMatrixVisible = await page.locator(".permissionMatrixPanel").getByText("문서 접근 시뮬레이터", { exact: true }).isVisible();
     const permissionMatrixDenyVisible = await page.locator(".matrixTable").getByText("차단", { exact: true }).first().isVisible();
 
@@ -383,6 +398,7 @@ async function main() {
         indexQualityVisible &&
         versionHistoryVisible &&
         versionDiffVisible &&
+        documentImpactVisible &&
         permissionMatrixVisible &&
         permissionMatrixDenyVisible &&
         retrievalPreviewVisible &&
@@ -424,6 +440,7 @@ async function main() {
       retrievalScreenshotPath,
       groundingScreenshotPath,
       indexQualityScreenshotPath,
+      documentImpactScreenshotPath,
       incidentPlanScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
@@ -445,6 +462,7 @@ async function main() {
         indexQualityVisible,
         versionHistoryVisible,
         versionDiffVisible,
+        documentImpactVisible,
         permissionMatrixVisible,
         permissionMatrixDenyVisible,
         retrievalPreviewVisible,

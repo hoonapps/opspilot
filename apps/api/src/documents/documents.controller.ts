@@ -41,6 +41,15 @@ export class DocumentsController {
     return history;
   }
 
+  @Get(":id/impact")
+  async getDocumentImpact(@Param("id") id: string) {
+    const report = await this.documentsService.getImpactReport(id);
+    if (!report) {
+      throw new NotFoundException(`Document not found: ${id}`);
+    }
+    return report;
+  }
+
   @Post("markdown")
   upsertMarkdownDocument(@Body() body: UpsertMarkdownDocumentDto) {
     return this.documentsService.ingestMarkdown(body.path, body.markdown);

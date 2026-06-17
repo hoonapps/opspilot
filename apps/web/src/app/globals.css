@@ -2142,6 +2142,128 @@ pre {
   gap: 8px;
 }
 
+.impactPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: #fffaf0;
+}
+
+.impactSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.impactSummary div,
+.impactSummary code {
+  min-height: 54px;
+  padding: 9px;
+  border: 1px solid #f3d7a3;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.impactSummary span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.impactSummary strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.impactSummary code {
+  display: grid;
+  align-items: center;
+  color: var(--warning);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.impactMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.impactMetrics .metric {
+  min-height: 62px;
+  box-shadow: none;
+}
+
+.impactRecommendations {
+  display: grid;
+  gap: 6px;
+}
+
+.impactRecommendations p {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #f3d7a3;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #704012;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.impactAnswerList {
+  display: grid;
+  gap: 8px;
+}
+
+.impactAnswerItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.impactAnswerItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.impactAnswerItem p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.impactAnswerMeta {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  min-width: 124px;
+}
+
+.impactAnswerMeta code {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .versionItem {
   display: grid;
   gap: 7px;
@@ -3650,6 +3772,9 @@ pre {
   .proofChecklist,
   .proofItem,
   .versionSummary,
+  .impactSummary,
+  .impactMetrics,
+  .impactAnswerItem,
   .timelineItem,
   .feedbackBar {
     grid-template-columns: 1fr;

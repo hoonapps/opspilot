@@ -69,6 +69,19 @@ type IndexQualityRow = {
   latestContentLength: number | string;
 };
 
+type DocumentImpactRow = {
+  answerId: string;
+  questionId: string;
+  question: string;
+  answerPreview: string;
+  confidence: number | string;
+  needsHumanReview: boolean;
+  answerCreatedAt: Date | string;
+  sourceRank: number | string;
+  sourceScore: number | string;
+  sourceChunkCount: number | string;
+};
+
 export type DocumentInventoryItem = {
   id: string;
   path: string;
@@ -178,6 +191,43 @@ export type DocumentIndexQualityReport = {
       message: string;
     }>;
     recommendations: string[];
+  }>;
+};
+
+export type DocumentImpactReport = {
+  generatedAt: string;
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    latestVersion: number;
+    updatedAt: string;
+    contentHash: string;
+  };
+  summary: {
+    affectedAnswerCount: number;
+    affectedQuestionCount: number;
+    topSourceAnswerCount: number;
+    staleAnswerCount: number;
+    humanReviewAnswerCount: number;
+    latestAnswerAt: string | null;
+    riskLevel: "low" | "medium" | "high";
+  };
+  recommendations: string[];
+  affectedAnswers: Array<{
+    answerId: string;
+    questionId: string;
+    question: string;
+    answerPreview: string;
+    confidence: number;
+    needsHumanReview: boolean;
+    answerCreatedAt: string;
+    sourceRank: number;
+    sourceScore: number;
+    sourceChunkCount: number;
+    staleAfterDocumentUpdate: boolean;
   }>;
 };
 
@@ -504,6 +554,145 @@ export class DocumentsService {
     };
   }
 
+  async getImpactReport(documentId: string): Promise<DocumentImpactReport | null> {
+    const connection = this.orm.em.fork().getConnection();
+    const [document] = (await connection.execute<DocumentInventoryRow[]>(
+      `
+        select
+          d.id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.metadata,
+          d.content_hash as "contentHash",
+          0::int as "chunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          d.updated_at as "updatedAt"
+        from documents d
+        left join document_versions v on v.document_id = d.id
+        where d.id = ?::uuid
+        group by d.id;
+      `,
+      [documentId]
+    )) as DocumentInventoryRow[];
+
+    if (!document) {
+      return null;
+    }
+
+    const rows = (await connection.execute<DocumentImpactRow[]>(
+      `
+        with source_rows as (
+          select
+            a.id as answer_id,
+            q.id as question_id,
+            q.text as question,
+            a.text as answer_text,
+            a.confidence,
+            a.needs_human_review,
+            a.created_at,
+            s.rank,
+            s.score,
+            s.chunk_id::text as chunk_key
+          from answer_sources s
+          join answers a on a.id = s.answer_id
+          join questions q on q.id = a.question_id
+          where s.document_id = ?::uuid
+          union all
+          select
+            a.id as answer_id,
+            q.id as question_id,
+            q.text as question,
+            a.text as answer_text,
+            a.confidence,
+            a.needs_human_review,
+            a.created_at,
+            coalesce((source.value ->> 'rank')::int, 999) as rank,
+            coalesce((source.value ->> 'score')::float, 0) as score,
+            coalesce(source.value ->> 'chunkId', source.value ->> 'path', a.id::text) as chunk_key
+          from answers a
+          join questions q on q.id = a.question_id
+          cross join lateral jsonb_array_elements(coalesce(a.metadata -> 'sources', '[]'::jsonb)) as source(value)
+          where source.value ->> 'documentId' = ?
+        )
+        select
+          answer_id as "answerId",
+          question_id as "questionId",
+          question,
+          left(answer_text, 320) as "answerPreview",
+          confidence,
+          needs_human_review as "needsHumanReview",
+          created_at as "answerCreatedAt",
+          min(rank)::int as "sourceRank",
+          max(score) as "sourceScore",
+          count(distinct chunk_key)::int as "sourceChunkCount"
+        from source_rows
+        group by answer_id, question_id, question, answer_text, confidence, needs_human_review, created_at
+        order by created_at desc
+        limit 20;
+      `,
+      [documentId, documentId]
+    )) as DocumentImpactRow[];
+
+    const documentUpdatedAt = new Date(document.updatedAt);
+    const affectedAnswers = rows.map((row) => ({
+      answerId: row.answerId,
+      questionId: row.questionId,
+      question: row.question,
+      answerPreview: row.answerPreview,
+      confidence: Number(row.confidence),
+      needsHumanReview: row.needsHumanReview,
+      answerCreatedAt: toIsoString(row.answerCreatedAt),
+      sourceRank: Number(row.sourceRank),
+      sourceScore: Number(row.sourceScore),
+      sourceChunkCount: Number(row.sourceChunkCount),
+      staleAfterDocumentUpdate: new Date(row.answerCreatedAt).getTime() < documentUpdatedAt.getTime()
+    }));
+    const affectedQuestionIds = new Set(affectedAnswers.map((answer) => answer.questionId));
+    const staleAnswerCount = affectedAnswers.filter((answer) => answer.staleAfterDocumentUpdate).length;
+    const humanReviewAnswerCount = affectedAnswers.filter((answer) => answer.needsHumanReview).length;
+    const topSourceAnswerCount = affectedAnswers.filter((answer) => answer.sourceRank === 1).length;
+    const riskLevel = buildImpactRiskLevel({
+      affectedAnswerCount: affectedAnswers.length,
+      staleAnswerCount,
+      humanReviewAnswerCount,
+      visibility: document.visibility
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      document: {
+        id: document.id,
+        path: document.path,
+        title: document.title,
+        visibility: document.visibility,
+        teamSlug: document.teamSlug,
+        latestVersion: Number(document.latestVersion),
+        updatedAt: toIsoString(document.updatedAt),
+        contentHash: document.contentHash
+      },
+      summary: {
+        affectedAnswerCount: affectedAnswers.length,
+        affectedQuestionCount: affectedQuestionIds.size,
+        topSourceAnswerCount,
+        staleAnswerCount,
+        humanReviewAnswerCount,
+        latestAnswerAt: affectedAnswers[0]?.answerCreatedAt ?? null,
+        riskLevel
+      },
+      recommendations: buildImpactRecommendations({
+        affectedAnswerCount: affectedAnswers.length,
+        staleAnswerCount,
+        humanReviewAnswerCount,
+        topSourceAnswerCount,
+        visibility: document.visibility,
+        riskLevel
+      }),
+      affectedAnswers
+    };
+  }
+
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {
     const parsed = parseMarkdownDocument(path, raw);
     const redacted = this.redaction.redactMarkdown(parsed.body);
@@ -756,6 +945,56 @@ function buildQualityGates(summary: DocumentIndexQualityReport["summary"]): Docu
           : `프롬프트 주입 위험 문서 ${summary.promptInjectionRiskCount}개가 격리 메타데이터로 표시됐습니다.`
     }
   ];
+}
+
+function buildImpactRiskLevel(input: {
+  affectedAnswerCount: number;
+  staleAnswerCount: number;
+  humanReviewAnswerCount: number;
+  visibility: string;
+}): DocumentImpactReport["summary"]["riskLevel"] {
+  if (input.affectedAnswerCount === 0) {
+    return "low";
+  }
+  if (input.staleAnswerCount > 0 && (input.humanReviewAnswerCount > 0 || input.visibility === "restricted")) {
+    return "high";
+  }
+  if (input.staleAnswerCount > 0 || input.humanReviewAnswerCount > 0 || input.affectedAnswerCount >= 3) {
+    return "medium";
+  }
+  return "low";
+}
+
+function buildImpactRecommendations(input: {
+  affectedAnswerCount: number;
+  staleAnswerCount: number;
+  humanReviewAnswerCount: number;
+  topSourceAnswerCount: number;
+  visibility: string;
+  riskLevel: DocumentImpactReport["summary"]["riskLevel"];
+}): string[] {
+  const recommendations: string[] = [];
+
+  if (input.affectedAnswerCount === 0) {
+    recommendations.push("이 문서를 출처로 사용한 저장 답변이 아직 없습니다. 신규 질문으로 검색 적중 여부만 검증하세요.");
+  }
+  if (input.staleAnswerCount > 0) {
+    recommendations.push("문서 변경 이후 생성 시점이 오래된 답변을 replay로 재검증하고 drift 여부를 확인하세요.");
+  }
+  if (input.topSourceAnswerCount > 0) {
+    recommendations.push("이 문서가 1순위 근거였던 답변은 운영 판단에 직접 영향을 줄 수 있으므로 우선 검토하세요.");
+  }
+  if (input.humanReviewAnswerCount > 0) {
+    recommendations.push("사람 검토가 필요했던 답변은 승인/반려 이력과 함께 다시 확인하세요.");
+  }
+  if (input.visibility === "restricted") {
+    recommendations.push("제한 문서 영향 분석은 호출자 권한과 감사 번들 접근 경계를 함께 검증하세요.");
+  }
+  if (input.riskLevel === "low" && input.affectedAnswerCount > 0) {
+    recommendations.push("영향 답변 수가 낮습니다. 정기 평가와 문서 일치율만 확인하면 됩니다.");
+  }
+
+  return [...new Set(recommendations)].slice(0, 5);
 }
 
 function getSecurityNumber(metadata: Record<string, unknown>, key: string): number {

@@ -21,6 +21,7 @@ GET /docs-json
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
+- `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, stale 여부, 위험도, 재검증 권고 확인
 - `POST /documents/github/sync`: GitHub Markdown 동기화
 - `GET /documents/indexing-jobs`: BullMQ 색인 큐 카운트, 최근 작업, 워커 상태 확인
 - `POST /documents/indexing-jobs/markdown`: BullMQ 색인 작업 생성
@@ -83,6 +84,28 @@ GET /documents/index-quality
 
 ```bash
 pnpm index-quality:smoke
+```
+
+## 문서 변경 영향 분석
+
+```txt
+GET /documents/{id}/impact
+```
+
+응답은 특정 문서가 과거 RAG 답변에 어떤 영향을 줬는지 서버에서 계산합니다.
+
+- `summary.affectedAnswerCount`: 이 문서를 출처로 사용한 저장 답변 수
+- `summary.topSourceAnswerCount`: 이 문서가 1순위 근거였던 답변 수
+- `summary.staleAnswerCount`: 문서 변경 시각보다 오래된 답변 수
+- `summary.humanReviewAnswerCount`: 사람 검토가 필요했던 답변 수
+- `summary.riskLevel`: 낮은 영향, 검토 필요, 우선 재검증
+- `affectedAnswers[]`: 질문, 답변 미리보기, 출처 순위/점수, stale 여부
+- `recommendations[]`: replay 재검증, 승인 이력 확인, 권한 경계 검증 같은 운영 조치
+
+검증:
+
+```bash
+pnpm document-impact:smoke
 ```
 
 ## 장애 대응 플랜
