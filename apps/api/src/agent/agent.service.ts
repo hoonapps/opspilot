@@ -63,6 +63,7 @@ export type RetrievalPreviewResponse = {
     teamSlug?: string | null;
     score: number;
     retrieval: SearchResult["retrieval"];
+    rankingExplanation: RankingExplanation;
     heading?: string | null;
     contentPreview: string;
   }>;
@@ -110,6 +111,26 @@ export type RetrievalQueryPlan = {
     output: string;
     evidence: string;
   }>;
+};
+
+export type RankingExplanation = {
+  method: "weighted_vector_lexical_v1" | "rrf_hybrid_v1";
+  matchedQueryTerms: string[];
+  unmatchedQueryTerms: string[];
+  scoreContributions: Array<{
+    signal: "vector" | "lexical" | "rrf";
+    label: string;
+    weight?: number;
+    value: number;
+    contribution: number;
+    evidence: string;
+  }>;
+  accessDecision: {
+    decision: "allowed";
+    enforcement: PermissionBoundaryAudit["enforcement"];
+    reason: string;
+  };
+  reasonCodes: string[];
 };
 
 export type ReviewReason =
@@ -294,12 +315,106 @@ export class AgentService {
         teamSlug: result.teamSlug,
         score: Number(result.score.toFixed(6)),
         retrieval: result.retrieval,
+        rankingExplanation: buildRankingExplanation(question, result, permissionAudit),
         heading: typeof result.metadata.heading === "string" ? result.metadata.heading : null,
         contentPreview: result.content.slice(0, 520)
       }))
     };
   }
 
+}
+
+function buildRankingExplanation(
+  question: string,
+  source: SearchResult,
+  permissionAudit: PermissionBoundaryAudit
+): RankingExplanation {
+  const queryTerms = extractQueryTerms(question);
+  const haystack = `${source.title} ${source.path} ${source.content}`.toLowerCase();
+  const matchedQueryTerms = queryTerms.filter((term) => haystack.includes(term.toLowerCase()));
+  const unmatchedQueryTerms = queryTerms.filter((term) => !matchedQueryTerms.includes(term));
+  const reasonCodes = [
+    source.retrieval.mode === "hybrid" ? "hybrid_rank_fusion" : "weighted_vector_lexical",
+    matchedQueryTerms.length > 0 ? "query_term_overlap" : "semantic_only",
+    "permission_allowed",
+    source.visibility === "team" ? "team_scoped_source" : source.visibility === "restricted" ? "restricted_source_allowed" : "public_source"
+  ];
+
+  return {
+    method: source.retrieval.mode === "hybrid" ? "rrf_hybrid_v1" : "weighted_vector_lexical_v1",
+    matchedQueryTerms,
+    unmatchedQueryTerms,
+    scoreContributions: buildScoreContributions(source),
+    accessDecision: {
+      decision: "allowed",
+      enforcement: permissionAudit.enforcement,
+      reason: buildAccessReason(source)
+    },
+    reasonCodes
+  };
+}
+
+function buildScoreContributions(source: SearchResult): RankingExplanation["scoreContributions"] {
+  if (source.retrieval.mode === "hybrid") {
+    return [
+      {
+        signal: "rrf",
+        label: "RRF 결합",
+        value: Number((source.retrieval.fusedScore ?? source.score).toFixed(6)),
+        contribution: Number(source.score.toFixed(6)),
+        evidence: "벡터 순위와 Elasticsearch 키워드 순위를 reciprocal rank fusion으로 결합했습니다."
+      },
+      {
+        signal: "vector",
+        label: "벡터 후보",
+        value: Number((source.retrieval.vectorScore ?? 0).toFixed(6)),
+        contribution: Number((source.retrieval.vectorScore ?? 0).toFixed(6)),
+        evidence: "semantic similarity 후보가 결합 점수에 기여했습니다."
+      },
+      {
+        signal: "lexical",
+        label: "키워드 후보",
+        value: Number((source.retrieval.lexicalScore ?? 0).toFixed(6)),
+        contribution: Number((source.retrieval.lexicalScore ?? 0).toFixed(6)),
+        evidence: "키워드 검색 후보가 결합 점수에 기여했습니다."
+      }
+    ];
+  }
+
+  const vectorScore = source.retrieval.vectorScore ?? 0;
+  const lexicalScore = source.retrieval.lexicalScore ?? 0;
+
+  return [
+    {
+      signal: "vector",
+      label: "벡터 유사도",
+      weight: 0.45,
+      value: Number(vectorScore.toFixed(6)),
+      contribution: Number((vectorScore * 0.45).toFixed(6)),
+      evidence: "질문 embedding과 문서 chunk embedding 간 pgvector cosine 유사도입니다."
+    },
+    {
+      signal: "lexical",
+      label: "키워드 매칭",
+      weight: 0.55,
+      value: Number(lexicalScore.toFixed(6)),
+      contribution: Number((lexicalScore * 0.55).toFixed(6)),
+      evidence: "질문에서 추출한 검색어가 제목, 경로, 본문에 포함된 비율입니다."
+    }
+  ];
+}
+
+function buildAccessReason(source: SearchResult): string {
+  if (source.visibility === "public") {
+    return "public 문서는 모든 actor가 답변 컨텍스트로 사용할 수 있습니다.";
+  }
+  if (source.visibility === "team") {
+    return `${source.teamSlug ?? "team"} 팀 범위 문서이며 actor 팀 권한과 일치해 허용됐습니다.`;
+  }
+  if (source.visibility === "restricted") {
+    return "restricted 문서이지만 actor 역할/팀 정책이 허용해 답변 컨텍스트에 포함됐습니다.";
+  }
+  return `${source.visibility} 문서가 권한 정책을 통과했습니다.`;
 }
 
 function buildReviewReasons(input: {

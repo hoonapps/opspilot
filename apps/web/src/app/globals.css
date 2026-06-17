@@ -2098,6 +2098,88 @@ pre {
   font-size: 12px;
 }
 
+.rankingExplanation {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.rankingExplanationHead,
+.matchedTermStrip,
+.accessExplanation {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.rankingExplanationHead strong,
+.matchedTermStrip span,
+.accessExplanation span {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.rankingExplanationHead code,
+.accessExplanation code,
+.matchedTermStrip code {
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #312e81;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.rankingExplanationHead code {
+  grid-column: 3;
+}
+
+.matchedTermStrip > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.scoreContributionList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scoreContribution {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.scoreContribution span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.scoreContribution strong {
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.scoreContribution small,
+.accessExplanation p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.accessExplanation p {
+  min-width: 0;
+}
+
 .evalPanel {
   border-top: 3px solid var(--info);
 }
@@ -2896,6 +2978,10 @@ pre {
   .queryPlanStage,
   .diagnosticChecks,
   .scoreBars,
+  .rankingExplanationHead,
+  .matchedTermStrip,
+  .scoreContributionList,
+  .accessExplanation,
   .evalGrid,
   .evalCaseMetrics,
   .evalSourceCompare,
@@ -2935,8 +3021,11 @@ pre {
   }
 
   .queryPlanHeader code,
-  .queryPlanStage code {
+  .queryPlanStage code,
+  .rankingExplanationHead code,
+  .accessExplanation code {
     max-width: none;
+    grid-column: 1;
     text-align: left;
   }
 

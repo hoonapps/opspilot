@@ -8,6 +8,11 @@ const screenshotPath = process.env.SCREENSHOT_PATH
     ? process.env.SCREENSHOT_PATH
     : join(repoRoot, process.env.SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-web-console.png");
+const retrievalScreenshotPath = process.env.RETRIEVAL_SCREENSHOT_PATH
+  ? isAbsolute(process.env.RETRIEVAL_SCREENSHOT_PATH)
+    ? process.env.RETRIEVAL_SCREENSHOT_PATH
+    : join(repoRoot, process.env.RETRIEVAL_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-retrieval-lab.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -110,6 +115,9 @@ async function main() {
     await page.locator(".candidateHead p").getByText("public/status-page-policy.md", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".scoreBars").getByText("벡터", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".scoreBars").getByText("키워드", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".rankingExplanation").getByText("랭킹 설명", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".rankingExplanation").getByText("매칭 검색어", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".rankingExplanation").getByText("권한 통과", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".retrievalDiagnostics").getByText("검색 품질 진단", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticStats").getByText("신뢰도 추정", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticBanner").getByText("컨텍스트 예산", { exact: false }).waitFor({ timeout: 10000 });
@@ -118,6 +126,8 @@ async function main() {
     await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".rankingExplanation").first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: retrievalScreenshotPath, fullPage: false });
 
     await page.getByLabel("검색 질문").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
     await page.getByRole("button", { name: "검색 미리보기" }).click();
@@ -125,6 +135,9 @@ async function main() {
     await page.locator(".opsBreakdown").getByText("제한", { exact: false }).waitFor({ timeout: 10000 });
     const retrievalPreviewVisible = await page.locator(".candidateList").getByText("종합", { exact: true }).first().isVisible();
     const retrievalScoreVisible = await page.locator(".scoreBars").getByText("키워드", { exact: true }).first().isVisible();
+    const rankingExplanationVisible =
+      (await page.locator(".rankingExplanation").getByText("랭킹 설명", { exact: true }).first().isVisible()) &&
+      (await page.locator(".rankingExplanation").getByText("권한 통과", { exact: true }).first().isVisible());
     const retrievalBoundaryVisible = await page.locator(".opsBreakdown").getByText("제한", { exact: false }).isVisible();
     const retrievalDiagnosticsVisible =
       (await page.locator(".retrievalDiagnostics").getByText("검색 품질 진단", { exact: true }).isVisible()) &&
@@ -309,6 +322,7 @@ async function main() {
         permissionMatrixDenyVisible &&
         retrievalPreviewVisible &&
         retrievalScoreVisible &&
+        rankingExplanationVisible &&
         retrievalBoundaryVisible &&
         retrievalDiagnosticsVisible &&
         evaluationVisible &&
@@ -338,6 +352,7 @@ async function main() {
         usagePageVisible,
       baseUrl,
       screenshotPath,
+      retrievalScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
@@ -361,6 +376,7 @@ async function main() {
         permissionMatrixDenyVisible,
         retrievalPreviewVisible,
         retrievalScoreVisible,
+        rankingExplanationVisible,
         retrievalBoundaryVisible,
         retrievalDiagnosticsVisible,
         evaluationVisible,

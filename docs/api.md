@@ -15,7 +15,7 @@ GET /docs-json
 ## 주요 API
 
 - `POST /ask`: RAG 답변 생성
-- `POST /retrieval/preview`: 답변 생성 전 검색 후보, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
+- `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `GET /documents/{id}/versions`: redacted 문서 버전과 diff 확인
@@ -48,6 +48,20 @@ pnpm openapi:smoke
 ```
 
 이 명령은 포트폴리오 핵심 API, 요청 스키마, `x-opspilot-actor-token` 보안 스키마가 OpenAPI 문서에 남아 있는지 검증합니다. 기능이 커져도 공개 API가 조용히 깨지지 않게 하는 장치입니다.
+
+## `/ask` 멱등성
+
+## 검색 미리보기 랭킹 설명
+
+`POST /retrieval/preview`의 `candidates[].rankingExplanation`은 검색 후보가 상위에 오른 이유를 기계적으로 설명합니다.
+
+- `method`: 벡터/키워드 가중 랭킹 또는 RRF 하이브리드 랭킹
+- `matchedQueryTerms`: 제목, 경로, 본문에 실제로 매칭된 검색어
+- `scoreContributions`: 벡터 유사도, 키워드 매칭, RRF 결합 점수의 기여도
+- `accessDecision`: 권한 필터를 통과한 이유와 적용된 enforcement
+- `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
+
+이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
 
 ## `/ask` 멱등성
 

@@ -1117,6 +1117,39 @@ export default function Home() {
                       <code>{candidate.heading ?? "문서 본문"}</code>
                       <code>{candidate.teamSlug ?? "전체 공개"}</code>
                     </div>
+                    <div className="rankingExplanation" aria-label="랭킹 설명">
+                      <div className="rankingExplanationHead">
+                        <strong>랭킹 설명</strong>
+                        <code>{formatRankingMethod(candidate.rankingExplanation.method)}</code>
+                      </div>
+                      <div className="matchedTermStrip">
+                        <span>매칭 검색어</span>
+                        <div>
+                          {candidate.rankingExplanation.matchedQueryTerms.length > 0 ? (
+                            candidate.rankingExplanation.matchedQueryTerms.slice(0, 8).map((term) => <code key={term}>{term}</code>)
+                          ) : (
+                            <code>semantic_only</code>
+                          )}
+                        </div>
+                      </div>
+                      <div className="scoreContributionList">
+                        {candidate.rankingExplanation.scoreContributions.slice(0, 3).map((item) => (
+                          <div className="scoreContribution" key={`${candidate.chunkId}-${item.signal}`}>
+                            <span>{item.label}</span>
+                            <strong>
+                              {formatScore(item.contribution)}
+                              {typeof item.weight === "number" ? ` · 가중치 ${formatPercent(item.weight)}` : ""}
+                            </strong>
+                            <small>{item.evidence}</small>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="accessExplanation">
+                        <span>권한 통과</span>
+                        <p>{candidate.rankingExplanation.accessDecision.reason}</p>
+                        <code>{formatPermissionEnforcement(candidate.rankingExplanation.accessDecision.enforcement)}</code>
+                      </div>
+                    </div>
                     <p>{candidate.contentPreview}</p>
                   </article>
                 ))
@@ -2162,6 +2195,14 @@ function formatRetrievalMode(mode: string): string {
     hybrid: "하이브리드 검색"
   };
   return labels[mode] ?? mode;
+}
+
+function formatRankingMethod(method: string): string {
+  const labels: Record<string, string> = {
+    weighted_vector_lexical_v1: "벡터/키워드 가중 랭킹",
+    rrf_hybrid_v1: "RRF 하이브리드 랭킹"
+  };
+  return labels[method] ?? method;
 }
 
 function formatRetrievalHealth(status: string): string {

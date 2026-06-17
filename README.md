@@ -8,6 +8,8 @@
 
 ![OpsPilot 웹 콘솔](docs/assets/opspilot-web-console.png)
 
+![OpsPilot RAG 검색 실험실](docs/assets/opspilot-retrieval-lab.png)
+
 ## 핵심 가치
 
 OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
@@ -101,7 +103,7 @@ http://localhost:3000/docs
 3. 기본 Markdown 문서 색인
 4. 새 Markdown 문서 등록
 5. 청킹/검색 미리보기/답변 일치율 확인
-6. 권한 경계와 차단 후보 확인
+6. 후보별 랭킹 설명과 권한 경계 확인
 7. 도구 호출과 사람 승인 확인
 8. 평가/배포 게이트 확인
 9. 포트폴리오 데모 리포트 생성
@@ -126,6 +128,8 @@ curl -X POST http://localhost:3000/retrieval/preview \
   -H "x-team-slugs: payments" \
   -d '{"question":"정산 배치가 30분 이상 지연되면 어떻게 해?","limit":5}'
 ```
+
+응답의 각 후보에는 `rankingExplanation`이 포함됩니다. 이 필드는 매칭 검색어, 벡터/키워드 점수 기여도, 권한 통과 사유를 보여줘 “왜 이 청크가 상위 근거가 됐는지”를 설명합니다.
 
 Slack 멘션 로컬 시뮬레이션:
 

@@ -250,6 +250,25 @@ export type RetrievalPreviewResponse = {
       fusedScore?: number;
       mode: "vector" | "hybrid";
     };
+    rankingExplanation: {
+      method: "weighted_vector_lexical_v1" | "rrf_hybrid_v1";
+      matchedQueryTerms: string[];
+      unmatchedQueryTerms: string[];
+      scoreContributions: Array<{
+        signal: "vector" | "lexical" | "rrf";
+        label: string;
+        weight?: number;
+        value: number;
+        contribution: number;
+        evidence: string;
+      }>;
+      accessDecision: {
+        decision: "allowed";
+        enforcement: AskResponse["permissionAudit"]["enforcement"];
+        reason: string;
+      };
+      reasonCodes: string[];
+    };
     heading?: string | null;
     contentPreview: string;
   }>;
