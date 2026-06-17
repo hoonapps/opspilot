@@ -118,6 +118,12 @@ Verify that a persisted answer can be reconstructed for audit from sources, sour
 pnpm trace:smoke
 ```
 
+Verify that an old answer can be replayed against the current knowledge base and marked as drifted when the supporting document changed:
+
+```bash
+pnpm replay:smoke
+```
+
 Verify the operational telemetry summary for answers, document agreement, tool calls, approvals, feedback, and indexed knowledge:
 
 ```bash
@@ -352,6 +358,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Tool registry API for side effects, approval policy, and input/output contracts
 - Permission-checked answer trace API for reconstructing a persisted answer's timeline, sources, source-level grounding coverage, tool calls, approvals, and feedback
 - Answer proof packet API for pass/warn/fail checks across source access, document agreement, grounding coverage, tool audit, approval boundary, context budget, and feedback capture
+- Answer replay drift API for comparing a persisted answer against the current knowledge base, current source overlap, current document agreement, and permission-aware retrieval results
 - Context package trace for prompt budget, included chunks, omitted chunks, and token estimates
 - Operational observability summary API for questions, answers, document agreement, tool calls, approvals, feedback, and indexed knowledge size
 - SLO guardrail API for answer grounding, review load, tool audit coverage, latest eval gate, and error budget status
@@ -411,6 +418,7 @@ Done:
 - BullMQ indexing queue, worker CLI, job status API, and queue smoke test
 - Review workflow smoke test
 - Answer trace smoke test with answer proof packet assertions
+- Answer replay smoke test proving changed documents can make a persisted answer drift
 - Portfolio demo report covering grounded RAG, new document indexing, runbook tool calling, human approval, and answer trace reconstruction
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
@@ -418,8 +426,8 @@ Done:
 - Knowledge freshness smoke test proving document changes make the latest evaluation stale until the suite is rerun
 - Release gate smoke test proving deploy-style readiness evidence
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Korean Next.js web console and Playwright smoke test with screen navigation, in-app usage guide, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, release gate, SLO guardrails, answer-level document match, context budget, source grounding coverage, answer proof packet, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
-- GitHub Actions CI for build, Docker image build, production compose smoke, eval, evaluation history, release gate, observability SLOs, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
+- Korean Next.js web console and Playwright smoke test with screen navigation, in-app usage guide, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval regression history, eval case explorer, operational telemetry, release gate, SLO guardrails, answer-level document match, replay drift, context budget, source grounding coverage, answer proof packet, permission audit, answer trace timeline, Slack thread reply proof, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
+- GitHub Actions CI for build, Docker image build, production compose smoke, eval, evaluation history, release gate, observability SLOs, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, answer replay drift, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow
 
@@ -521,6 +529,8 @@ Details: [docs/demo.md](docs/demo.md)
 
 ## Observability
 
+`GET /answers/:id/replay` reruns permission-aware retrieval for a persisted answer's original question and compares current evidence against the original sources. It reports top-source drift, source overlap, current document agreement, and denied candidate counts so reviewers can see whether a previous answer is still supported after Markdown changes.
+
 `GET /observability/summary` aggregates persisted operating evidence: question volume, answer count, human review rate, average confidence, average document agreement, tool calls by name/status, approvals by status, feedback, and indexed document/chunk counts. `GET /observability/slo` turns those signals into SLO guardrails for grounding, review load, tool audit coverage, and the latest eval gate. `GET /observability/release-gate` combines readiness, indexed knowledge, eval, knowledge freshness, SLO, audit trail, approval backlog, and feedback into a deploy-style `pass`, `review`, or `block`. The web console renders all three in the Operations panel.
 
 Details: [docs/observability.md](docs/observability.md)
@@ -533,7 +543,7 @@ Details: [docs/api.md](docs/api.md)
 
 ## CI
 
-GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, knowledge freshness smoke, observability SLO smoke, release gate smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, release gate, eval freshness, SLO guardrails, answer-level document match, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
+GitHub Actions runs typecheck, build, Docker image build, production compose smoke, database migrations, RAG evaluation, evaluation history smoke, knowledge freshness smoke, observability SLO smoke, release gate smoke, permission boundary smoke, signed actor token smoke, secret redaction smoke, readiness smoke, answer agreement smoke, indexing smoke, queue indexing smoke, GitHub sync smoke, review smoke, answer trace/proof smoke, answer replay drift smoke, portfolio demo, observability smoke, OpenAPI contract smoke, and browser smoke tests that exercise retrieval preview, score breakdown, denied candidate audit, the evaluation panel, eval regression history, eval case explorer, release gate, eval freshness, SLO guardrails, answer-level document match, replay drift, proof packets, permission audit, answer trace, Slack simulation trace, tool call audit, and GitHub sync UI.
 
 Details: [docs/ci.md](docs/ci.md)
 

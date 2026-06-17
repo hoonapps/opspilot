@@ -438,6 +438,52 @@ export type AnswerProof = {
   };
 };
 
+export type AnswerReplay = {
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "stable" | "needs_review" | "drifted";
+  summary: {
+    originalTopSourcePath: string | null;
+    currentTopSourcePath: string | null;
+    topSourceChanged: boolean;
+    sourceOverlapRatio: number;
+    originalDocumentAgreement: number;
+    currentDocumentAgreement: number;
+    currentSourceCount: number;
+    permissionDeniedCandidates: number;
+  };
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  originalSources: Array<{
+    rank: number;
+    chunkId: string;
+    path: string;
+    title: string;
+    score: number;
+  }>;
+  currentSources: Array<{
+    rank: number;
+    chunkId: string;
+    path: string;
+    title: string;
+    score: number;
+    retrieval: {
+      vectorScore?: number;
+      lexicalScore?: number;
+      fusedScore?: number;
+      mode: "vector" | "hybrid";
+    };
+  }>;
+  permissionAudit: AskResponse["permissionAudit"];
+};
+
 export type ObservabilitySummary = {
   generatedAt: string;
   questions: {
@@ -799,4 +845,20 @@ export async function getAnswerProof(input: { answerId: string; teamSlugs: strin
   }
 
   return response.json() as Promise<AnswerProof>;
+}
+
+export async function getAnswerReplay(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerReplay> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/replay`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerReplay>;
 }

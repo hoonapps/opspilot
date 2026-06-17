@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import {
   Approval,
   AnswerProof,
+  AnswerReplay,
   AnswerTrace,
   askOpsPilot,
   AskResponse,
@@ -13,6 +14,7 @@ import {
   EvaluationHistory,
   EvaluationReport,
   getAnswerProof,
+  getAnswerReplay,
   getAnswerTrace,
   getDocumentVersionHistory,
   getEvaluationHistory,
@@ -139,6 +141,7 @@ export default function Home() {
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [trace, setTrace] = useState<AnswerTrace | null>(null);
   const [proof, setProof] = useState<AnswerProof | null>(null);
+  const [replay, setReplay] = useState<AnswerReplay | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
@@ -206,10 +209,11 @@ export default function Home() {
     setLoading("ask");
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
-      const [nextTrace, nextProof] = await fetchAnswerEvidence(nextAnswer.answerId);
+      const [nextTrace, nextProof, nextReplay] = await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
       setTrace(nextTrace);
       setProof(nextProof);
+      setReplay(nextReplay);
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "질문 요청에 실패했습니다.");
@@ -242,9 +246,10 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`피드백 저장됨 (${feedback.rating > 0 ? "도움됨" : "개선 필요"})`);
       setFeedbackComment("");
-      const [nextTrace, nextProof] = await fetchAnswerEvidence(answer.answerId);
+      const [nextTrace, nextProof, nextReplay] = await fetchAnswerEvidence(answer.answerId);
       setTrace(nextTrace);
       setProof(nextProof);
+      setReplay(nextReplay);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "피드백 요청에 실패했습니다.");
     } finally {
@@ -474,9 +479,10 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      const [nextTrace, nextProof] = await fetchAnswerEvidence(answerId);
+      const [nextTrace, nextProof, nextReplay] = await fetchAnswerEvidence(answerId);
       setTrace(nextTrace);
       setProof(nextProof);
+      setReplay(nextReplay);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "답변 추적 요청에 실패했습니다.");
     } finally {
@@ -484,10 +490,11 @@ export default function Home() {
     }
   }
 
-  async function fetchAnswerEvidence(answerId: string): Promise<[AnswerTrace, AnswerProof]> {
+  async function fetchAnswerEvidence(answerId: string): Promise<[AnswerTrace, AnswerProof, AnswerReplay]> {
     return Promise.all([
       getAnswerTrace({ answerId, teamSlugs, roles }),
-      getAnswerProof({ answerId, teamSlugs, roles })
+      getAnswerProof({ answerId, teamSlugs, roles }),
+      getAnswerReplay({ answerId, teamSlugs, roles })
     ]);
   }
 
@@ -616,7 +623,7 @@ export default function Home() {
 	            <div className="usageChecklist">
 	              <div>
 	                <strong>데모에서 보여줄 핵심 증거</strong>
-	                <p>문서 출처, 문서 일치율, 권한 차단 후보, tool 호출, 승인 요청, eval 결과, release gate 상태를 순서대로 보여주면 됩니다.</p>
+	                <p>문서 출처, 문서 일치율, replay drift, 권한 차단 후보, tool 호출, 승인 요청, eval 결과, release gate 상태를 순서대로 보여주면 됩니다.</p>
 	              </div>
 	              <div>
 	                <strong>문서를 어디서 관리하나?</strong>
@@ -808,6 +815,46 @@ export default function Home() {
 	                      <span>출처 {proof.evidence.sourcePaths.length}</span>
 	                      <span>Tools {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${tool.status}`).join(" ")}</span>
 	                      <span>검토 {proof.evidence.reviewReasons.join(" ") || "없음"}</span>
+                    </div>
+                  </div>
+                ) : null}
+                {replay ? (
+                  <div className="replayPanel" aria-label="answer replay drift">
+                    <div className="proofHeader">
+                      <div>
+	                        <span>Replay Drift</span>
+	                        <strong>{formatReplayStatus(replay.status)}</strong>
+                      </div>
+	                      <code>
+	                        현재 일치율 {formatPercent(replay.summary.currentDocumentAgreement)} · overlap{" "}
+	                        {formatPercent(replay.summary.sourceOverlapRatio)}
+	                      </code>
+                    </div>
+                    <div className="replaySummary">
+                      <div>
+	                        <span>원래 1순위</span>
+	                        <code>{replay.summary.originalTopSourcePath ?? "없음"}</code>
+                      </div>
+                      <div>
+	                        <span>현재 1순위</span>
+	                        <code>{replay.summary.currentTopSourcePath ?? "없음"}</code>
+                      </div>
+                      <div>
+	                        <span>권한 차단</span>
+	                        <strong>{replay.summary.permissionDeniedCandidates}개</strong>
+                      </div>
+                    </div>
+                    <div className="proofChecklist">
+	                      {replay.checks.map((check) => (
+	                        <article className="proofItem" key={check.id}>
+	                          <span className={check.status === "pass" ? "badge" : "badge review"}>{formatGateStatus(check.status)}</span>
+	                          <div>
+	                            <strong>{formatReplayCheckLabel(check.id, check.label)}</strong>
+	                            <p>{formatReplayCheckEvidence(check.id, check.evidence)}</p>
+	                          </div>
+	                          <code>{formatProofMetric(check)}</code>
+	                        </article>
+	                      ))}
                     </div>
                   </div>
                 ) : null}
@@ -1773,6 +1820,15 @@ function formatProofStatus(status: string): string {
   return labels[status] ?? status;
 }
 
+function formatReplayStatus(status: string): string {
+  const labels: Record<string, string> = {
+    stable: "안정",
+    needs_review: "검토 필요",
+    drifted: "Drift 감지"
+  };
+  return labels[status] ?? status;
+}
+
 function formatRuntimeStatus(status: string): string {
   const labels: Record<string, string> = {
     allowed: "허용",
@@ -1906,6 +1962,40 @@ function formatProofLabel(id: string, fallback: string): string {
     feedback_captured: "피드백 저장"
   };
   return labels[id] ?? fallback;
+}
+
+function formatReplayCheckLabel(id: string, fallback: string): string {
+  const labels: Record<string, string> = {
+    top_source_stable: "1순위 출처 안정성",
+    source_overlap: "출처 겹침",
+    current_document_agreement: "현재 문서 일치율",
+    permission_boundary_replayed: "권한 경계 재실행"
+  };
+  return labels[id] ?? fallback;
+}
+
+function formatReplayCheckEvidence(id: string, fallback: string): string {
+  if (id === "top_source_stable") {
+    const changed = fallback.match(/Top source changed from (.*) to (.*)\./);
+    if (changed) {
+      return `1순위 출처가 ${changed[1]}에서 ${changed[2]}로 바뀌었습니다.`;
+    }
+    const stable = fallback.match(/Top source remains (.*)\./);
+    return stable ? `1순위 출처가 ${stable[1]}로 유지됩니다.` : fallback;
+  }
+  if (id === "source_overlap") {
+    const match = fallback.match(/overlaps (\d+)%/);
+    return match ? `현재 검색 결과가 원래 출처와 ${match[1]}% 겹칩니다.` : fallback;
+  }
+  if (id === "current_document_agreement") {
+    const match = fallback.match(/agreement is (\d+)%/);
+    return match ? `원래 답변과 현재 출처 문서의 일치율은 ${match[1]}%입니다.` : fallback;
+  }
+  if (id === "permission_boundary_replayed") {
+    const match = fallback.match(/denied (\d+) inaccessible candidates/);
+    return match ? `권한 필터를 다시 적용했고 접근 불가 후보 ${match[1]}개를 차단했습니다.` : fallback;
+  }
+  return fallback;
 }
 
 function formatProofEvidence(id: string, fallback: string): string {

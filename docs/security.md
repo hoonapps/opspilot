@@ -57,6 +57,8 @@ The `search_documents` tool log stores an aggregated permission audit with the c
 
 `GET /answers/:id/proof` uses the same source re-check and returns a compact evidence packet for operators. It does not bypass trace permissions; if a caller cannot access a traced source, the proof request is denied too. The proof packet reports pass/warn/fail checks for source attachment, document agreement, grounding coverage, tool audit persistence, approval boundary separation, context budget, and feedback capture.
 
+`GET /answers/:id/replay` also starts from the permission-checked trace. If the caller cannot access the original answer sources, replay is denied before current retrieval runs. This prevents an unauthorized user from using replay drift metadata to infer restricted source paths. When authorized, replay reruns the same permission-aware retrieval path and reports only current sources the caller can access.
+
 ## Slack Security
 
 When `SLACK_SIGNING_SECRET` is configured, OpsPilot verifies Slack request signatures with the raw request body and rejects stale requests older than five minutes. Local demos can leave the secret empty to replay fixture payloads without Slack credentials.

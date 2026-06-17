@@ -2,7 +2,8 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { MikroORM } from "@mikro-orm/core";
 import { AuthzService } from "../authz/authz.service";
 import { RequestContext } from "../shared/request-context";
-import { removeAgreementBoilerplate, tokenizeForAgreement } from "./document-agreement";
+import { calculateDocumentAgreement, removeAgreementBoilerplate, tokenizeForAgreement } from "./document-agreement";
+import { PermissionBoundaryAudit, SearchResult, SearchService } from "./search.service";
 
 export type AnswerTrace = {
   summary: {
@@ -140,11 +141,53 @@ export type AnswerProof = {
   };
 };
 
+export type AnswerReplay = {
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "stable" | "needs_review" | "drifted";
+  summary: {
+    originalTopSourcePath: string | null;
+    currentTopSourcePath: string | null;
+    topSourceChanged: boolean;
+    sourceOverlapRatio: number;
+    originalDocumentAgreement: number;
+    currentDocumentAgreement: number;
+    currentSourceCount: number;
+    permissionDeniedCandidates: number;
+  };
+  checks: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  originalSources: Array<{
+    rank: number;
+    chunkId: string;
+    path: string;
+    title: string;
+    score: number;
+  }>;
+  currentSources: Array<{
+    rank: number;
+    chunkId: string;
+    path: string;
+    title: string;
+    score: number;
+    retrieval: SearchResult["retrieval"];
+  }>;
+  permissionAudit: PermissionBoundaryAudit;
+};
+
 @Injectable()
 export class AnswerTraceService {
   constructor(
     private readonly orm: MikroORM,
-    private readonly authz: AuthzService
+    private readonly authz: AuthzService,
+    private readonly searchService: SearchService
   ) {}
 
   async getTrace(answerId: string, context: RequestContext): Promise<AnswerTrace> {
@@ -361,6 +404,60 @@ export class AnswerTraceService {
       }
     };
   }
+
+  async replay(answerId: string, context: RequestContext): Promise<AnswerReplay> {
+    const trace = await this.getTrace(answerId, context);
+    const { results, permissionAudit } = await this.searchService.searchWithAudit(trace.answer.question, context, 5);
+    const originalChunkIds = new Set(trace.sources.map((source) => source.chunkId));
+    const currentChunkIds = new Set(results.map((source) => source.chunkId));
+    const overlappingChunkCount = [...originalChunkIds].filter((chunkId) => currentChunkIds.has(chunkId)).length;
+    const originalTopSourcePath = trace.sources[0]?.path ?? null;
+    const currentTopSourcePath = results[0]?.path ?? null;
+    const currentDocumentAgreement = calculateDocumentAgreement(
+      trace.answer.text,
+      results.map((source) => source.content)
+    ).score;
+    const originalDocumentAgreement =
+      typeof (trace.answer.metadata.documentAgreement as { score?: unknown } | undefined)?.score === "number"
+        ? ((trace.answer.metadata.documentAgreement as { score: number }).score)
+        : trace.summary.documentAgreementScore;
+    const summary = {
+      originalTopSourcePath,
+      currentTopSourcePath,
+      topSourceChanged: originalTopSourcePath !== currentTopSourcePath,
+      sourceOverlapRatio: ratio(overlappingChunkCount, Math.max(originalChunkIds.size, 1)),
+      originalDocumentAgreement,
+      currentDocumentAgreement,
+      currentSourceCount: results.length,
+      permissionDeniedCandidates: permissionAudit.deniedCandidateCount
+    };
+    const checks = buildReplayChecks(summary);
+
+    return {
+      answerId: trace.answer.id,
+      questionId: trace.answer.questionId,
+      generatedAt: new Date().toISOString(),
+      status: replayStatus(checks),
+      summary,
+      checks,
+      originalSources: trace.sources.map((source) => ({
+        rank: source.rank,
+        chunkId: source.chunkId,
+        path: source.path,
+        title: source.title,
+        score: source.score
+      })),
+      currentSources: results.map((source, index) => ({
+        rank: index + 1,
+        chunkId: source.chunkId,
+        path: source.path,
+        title: source.title,
+        score: Number(source.score.toFixed(6)),
+        retrieval: source.retrieval
+      })),
+      permissionAudit
+    };
+  }
 }
 
 type AnswerTraceRow = {
@@ -563,6 +660,57 @@ function proofStatus(checks: AnswerProof["checks"]): AnswerProof["status"] {
     return "review_required";
   }
   return "verified";
+}
+
+function buildReplayChecks(summary: AnswerReplay["summary"]): AnswerReplay["checks"] {
+  const minOverlap = readProofThreshold("REPLAY_MIN_SOURCE_OVERLAP", 0.6);
+  const minCurrentAgreement = readProofThreshold(
+    "REPLAY_MIN_CURRENT_DOCUMENT_AGREEMENT",
+    Number(process.env.EVAL_MIN_DOCUMENT_AGREEMENT_SCORE ?? 0.8)
+  );
+
+  return [
+    {
+      id: "top_source_stable",
+      label: "Top source stable",
+      status: summary.topSourceChanged ? "fail" : "pass",
+      evidence: summary.topSourceChanged
+        ? `Top source changed from ${summary.originalTopSourcePath ?? "none"} to ${summary.currentTopSourcePath ?? "none"}.`
+        : `Top source remains ${summary.currentTopSourcePath ?? "none"}.`
+    },
+    {
+      id: "source_overlap",
+      label: "Source overlap",
+      status: thresholdStatus(summary.sourceOverlapRatio, minOverlap),
+      evidence: `Current retrieval overlaps ${formatRatio(summary.sourceOverlapRatio)} of the original answer sources.`,
+      metric: summary.sourceOverlapRatio,
+      threshold: minOverlap
+    },
+    {
+      id: "current_document_agreement",
+      label: "Current document agreement",
+      status: thresholdStatus(summary.currentDocumentAgreement, minCurrentAgreement),
+      evidence: `Original answer/current source agreement is ${formatRatio(summary.currentDocumentAgreement)}.`,
+      metric: summary.currentDocumentAgreement,
+      threshold: minCurrentAgreement
+    },
+    {
+      id: "permission_boundary_replayed",
+      label: "Permission boundary replayed",
+      status: "pass",
+      evidence: `Replay used permission-aware retrieval and denied ${summary.permissionDeniedCandidates} inaccessible candidates.`
+    }
+  ];
+}
+
+function replayStatus(checks: AnswerReplay["checks"]): AnswerReplay["status"] {
+  if (checks.some((check) => check.status === "fail")) {
+    return "drifted";
+  }
+  if (checks.some((check) => check.status === "warn")) {
+    return "needs_review";
+  }
+  return "stable";
 }
 
 function readProofThreshold(name: string, fallback: number): number {

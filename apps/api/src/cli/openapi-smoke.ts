@@ -22,6 +22,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/documents/indexing-jobs/{id}", method: "get" },
   { path: "/answers/{id}/trace", method: "get" },
   { path: "/answers/{id}/proof", method: "get" },
+  { path: "/answers/{id}/replay", method: "get" },
   { path: "/tool-calls/registry", method: "get" },
   { path: "/tool-calls/recent", method: "get" },
   { path: "/approvals", method: "get" },

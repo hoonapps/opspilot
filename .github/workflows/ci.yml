@@ -137,6 +137,9 @@ jobs:
       - name: Answer trace smoke
         run: pnpm trace:smoke
 
+      - name: Answer replay drift smoke
+        run: pnpm replay:smoke
+
       - name: Portfolio demo
         run: pnpm portfolio:demo
 

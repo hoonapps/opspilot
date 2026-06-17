@@ -18,6 +18,7 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Show the answer, confidence, document match, context budget, grounding coverage, tool calls, and sources in one scan.
 - Show an answer proof packet so grounding, policy, tool audit, approval boundary, context budget, and feedback evidence are readable without opening database rows.
 - Render answer trace as a compact timeline with context budget and source-level grounding coverage so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
+- Render replay drift beside the proof packet so reviewers can see whether an old answer is still supported by the current indexed documents after Markdown changes.
 - Show the agent tool registry beside runtime tool logs so side effects and approval policy are visible before inspecting individual executions.
 - Show Slack simulation trace in Audit so actor mapping, sources, tool calls, and thread reply metadata are visible without live Slack credentials.
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.

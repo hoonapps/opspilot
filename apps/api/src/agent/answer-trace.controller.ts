@@ -17,4 +17,9 @@ export class AnswerTraceController {
   proof(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.answerTraceService.getProof(id, parseRequestContext(headers));
   }
+
+  @Get(":id/replay")
+  replay(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.answerTraceService.replay(id, parseRequestContext(headers));
+  }
 }
