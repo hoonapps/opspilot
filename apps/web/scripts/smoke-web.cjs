@@ -120,6 +120,9 @@ async function main() {
     await page.locator(".tracePanel").getByText("Coverage", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".groundingPanel").getByText("Grounding coverage", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".groundingPanel").getByText("source_token_overlap_v1", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".tracePanel").getByText("Context", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".contextPanel").getByText("Context budget", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".contextPanel").getByText("ranked_context_budget_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("Question persisted", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("Answer generated", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
@@ -128,6 +131,7 @@ async function main() {
     const traceVisible = await page.locator(".tracePanel").getByText("Refresh trace", { exact: true }).isVisible();
     const traceTimelineVisible = await page.locator(".traceTimeline").getByText("Answer generated", { exact: true }).isVisible();
     const groundingVisible = await page.locator(".groundingPanel").getByText("Grounding coverage", { exact: true }).isVisible();
+    const contextPackageVisible = await page.locator(".contextPanel").getByText("Context budget", { exact: true }).isVisible();
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
@@ -199,6 +203,7 @@ async function main() {
         traceVisible &&
         traceTimelineVisible &&
         groundingVisible &&
+        contextPackageVisible &&
         toolRegistryVisible &&
         toolRegistryApprovalVisible &&
         auditVisible &&
@@ -237,6 +242,7 @@ async function main() {
         traceVisible,
         traceTimelineVisible,
         groundingVisible,
+        contextPackageVisible,
         toolRegistryVisible,
         toolRegistryApprovalVisible,
         auditVisible,

@@ -36,9 +36,9 @@ Every tool call stores the linked question id, tool name, input, output, status,
 
 For `search_documents`, the output includes an aggregated `permissionAudit` object: candidate window size, allowed candidate count, denied candidate count, denied buckets by visibility, and the actor roles/teams used for filtering. Denied titles and paths are deliberately omitted.
 
-`GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns a summary, ordered timeline, question, answer metadata, ranked sources with chunk previews, source-level grounding coverage, tool calls, approval requests, and feedback for that answer. The endpoint applies the same document access check to every traced source before returning the artifact.
+`GET /answers/:id/trace` reconstructs a persisted answer from the database. It returns a summary, ordered timeline, question, answer metadata, ranked sources with chunk previews, source-level grounding coverage, context budget package, tool calls, approval requests, and feedback for that answer. The endpoint applies the same document access check to every traced source before returning the artifact.
 
-The trace timeline includes question persistence, source attachment, answer generation, tool calls, approval transitions, and feedback events. The grounding section shows answer-token coverage by source, including the matched tokens used for the deterministic overlap check. This lets the web console show an answer-level execution story and document match evidence without exposing raw embeddings or bypassing document permissions.
+The trace timeline includes question persistence, source attachment, answer generation, tool calls, approval transitions, and feedback events. The grounding section shows answer-token coverage by source, including the matched tokens used for the deterministic overlap check. The context package shows which ranked chunks entered the prompt budget and which were omitted. This lets the web console show an answer-level execution story and document match evidence without exposing raw embeddings or bypassing document permissions.
 
 ## Decision Flow
 
@@ -49,19 +49,20 @@ The trace timeline includes question persistence, source attachment, answer gene
 5. In `vector` mode, retrieve with pgvector and PostgreSQL lexical overlap. In `hybrid` mode, fuse pgvector and Elasticsearch BM25 results.
 6. Store the aggregated permission audit for the search call.
 7. Re-check accessible chunk ids in PostgreSQL before prompt construction.
-8. If the user asks for a runbook/checklist and the retrieved source has a checklist section, call `create_runbook_checklist`.
-9. Generate a grounded answer with citations.
-10. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
-11. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
-12. Build structured `reviewReasons` for missing sources, low confidence, or sensitive actions.
-13. If any review reason exists, mark `needsHumanReview`.
-14. If sensitive, call `request_human_approval`.
-15. Persist every question, answer, source, review reason, and tool call.
-16. Store optional feedback against the persisted answer id.
-17. Expose answer trace through `GET /answers/:id/trace`.
-18. Expose recent tool calls through the audit API.
-19. Expose pending approval requests for human review.
-20. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
+8. Build a `ranked_context_budget_v1` context package from the ranked sources. It records token budget, estimated tokens, included/omitted chunks, and omission reasons.
+9. If the user asks for a runbook/checklist and the retrieved source has a checklist section, call `create_runbook_checklist`.
+10. Generate a grounded answer with citations.
+11. Estimate confidence from retrieval score and compare it with `CONFIDENCE_THRESHOLD`.
+12. Detect sensitive operations such as production DB writes, deletes, forced refunds, and permission changes.
+13. Build structured `reviewReasons` for missing sources, low confidence, or sensitive actions.
+14. If any review reason exists, mark `needsHumanReview`.
+15. If sensitive, call `request_human_approval`.
+16. Persist every question, answer, source, review reason, context package, and tool call.
+17. Store optional feedback against the persisted answer id.
+18. Expose answer trace through `GET /answers/:id/trace`.
+19. Expose recent tool calls through the audit API.
+20. Expose pending approval requests for human review.
+21. For Slack, format the answer, confidence, review status, review reasons, sources, and tool calls as a thread reply.
 
 ## Current Guardrail
 

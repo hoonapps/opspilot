@@ -574,6 +574,12 @@ export default function Home() {
                     <strong>{formatPercent(trace.grounding.coverageRatio)}</strong>
                   </div>
                   <div>
+                    <span>Context</span>
+                    <strong>
+                      {trace.contextPackage.estimatedTokenCount}/{trace.contextPackage.tokenBudget}
+                    </strong>
+                  </div>
+                  <div>
                     <span>Tools</span>
                     <strong>{trace.summary.toolCallCount}</strong>
                   </div>
@@ -608,6 +614,33 @@ export default function Home() {
                         </div>
                         <span>{formatPercent(source.coverageRatio)}</span>
                         <code>{source.matchedTokens.length > 0 ? source.matchedTokens.join(" ") : "no overlap"}</code>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+                <div className="contextPanel" aria-label="answer context package">
+                  <div className="contextHeader">
+                    <div>
+                      <span>Context budget</span>
+                      <strong>
+                        {trace.contextPackage.includedChunkCount} included · {trace.contextPackage.omittedChunkCount} omitted
+                      </strong>
+                    </div>
+                    <code>{trace.contextPackage.method}</code>
+                  </div>
+                  <div className="contextMeter">
+                    <i style={{ width: `${Math.min(100, (trace.contextPackage.estimatedTokenCount / trace.contextPackage.tokenBudget) * 100)}%` }} />
+                  </div>
+                  <div className="contextChunkList">
+                    {trace.contextPackage.chunks.slice(0, 4).map((chunk) => (
+                      <article className="contextChunkItem" key={`${chunk.rank}-${chunk.path}`}>
+                        <span>{chunk.rank}</span>
+                        <div>
+                          <strong>{chunk.title}</strong>
+                          <p>{chunk.path}</p>
+                        </div>
+                        <code>{chunk.included ? "included" : chunk.reason}</code>
+                        <small>{chunk.estimatedTokens}t</small>
                       </article>
                     ))}
                   </div>

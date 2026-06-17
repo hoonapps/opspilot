@@ -43,6 +43,12 @@ async function main() {
       trace.grounding.sources.length === trace.sources.length &&
       trace.grounding.coverageRatio >= 0 &&
       trace.grounding.sources.some((source) => source.matchedTokenCount > 0 && source.matchedTokens.length > 0) &&
+      trace.contextPackage.method === "ranked_context_budget_v1" &&
+      trace.contextPackage.chunks.length === trace.sources.length &&
+      trace.contextPackage.includedChunkCount > 0 &&
+      trace.contextPackage.estimatedTokenCount <= trace.contextPackage.tokenBudget &&
+      trace.summary.contextEstimatedTokenCount === trace.contextPackage.estimatedTokenCount &&
+      trace.summary.contextTokenBudget === trace.contextPackage.tokenBudget &&
       trace.timeline.length >= 5 &&
       timelineTitles.includes("Question persisted") &&
       timelineTitles.includes("Sources attached") &&
@@ -70,6 +76,7 @@ async function main() {
         feedbackCount: trace.feedback.length,
         summary: trace.summary,
         grounding: trace.grounding,
+        contextPackage: trace.contextPackage,
         timeline: timelineTitles,
         unauthorizedDenied,
         reviewReasons

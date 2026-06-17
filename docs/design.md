@@ -15,8 +15,8 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 
 ## Console Design Goals
 
-- Show the answer, confidence, document match, grounding coverage, tool calls, and sources in one scan.
-- Render answer trace as a compact timeline with source-level grounding coverage so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
+- Show the answer, confidence, document match, context budget, grounding coverage, tool calls, and sources in one scan.
+- Render answer trace as a compact timeline with context budget and source-level grounding coverage so persisted question, retrieval, answer, tool, approval, and feedback events can be audited from the same screen.
 - Show the agent tool registry beside runtime tool logs so side effects and approval policy are visible before inspecting individual executions.
 - Keep primary workflows in a dashboard shell with stable screen navigation instead of crowding every workflow into one page.
 - Split the console into Ask, Retrieval, Documents, Quality, Review, and Audit screens so retrieval debugging and document management are first-class workflows.

@@ -262,6 +262,8 @@ export type AnswerTrace = {
     durationMs: number;
     coveredAnswerTokenCount: number;
     answerTokenCount: number;
+    contextEstimatedTokenCount: number;
+    contextTokenBudget: number;
   };
   grounding: {
     method: "source_token_overlap_v1";
@@ -276,6 +278,23 @@ export type AnswerTrace = {
       matchedTokenCount: number;
       answerTokenCount: number;
       matchedTokens: string[];
+    }>;
+  };
+  contextPackage: {
+    method: "ranked_context_budget_v1";
+    tokenBudget: number;
+    estimatedTokenCount: number;
+    remainingTokenBudget: number;
+    includedChunkCount: number;
+    omittedChunkCount: number;
+    chunks: Array<{
+      rank: number;
+      title: string;
+      path: string;
+      score: number;
+      estimatedTokens: number;
+      included: boolean;
+      reason: "within_budget" | "rank_cutoff" | "budget_exceeded";
     }>;
   };
   timeline: Array<{

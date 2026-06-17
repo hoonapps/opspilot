@@ -596,7 +596,7 @@ pre {
 
 .traceSummary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) auto;
   gap: 8px;
   align-items: stretch;
 }
@@ -720,6 +720,119 @@ pre {
   color: var(--accent-strong);
   font-size: 13px;
   font-weight: 900;
+}
+
+.contextPanel {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #d6def0;
+  border-radius: 8px;
+  background: #f5f8ff;
+}
+
+.contextHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.contextHeader span {
+  display: block;
+  color: var(--info);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.contextHeader strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.contextHeader code,
+.contextChunkItem code {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextMeter {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.contextMeter i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--info), var(--accent));
+}
+
+.contextChunkList {
+  display: grid;
+  gap: 8px;
+}
+
+.contextChunkItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.contextChunkItem > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.contextChunkItem strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextChunkItem p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextChunkItem small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .traceTimeline {
@@ -1820,6 +1933,7 @@ pre {
   .reasonItem,
   .traceSummary,
   .groundingItem,
+  .contextChunkItem,
   .versionSummary,
   .timelineItem,
   .feedbackBar {

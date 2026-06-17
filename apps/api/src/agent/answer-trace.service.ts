@@ -16,6 +16,8 @@ export type AnswerTrace = {
     durationMs: number;
     coveredAnswerTokenCount: number;
     answerTokenCount: number;
+    contextEstimatedTokenCount: number;
+    contextTokenBudget: number;
   };
   grounding: {
     method: "source_token_overlap_v1";
@@ -30,6 +32,23 @@ export type AnswerTrace = {
       matchedTokenCount: number;
       answerTokenCount: number;
       matchedTokens: string[];
+    }>;
+  };
+  contextPackage: {
+    method: "ranked_context_budget_v1";
+    tokenBudget: number;
+    estimatedTokenCount: number;
+    remainingTokenBudget: number;
+    includedChunkCount: number;
+    omittedChunkCount: number;
+    chunks: Array<{
+      rank: number;
+      title: string;
+      path: string;
+      score: number;
+      estimatedTokens: number;
+      included: boolean;
+      reason: "within_budget" | "rank_cutoff" | "budget_exceeded";
     }>;
   };
   timeline: Array<{
@@ -204,6 +223,7 @@ export class AnswerTraceService {
     const metadata = answer.metadata ?? {};
     const documentAgreement = metadata.documentAgreement as { score?: unknown } | undefined;
     const grounding = buildGrounding(answer.text, sources);
+    const contextPackage = readContextPackage(metadata.contextPackage) ?? buildContextPackageFallback(sources);
     const summary = {
       sourceCount: sources.length,
       toolCallCount: mappedToolCalls.length,
@@ -219,12 +239,15 @@ export class AnswerTraceService {
         ...mappedFeedback.map((event) => event.createdAt)
       ]),
       coveredAnswerTokenCount: grounding.coveredAnswerTokenCount,
-      answerTokenCount: grounding.answerTokenCount
+      answerTokenCount: grounding.answerTokenCount,
+      contextEstimatedTokenCount: contextPackage.estimatedTokenCount,
+      contextTokenBudget: contextPackage.tokenBudget
     };
 
     return {
       summary,
       grounding,
+      contextPackage,
       timeline: buildTimeline({
         answerId: answer.id,
         questionId: answer.question_id,
@@ -369,6 +392,65 @@ function ratio(numerator: number, denominator: number): number {
     return 0;
   }
   return Number((numerator / denominator).toFixed(3));
+}
+
+function readContextPackage(value: unknown): AnswerTrace["contextPackage"] | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<AnswerTrace["contextPackage"]>;
+  if (
+    candidate.method !== "ranked_context_budget_v1" ||
+    typeof candidate.tokenBudget !== "number" ||
+    typeof candidate.estimatedTokenCount !== "number" ||
+    typeof candidate.remainingTokenBudget !== "number" ||
+    typeof candidate.includedChunkCount !== "number" ||
+    typeof candidate.omittedChunkCount !== "number" ||
+    !Array.isArray(candidate.chunks)
+  ) {
+    return null;
+  }
+
+  return candidate as AnswerTrace["contextPackage"];
+}
+
+function buildContextPackageFallback(sources: SourceTraceRow[]): AnswerTrace["contextPackage"] {
+  const tokenBudget = Number(process.env.CONTEXT_TOKEN_BUDGET ?? 1800);
+  const maxChunks = Number(process.env.CONTEXT_MAX_CHUNKS ?? 4);
+  let usedTokens = 0;
+  const chunks = sources.map((source) => {
+    const estimatedTokens = estimateTokens(`${source.title}\n${source.path}\n${source.content}`);
+    const rankAllowed = source.rank <= maxChunks;
+    const budgetAllowed = usedTokens + estimatedTokens <= tokenBudget;
+    const included = rankAllowed && budgetAllowed;
+    if (included) {
+      usedTokens += estimatedTokens;
+    }
+
+    return {
+      rank: source.rank,
+      title: source.title,
+      path: source.path,
+      score: Number(source.score.toFixed(6)),
+      estimatedTokens,
+      included,
+      reason: included ? ("within_budget" as const) : rankAllowed ? ("budget_exceeded" as const) : ("rank_cutoff" as const)
+    };
+  });
+
+  return {
+    method: "ranked_context_budget_v1",
+    tokenBudget,
+    estimatedTokenCount: usedTokens,
+    remainingTokenBudget: Math.max(0, tokenBudget - usedTokens),
+    includedChunkCount: chunks.filter((chunk) => chunk.included).length,
+    omittedChunkCount: chunks.filter((chunk) => !chunk.included).length,
+    chunks
+  };
+}
+
+function estimateTokens(value: string): number {
+  return Math.max(1, Math.ceil(value.length / 4));
 }
 
 function buildTimeline(input: {

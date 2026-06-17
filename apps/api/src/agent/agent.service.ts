@@ -30,6 +30,24 @@ export type AskResponse = {
   permissionAudit: PermissionBoundaryAudit;
 };
 
+export type ContextPackage = {
+  method: "ranked_context_budget_v1";
+  tokenBudget: number;
+  estimatedTokenCount: number;
+  remainingTokenBudget: number;
+  includedChunkCount: number;
+  omittedChunkCount: number;
+  chunks: Array<{
+    rank: number;
+    title: string;
+    path: string;
+    score: number;
+    estimatedTokens: number;
+    included: boolean;
+    reason: "within_budget" | "rank_cutoff" | "budget_exceeded";
+  }>;
+};
+
 export type RetrievalPreviewResponse = {
   query: string;
   limit: number;
@@ -128,6 +146,7 @@ export class AgentService {
       answer,
       sources.map((source) => source.content)
     );
+    const contextPackage = buildContextPackage(sources);
 
     const [answerRow] = await connection.execute<{ id: string }[]>(
       `
@@ -144,6 +163,7 @@ export class AgentService {
           sensitiveAction,
           sourceCount: sources.length,
           documentAgreement,
+          contextPackage,
           reviewReasons,
           checklist: checklist ? { path: checklist.path, itemCount: checklist.items.length } : null
         })
@@ -290,4 +310,44 @@ function normalizeRetrievalScore(source: SearchResult): number {
   }
 
   return source.score;
+}
+
+function buildContextPackage(sources: SearchResult[]): ContextPackage {
+  const tokenBudget = Number(process.env.CONTEXT_TOKEN_BUDGET ?? 1800);
+  const maxChunks = Number(process.env.CONTEXT_MAX_CHUNKS ?? 4);
+  let usedTokens = 0;
+  const chunks = sources.map((source, index) => {
+    const estimatedTokens = estimateTokens(`${source.title}\n${source.path}\n${source.content}`);
+    const rank = index + 1;
+    const rankAllowed = rank <= maxChunks;
+    const budgetAllowed = usedTokens + estimatedTokens <= tokenBudget;
+    const included = rankAllowed && budgetAllowed;
+    if (included) {
+      usedTokens += estimatedTokens;
+    }
+
+    return {
+      rank,
+      title: source.title,
+      path: source.path,
+      score: Number(source.score.toFixed(6)),
+      estimatedTokens,
+      included,
+      reason: included ? ("within_budget" as const) : rankAllowed ? ("budget_exceeded" as const) : ("rank_cutoff" as const)
+    };
+  });
+
+  return {
+    method: "ranked_context_budget_v1",
+    tokenBudget,
+    estimatedTokenCount: usedTokens,
+    remainingTokenBudget: Math.max(0, tokenBudget - usedTokens),
+    includedChunkCount: chunks.filter((chunk) => chunk.included).length,
+    omittedChunkCount: chunks.filter((chunk) => !chunk.included).length,
+    chunks
+  };
+}
+
+function estimateTokens(value: string): number {
+  return Math.max(1, Math.ceil(value.length / 4));
 }
