@@ -52,9 +52,18 @@ Replay, quality gate, lineage 결과가 한 응답에 묶여야 합니다.
     }
 
     const run = await documents.runRevalidation({ documentId: item.document.id, answerId: item.answer.id }, ACTOR);
+    const history = await documents.listRevalidationRuns(20);
+    const historyRun = history.runs.find((candidate) => candidate.id === run.runId);
     const ok =
       run.schemaVersion === "opspilot.document_revalidation_run.v1" &&
+      history.schemaVersion === "opspilot.document_revalidation_run_history.v1" &&
+      /^[0-9a-f-]{36}$/.test(run.runId) &&
       run.queueItem.id === item.id &&
+      run.persistence.stored === true &&
+      /^[a-f0-9]{64}$/.test(run.persistence.reportHash) &&
+      /^[a-f0-9]{64}$/.test(run.artifactHashes.replay) &&
+      /^[a-f0-9]{64}$/.test(run.artifactHashes.qualityGate) &&
+      /^[a-f0-9]{64}$/.test(run.artifactHashes.lineage) &&
       run.artifacts.replay.answerId === answer.answerId &&
       run.artifacts.qualityGate.answerId === answer.answerId &&
       run.artifacts.lineage.answerId === answer.answerId &&
@@ -62,6 +71,9 @@ Replay, quality gate, lineage 결과가 한 응답에 묶여야 합니다.
       /^[a-f0-9]{64}$/.test(run.summary.lineageIntegrityHash) &&
       run.checks.some((check) => check.id === "replay_stable") &&
       run.evidenceLinks.replay === `/answers/${answer.answerId}/replay` &&
+      historyRun?.reportHash === run.persistence.reportHash &&
+      historyRun?.artifactHashes.replay === run.artifactHashes.replay &&
+      history.summary.runCount > 0 &&
       ["cleared", "needs_review", "blocked"].includes(run.status);
 
     console.log(
@@ -69,6 +81,9 @@ Replay, quality gate, lineage 결과가 한 응답에 묶여야 합니다.
         {
           ok,
           status: run.status,
+          runId: run.runId,
+          persistence: run.persistence,
+          history: history.summary,
           decision: run.decision,
           summary: run.summary,
           checkStatuses: Object.fromEntries(run.checks.map((check) => [check.id, check.status]))

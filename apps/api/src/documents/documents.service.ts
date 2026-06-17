@@ -107,6 +107,27 @@ type DocumentRevalidationQueueRow = DocumentImpactRow & {
   documentUpdatedAt: Date | string;
 };
 
+type DocumentRevalidationRunRow = {
+  id: string;
+  documentId: string;
+  documentPath: string;
+  documentTitle: string;
+  answerId: string;
+  questionId: string | null;
+  question: string | null;
+  status: DocumentRevalidationRunReport["status"];
+  recommendedAction: DocumentRevalidationRunReport["decision"]["recommendedAction"];
+  actor: Record<string, unknown>;
+  queueItem: DocumentRevalidationQueueReport["items"][number];
+  decision: DocumentRevalidationRunReport["decision"];
+  summary: DocumentRevalidationRunReport["summary"];
+  checks: DocumentRevalidationRunReport["checks"];
+  evidenceLinks: DocumentRevalidationRunReport["evidenceLinks"];
+  artifactHashes: DocumentRevalidationRunReport["artifactHashes"];
+  reportHash: string;
+  createdAt: Date | string;
+};
+
 export type DocumentInventoryItem = {
   id: string;
   path: string;
@@ -381,6 +402,7 @@ export type DocumentRevalidationQueueReport = {
 
 export type DocumentRevalidationRunReport = {
   schemaVersion: "opspilot.document_revalidation_run.v1";
+  runId: string;
   generatedAt: string;
   status: "cleared" | "needs_review" | "blocked";
   queueItem: DocumentRevalidationQueueReport["items"][number];
@@ -413,6 +435,11 @@ export type DocumentRevalidationRunReport = {
     qualityGate: AnswerQualityGate;
     lineage: AnswerLineageGraph;
   };
+  artifactHashes: {
+    replay: string;
+    qualityGate: string;
+    lineage: string;
+  };
   evidenceLinks: {
     queue: string;
     documentImpact: string;
@@ -420,6 +447,45 @@ export type DocumentRevalidationRunReport = {
     lineage: string;
     qualityGate: string;
   };
+  persistence: {
+    stored: true;
+    createdAt: string;
+    reportHash: string;
+  };
+};
+
+export type DocumentRevalidationRunHistoryReport = {
+  schemaVersion: "opspilot.document_revalidation_run_history.v1";
+  generatedAt: string;
+  summary: {
+    runCount: number;
+    clearedCount: number;
+    needsReviewCount: number;
+    blockedCount: number;
+    latestRunAt: string | null;
+  };
+  runs: Array<{
+    id: string;
+    createdAt: string;
+    status: DocumentRevalidationRunReport["status"];
+    document: {
+      id: string;
+      path: string;
+      title: string;
+    };
+    answer: {
+      id: string;
+      questionId: string | null;
+      question: string | null;
+    };
+    actor: Record<string, unknown>;
+    decision: DocumentRevalidationRunReport["decision"];
+    summary: DocumentRevalidationRunReport["summary"];
+    checks: DocumentRevalidationRunReport["checks"];
+    evidenceLinks: DocumentRevalidationRunReport["evidenceLinks"];
+    artifactHashes: DocumentRevalidationRunReport["artifactHashes"];
+    reportHash: string;
+  }>;
 };
 
 @Injectable()
@@ -1221,6 +1287,76 @@ export class DocumentsService {
     };
   }
 
+  async listRevalidationRuns(limit = 20): Promise<DocumentRevalidationRunHistoryReport> {
+    const normalizedLimit = Math.min(Math.max(Math.floor(limit), 1), 100);
+    const connection = this.orm.em.fork().getConnection();
+    const rows = (await connection.execute<DocumentRevalidationRunRow[]>(
+      `
+        select
+          r.id::text as id,
+          d.id::text as "documentId",
+          d.path as "documentPath",
+          d.title as "documentTitle",
+          a.id::text as "answerId",
+          q.id::text as "questionId",
+          q.text as question,
+          r.status,
+          r.recommended_action as "recommendedAction",
+          r.actor,
+          r.queue_item as "queueItem",
+          r.decision,
+          r.summary,
+          r.checks,
+          r.evidence_links as "evidenceLinks",
+          r.artifact_hashes as "artifactHashes",
+          r.report_hash as "reportHash",
+          r.created_at as "createdAt"
+        from document_revalidation_runs r
+        join documents d on d.id = r.document_id
+        join answers a on a.id = r.answer_id
+        left join questions q on q.id = r.question_id
+        order by r.created_at desc, r.id desc
+        limit ?;
+      `,
+      [normalizedLimit]
+    )) as DocumentRevalidationRunRow[];
+    const runs = rows.map((row) => ({
+      id: row.id,
+      createdAt: toIsoString(row.createdAt),
+      status: row.status,
+      document: {
+        id: row.documentId,
+        path: row.documentPath,
+        title: row.documentTitle
+      },
+      answer: {
+        id: row.answerId,
+        questionId: row.questionId,
+        question: row.question
+      },
+      actor: normalizeRecord(row.actor),
+      decision: row.decision,
+      summary: row.summary,
+      checks: row.checks,
+      evidenceLinks: row.evidenceLinks,
+      artifactHashes: row.artifactHashes,
+      reportHash: row.reportHash
+    }));
+
+    return {
+      schemaVersion: "opspilot.document_revalidation_run_history.v1",
+      generatedAt: new Date().toISOString(),
+      summary: {
+        runCount: runs.length,
+        clearedCount: runs.filter((run) => run.status === "cleared").length,
+        needsReviewCount: runs.filter((run) => run.status === "needs_review").length,
+        blockedCount: runs.filter((run) => run.status === "blocked").length,
+        latestRunAt: runs[0]?.createdAt ?? null
+      },
+      runs
+    };
+  }
+
   async runRevalidation(input: RunDocumentRevalidationDto, context: RequestContext): Promise<DocumentRevalidationRunReport> {
     const queue = await this.getRevalidationQueue(5_000);
     const queueItem = queue.items.find((item) => item.document.id === input.documentId && item.answer.id === input.answerId);
@@ -1235,36 +1371,95 @@ export class DocumentsService {
     ]);
     const status = revalidationRunStatus({ replay, qualityGate });
     const checks = buildRevalidationRunChecks({ queueItem, replay, qualityGate, lineage });
-
-    return {
-      schemaVersion: "opspilot.document_revalidation_run.v1",
+    const decision = buildRevalidationRunDecision({ status, checks });
+    const summary = {
+      replayStatus: replay.status,
+      qualityGateStatus: qualityGate.status,
+      lineageStatus: lineage.status,
+      topSourceChanged: replay.summary.topSourceChanged,
+      sourceOverlapRatio: replay.summary.sourceOverlapRatio,
+      currentDocumentAgreement: replay.summary.currentDocumentAgreement,
+      permissionDeniedCandidates: replay.summary.permissionDeniedCandidates,
+      sourceAccessRechecked: true as const,
+      lineageIntegrityHash: lineage.integrity.hash
+    };
+    const artifactHashes = {
+      replay: sha256(stableStringify(replay)),
+      qualityGate: sha256(stableStringify(qualityGate)),
+      lineage: sha256(stableStringify(lineage))
+    };
+    const evidenceLinks = {
+      queue: "/documents/revalidation-queue",
+      documentImpact: queueItem.evidenceLinks.documentImpact,
+      replay: queueItem.evidenceLinks.replay,
+      lineage: queueItem.evidenceLinks.lineage,
+      qualityGate: queueItem.evidenceLinks.qualityGate
+    };
+    const unsignedReport = {
+      schemaVersion: "opspilot.document_revalidation_run.v1" as const,
       generatedAt: new Date().toISOString(),
       status,
       queueItem,
-      decision: buildRevalidationRunDecision({ status, checks }),
-      summary: {
-        replayStatus: replay.status,
-        qualityGateStatus: qualityGate.status,
-        lineageStatus: lineage.status,
-        topSourceChanged: replay.summary.topSourceChanged,
-        sourceOverlapRatio: replay.summary.sourceOverlapRatio,
-        currentDocumentAgreement: replay.summary.currentDocumentAgreement,
-        permissionDeniedCandidates: replay.summary.permissionDeniedCandidates,
-        sourceAccessRechecked: qualityGate.summary.sourceAccessRechecked,
-        lineageIntegrityHash: lineage.integrity.hash
-      },
+      decision,
+      summary,
       checks,
+      artifactHashes,
+      evidenceLinks
+    };
+    const reportHash = sha256(stableStringify(unsignedReport));
+    const connection = this.orm.em.fork().getConnection();
+    const [stored] = await connection.execute<{ id: string; created_at: Date | string }[]>(
+      `
+        insert into document_revalidation_runs (
+          document_id,
+          answer_id,
+          question_id,
+          status,
+          recommended_action,
+          actor,
+          queue_item,
+          decision,
+          summary,
+          checks,
+          evidence_links,
+          artifact_hashes,
+          report_hash
+        )
+        values (?::uuid, ?::uuid, ?::uuid, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)
+        returning id::text, created_at;
+      `,
+      [
+        queueItem.document.id,
+        queueItem.answer.id,
+        queueItem.answer.questionId,
+        status,
+        decision.recommendedAction,
+        JSON.stringify(actorSnapshot(context)),
+        JSON.stringify(queueItem),
+        JSON.stringify(decision),
+        JSON.stringify(summary),
+        JSON.stringify(checks),
+        JSON.stringify(evidenceLinks),
+        JSON.stringify(artifactHashes),
+        reportHash
+      ]
+    );
+    if (!stored) {
+      throw new Error("Document revalidation run was not persisted");
+    }
+
+    return {
+      ...unsignedReport,
+      runId: stored.id,
       artifacts: {
         replay,
         qualityGate,
         lineage
       },
-      evidenceLinks: {
-        queue: "/documents/revalidation-queue",
-        documentImpact: queueItem.evidenceLinks.documentImpact,
-        replay: queueItem.evidenceLinks.replay,
-        lineage: queueItem.evidenceLinks.lineage,
-        qualityGate: queueItem.evidenceLinks.qualityGate
+      persistence: {
+        stored: true,
+        createdAt: toIsoString(stored.created_at),
+        reportHash
       }
     };
   }
@@ -1919,6 +2114,33 @@ function formatRevalidationRisk(riskLevel: DocumentRevalidationQueueReport["item
     low: "낮음"
   };
   return labels[riskLevel];
+}
+
+function actorSnapshot(context: RequestContext): Record<string, unknown> {
+  return {
+    actorId: context.actorId ?? null,
+    email: context.email ?? null,
+    roles: context.roles.slice().sort(),
+    teamSlugs: context.teamSlugs.slice().sort()
+  };
+}
+
+function normalizeRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
 }
 
 function getSecurityNumber(metadata: Record<string, unknown>, key: string): number {

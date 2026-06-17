@@ -21,6 +21,7 @@ import {
   DocumentInventoryItem,
   DocumentIndexQualityReport,
   DocumentRevalidationQueueReport,
+  DocumentRevalidationRunHistoryReport,
   DocumentRevalidationRunReport,
   DocumentVersionHistory,
   ErrorBudgetReport,
@@ -39,6 +40,7 @@ import {
   getDocumentImpact,
   getDocumentIndexExplain,
   getDocumentRevalidationQueue,
+  getDocumentRevalidationRuns,
   getDocumentVersionHistory,
   getDocumentIndexQuality,
   getErrorBudget,
@@ -246,6 +248,7 @@ export default function Home() {
   const [documentImpact, setDocumentImpact] = useState<DocumentImpactReport | null>(null);
   const [documentRevalidationQueue, setDocumentRevalidationQueue] = useState<DocumentRevalidationQueueReport | null>(null);
   const [documentRevalidationRun, setDocumentRevalidationRun] = useState<DocumentRevalidationRunReport | null>(null);
+  const [documentRevalidationRuns, setDocumentRevalidationRuns] = useState<DocumentRevalidationRunHistoryReport | null>(null);
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionBoundaryMatrix | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
@@ -267,6 +270,7 @@ export default function Home() {
     | "index-explain"
     | "impact"
     | "revalidation"
+    | "revalidation-history"
     | "revalidation-run"
     | "matrix"
     | "approval"
@@ -612,6 +616,7 @@ export default function Home() {
       setDocuments(nextDocuments);
       setIndexQuality(await getDocumentIndexQuality());
       setDocumentRevalidationQueue(await getDocumentRevalidationQueue());
+      setDocumentRevalidationRuns(await getDocumentRevalidationRuns());
       setSelectedDocumentId((currentId) =>
         currentId && nextDocuments.some((document) => document.id === currentId) ? currentId : nextDocuments[0]?.id ?? null
       );
@@ -686,8 +691,21 @@ export default function Home() {
     setLoading("revalidation");
     try {
       setDocumentRevalidationQueue(await getDocumentRevalidationQueue());
+      setDocumentRevalidationRuns(await getDocumentRevalidationRuns());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 재검증 큐 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadDocumentRevalidationRuns() {
+    setError(null);
+    setLoading("revalidation-history");
+    try {
+      setDocumentRevalidationRuns(await getDocumentRevalidationRuns());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 재검증 실행 이력 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -697,14 +715,14 @@ export default function Home() {
     setError(null);
     setLoading("revalidation-run");
     try {
-      setDocumentRevalidationRun(
-        await runDocumentRevalidation({
-          documentId: item.document.id,
-          answerId: item.answer.id,
-          teamSlugs,
-          roles
-        })
-      );
+      const run = await runDocumentRevalidation({
+        documentId: item.document.id,
+        answerId: item.answer.id,
+        teamSlugs,
+        roles
+      });
+      setDocumentRevalidationRun(run);
+      setDocumentRevalidationRuns(await getDocumentRevalidationRuns());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 재검증 실행에 실패했습니다.");
     } finally {
@@ -2765,6 +2783,9 @@ export default function Home() {
                 <button className="smallButton" disabled={loading === "revalidation"} onClick={loadDocumentRevalidationQueue} type="button">
                   {loading === "revalidation" ? "계산 중..." : "재검증 큐"}
                 </button>
+                <button className="smallButton" disabled={loading === "revalidation-history"} onClick={loadDocumentRevalidationRuns} type="button">
+                  {loading === "revalidation-history" ? "불러오는 중..." : "실행 이력"}
+                </button>
               </div>
               {documentRevalidationQueue ? (
                 <>
@@ -2829,12 +2850,22 @@ export default function Home() {
                         </span>
                       </div>
                       <div className="revalidationRunSummary">
-                        <Metric label="Replay" value={formatReplayStatus(documentRevalidationRun.summary.replayStatus)} />
+                        <Metric label="재실행" value={formatReplayStatus(documentRevalidationRun.summary.replayStatus)} />
                         <Metric label="품질 게이트" value={formatQualityGateStatus(documentRevalidationRun.summary.qualityGateStatus)} />
                         <Metric label="출처 겹침" value={`${Math.round(documentRevalidationRun.summary.sourceOverlapRatio * 100)}%`} />
                         <Metric label="현재 일치율" value={`${Math.round(documentRevalidationRun.summary.currentDocumentAgreement * 100)}%`} />
                         <Metric label="차단 후보" value={`${documentRevalidationRun.summary.permissionDeniedCandidates}개`} />
                         <Metric label="계보 해시" value={shortHash(documentRevalidationRun.summary.lineageIntegrityHash)} />
+                        <Metric label="실행 ID" value={shortId(documentRevalidationRun.runId)} />
+                        <Metric label="리포트 해시" value={shortHash(documentRevalidationRun.persistence.reportHash)} />
+                      </div>
+                      <div className="revalidationRecommendations">
+                        <p>
+                          {formatDateTime(documentRevalidationRun.persistence.createdAt)}에 저장됨 · replay{" "}
+                          {shortHash(documentRevalidationRun.artifactHashes.replay)} · 품질 게이트{" "}
+                          {shortHash(documentRevalidationRun.artifactHashes.qualityGate)} · 계보{" "}
+                          {shortHash(documentRevalidationRun.artifactHashes.lineage)}
+                        </p>
                       </div>
                       <div className="revalidationRunChecks">
                         {documentRevalidationRun.checks.map((check) => (
@@ -2844,6 +2875,50 @@ export default function Home() {
                             <p>{check.evidence}</p>
                           </article>
                         ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {documentRevalidationRuns ? (
+                    <div className="revalidationRunHistory" aria-label="최근 재검증 실행 이력">
+                      <div className="sectionHeader compact">
+                        <div>
+                          <p className="eyebrow">감사 이력</p>
+                          <h3>최근 재검증 실행</h3>
+                        </div>
+                        <span className="badge">{documentRevalidationRuns.summary.runCount}건</span>
+                      </div>
+                      <div className="revalidationSummary">
+                        <Metric label="종료" value={`${documentRevalidationRuns.summary.clearedCount}건`} />
+                        <Metric label="재검토" value={`${documentRevalidationRuns.summary.needsReviewCount}건`} />
+                        <Metric label="차단" value={`${documentRevalidationRuns.summary.blockedCount}건`} />
+                        <Metric
+                          label="최근 실행"
+                          value={documentRevalidationRuns.summary.latestRunAt ? formatShortDate(documentRevalidationRuns.summary.latestRunAt) : "없음"}
+                        />
+                      </div>
+                      <div className="revalidationList">
+                        {documentRevalidationRuns.runs.length > 0 ? (
+                          documentRevalidationRuns.runs.slice(0, 5).map((run) => (
+                            <article className={`revalidationItem revalidationRun--${run.status}`} key={run.id}>
+                              <div className="revalidationItemHead">
+                                <span>{formatRevalidationRunStatus(run.status)}</span>
+                                <div>
+                                  <strong>{run.answer.question ?? "질문 없음"}</strong>
+                                  <p>
+                                    {run.document.path} · {formatDateTime(run.createdAt)} · {run.decision.label}
+                                  </p>
+                                </div>
+                                <code>{shortHash(run.reportHash)}</code>
+                              </div>
+                              <p>
+                                현재 일치율 {Math.round(run.summary.currentDocumentAgreement * 100)}% · 출처 겹침{" "}
+                                {Math.round(run.summary.sourceOverlapRatio * 100)}% · 계보 {shortHash(run.summary.lineageIntegrityHash)}
+                              </p>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty">아직 저장된 재검증 실행 이력이 없습니다.</p>
+                        )}
                       </div>
                     </div>
                   ) : null}

@@ -6,6 +6,9 @@ import { DocumentsService } from "../documents/documents.service";
 import { FeedbackService } from "../feedback/feedback.service";
 import { ObservabilityService } from "../observability/observability.service";
 
+const REVALIDATION_DOCUMENT_PATH = "public/audit-ledger-revalidation.md";
+const REVALIDATION_TOKEN = "감사원장재검증키";
+
 async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
   try {
@@ -22,10 +25,47 @@ async function main() {
     await feedback.create({
       answerId: answer.answerId,
       rating: 1,
-      comment: "Audit ledger smoke confirms tamper-evident chain."
+      comment: "감사 원장 스모크가 해시 체인을 검증합니다."
     });
 
-    const ledger = await observability.auditLedger(80);
+    await documents.ingestMarkdown(
+      REVALIDATION_DOCUMENT_PATH,
+      `---
+title: "감사 원장 재검증"
+visibility: public
+tags: audit,revalidation
+---
+# 감사 원장 재검증
+
+${REVALIDATION_TOKEN} ${REVALIDATION_TOKEN} ${REVALIDATION_TOKEN}
+
+재검증 실행은 감사 원장에 별도 이벤트로 남아야 합니다.
+`
+    );
+    const revalidationAnswer = await agent.ask(`${REVALIDATION_TOKEN} 문서는 어떤 이벤트를 증명해?`, actor, "audit-ledger-smoke");
+    await sleep(20);
+    await documents.ingestMarkdown(
+      REVALIDATION_DOCUMENT_PATH,
+      `---
+title: "감사 원장 재검증"
+visibility: public
+tags: audit,revalidation
+---
+# 감사 원장 재검증
+
+문서가 변경된 뒤 재검증 실행은 상태, 권고 액션, 리포트 해시를 감사 원장에 남겨야 합니다.
+`
+    );
+    const queue = await documents.getRevalidationQueue(100);
+    const item = queue.items.find(
+      (candidate) => candidate.answer.id === revalidationAnswer.answerId && candidate.document.path === REVALIDATION_DOCUMENT_PATH
+    );
+    if (!item) {
+      throw new Error("Audit ledger revalidation queue item was not created");
+    }
+    const revalidationRun = await documents.runRevalidation({ documentId: item.document.id, answerId: item.answer.id }, actor);
+
+    const ledger = await observability.auditLedger(100);
     const eventTypes = new Set(ledger.events.map((event) => event.type));
     const statuses = new Set(ledger.events.map((event) => event.status));
     const relatedEvents = ledger.events.filter(
@@ -43,7 +83,9 @@ async function main() {
       eventTypes.has("tool_call") &&
       eventTypes.has("approval") &&
       eventTypes.has("feedback") &&
+      eventTypes.has("revalidation_run") &&
       statuses.has("needs_approval") &&
+      ledger.events.some((event) => event.id === revalidationRun.runId && event.type === "revalidation_run") &&
       relatedEvents.length >= 4 &&
       ledger.events.every((event, index) => event.sequence === index + 1 && event.eventHash.length === 64 && event.chainHash.length === 64);
 
@@ -53,7 +95,8 @@ async function main() {
           ok,
           created: {
             answerId: answer.answerId,
-            sensitiveAnswerId: sensitive.answerId
+            sensitiveAnswerId: sensitive.answerId,
+            revalidationRunId: revalidationRun.runId
           },
           rootHash: ledger.rootHash,
           summary: ledger.summary,
@@ -70,6 +113,10 @@ async function main() {
   } finally {
     await app.close();
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 void main().catch((error) => {

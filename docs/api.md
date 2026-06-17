@@ -26,6 +26,7 @@ GET /docs-json
 - `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 변경 차이 확인
 - `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, 오래된 답변 여부, 위험도, 재검증 권고 확인
 - `GET /documents/revalidation-queue`: 변경된 문서를 근거로 사용한 오래된 답변을 위험도/우선순위 큐로 집계
+- `GET /documents/revalidation-runs`: 저장된 문서 재검증 실행 이력과 리포트 해시 조회
 - `POST /documents/revalidation-runs`: 큐 항목 하나를 replay, 품질 게이트, 계보 그래프로 즉시 재검증하고 운영 판정 반환
 - `POST /documents/github/sync`: GitHub Markdown 동기화
 - `GET /documents/indexing-jobs`: BullMQ 색인 큐 카운트, 최근 작업, 워커 상태 확인
@@ -205,6 +206,12 @@ pnpm revalidation-queue:smoke
 ## 문서 재검증 실행
 
 ```txt
+GET /documents/revalidation-runs?limit=20
+```
+
+최근 재검증 실행 이력을 반환합니다. 각 이력에는 문서, 답변, 실행 상태, 권고 액션, 체크 결과, replay/품질 게이트/계보 아티팩트 해시, 리포트 해시가 포함됩니다.
+
+```txt
 POST /documents/revalidation-runs
 ```
 
@@ -217,13 +224,14 @@ POST /documents/revalidation-runs
 }
 ```
 
-응답은 재검증 큐 항목 하나를 현재 호출자 권한으로 다시 검사한 운영 리포트입니다.
+응답은 재검증 큐 항목 하나를 현재 호출자 권한으로 다시 검사한 운영 리포트입니다. 실행 결과는 `document_revalidation_runs` 테이블에 저장되고, `GET /documents/revalidation-runs`와 감사 원장에서 다시 확인할 수 있습니다.
 
 - `status`: `cleared`, `needs_review`, `blocked`
 - `decision`: 큐 항목 종료, 담당자 재검토, 답변 차단/재작성 권고
 - `summary`: replay 상태, 품질 게이트 상태, 계보 상태, 현재 문서 일치율, 출처 겹침, 권한 차단 후보, 계보 해시
 - `checks`: 오래된 답변 여부, replay 안정성, 품질 게이트, 계보 무결성, 출처 권한 재검사
 - `artifacts`: 실제 `replay`, `qualityGate`, `lineage` 결과
+- `artifactHashes` / `persistence.reportHash`: 재검증 근거와 저장 리포트 무결성 확인용 해시
 
 검증:
 

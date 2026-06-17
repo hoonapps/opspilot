@@ -40,6 +40,12 @@ export class DocumentsController {
     return this.documentsService.getRevalidationQueue(parsedLimit !== undefined && Number.isFinite(parsedLimit) ? parsedLimit : undefined);
   }
 
+  @Get("revalidation-runs")
+  getRevalidationRuns(@Query("limit") limit?: string) {
+    const parsedLimit = limit ? Number(limit) : undefined;
+    return this.documentsService.listRevalidationRuns(parsedLimit !== undefined && Number.isFinite(parsedLimit) ? parsedLimit : undefined);
+  }
+
   @Post("revalidation-runs")
   runRevalidation(@Body() body: RunDocumentRevalidationDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.documentsService.runRevalidation(body, parseRequestContext(headers));

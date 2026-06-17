@@ -293,7 +293,7 @@ export type AuditLedgerReport = {
   events: AuditLedgerEvent[];
 };
 
-export type AuditLedgerEventType = "question" | "answer" | "tool_call" | "approval" | "feedback";
+export type AuditLedgerEventType = "question" | "answer" | "tool_call" | "approval" | "feedback" | "revalidation_run";
 
 export type AuditLedgerEvent = {
   sequence: number;
@@ -1062,6 +1062,26 @@ export class ObservabilityService {
             ) as payload
           from feedback f
           left join answers a on a.id = f.answer_id
+
+          union all
+
+          select
+            r.id::text as id,
+            'revalidation_run'::text as event_type,
+            r.question_id::text as question_id,
+            r.status::text as status,
+            r.created_at,
+            jsonb_build_object(
+              'runId', r.id::text,
+              'documentId', r.document_id::text,
+              'answerId', r.answer_id::text,
+              'questionId', r.question_id::text,
+              'status', r.status,
+              'recommendedAction', r.recommended_action,
+              'reportHash', r.report_hash,
+              'summaryHash', encode(digest(coalesce(r.summary::text, ''), 'sha256'), 'hex')
+            ) as payload
+          from document_revalidation_runs r
         )
         select id, event_type, question_id, status, created_at, payload
         from recent_events
@@ -1100,7 +1120,14 @@ export class ObservabilityService {
       previousHash = chainHash;
       return event;
     });
-    const byType = toTypedCountMap(events.map((event) => event.type), ["question", "answer", "tool_call", "approval", "feedback"]);
+    const byType = toTypedCountMap(events.map((event) => event.type), [
+      "question",
+      "answer",
+      "tool_call",
+      "approval",
+      "feedback",
+      "revalidation_run"
+    ]);
     const byStatus = events.reduce<Record<string, number>>((acc, event) => {
       acc[event.status] = (acc[event.status] ?? 0) + 1;
       return acc;

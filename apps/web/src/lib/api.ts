@@ -336,6 +336,7 @@ export type DocumentRevalidationQueueReport = {
 
 export type DocumentRevalidationRunReport = {
   schemaVersion: "opspilot.document_revalidation_run.v1";
+  runId: string;
   generatedAt: string;
   status: "cleared" | "needs_review" | "blocked";
   queueItem: DocumentRevalidationQueueReport["items"][number];
@@ -368,6 +369,11 @@ export type DocumentRevalidationRunReport = {
     qualityGate: AnswerQualityGate;
     lineage: AnswerLineageGraph;
   };
+  artifactHashes: {
+    replay: string;
+    qualityGate: string;
+    lineage: string;
+  };
   evidenceLinks: {
     queue: string;
     documentImpact: string;
@@ -375,6 +381,45 @@ export type DocumentRevalidationRunReport = {
     lineage: string;
     qualityGate: string;
   };
+  persistence: {
+    stored: true;
+    createdAt: string;
+    reportHash: string;
+  };
+};
+
+export type DocumentRevalidationRunHistoryReport = {
+  schemaVersion: "opspilot.document_revalidation_run_history.v1";
+  generatedAt: string;
+  summary: {
+    runCount: number;
+    clearedCount: number;
+    needsReviewCount: number;
+    blockedCount: number;
+    latestRunAt: string | null;
+  };
+  runs: Array<{
+    id: string;
+    createdAt: string;
+    status: DocumentRevalidationRunReport["status"];
+    document: {
+      id: string;
+      path: string;
+      title: string;
+    };
+    answer: {
+      id: string;
+      questionId: string | null;
+      question: string | null;
+    };
+    actor: Record<string, unknown>;
+    decision: DocumentRevalidationRunReport["decision"];
+    summary: DocumentRevalidationRunReport["summary"];
+    checks: DocumentRevalidationRunReport["checks"];
+    evidenceLinks: DocumentRevalidationRunReport["evidenceLinks"];
+    artifactHashes: DocumentRevalidationRunReport["artifactHashes"];
+    reportHash: string;
+  }>;
 };
 
 export type DocumentIndexQualityReport = {
@@ -842,7 +887,7 @@ export type AuditLedgerReport = {
     lastEventAt: string | null;
   };
   summary: {
-    byType: Record<"question" | "answer" | "tool_call" | "approval" | "feedback", number>;
+    byType: Record<"question" | "answer" | "tool_call" | "approval" | "feedback" | "revalidation_run", number>;
     byStatus: Record<string, number>;
     questionLinkedEvents: number;
     tamperEvident: boolean;
@@ -850,7 +895,7 @@ export type AuditLedgerReport = {
   events: Array<{
     sequence: number;
     id: string;
-    type: "question" | "answer" | "tool_call" | "approval" | "feedback";
+    type: "question" | "answer" | "tool_call" | "approval" | "feedback" | "revalidation_run";
     questionId: string | null;
     status: string;
     createdAt: string;
@@ -1839,6 +1884,16 @@ export async function getDocumentRevalidationQueue(): Promise<DocumentRevalidati
   }
 
   return response.json() as Promise<DocumentRevalidationQueueReport>;
+}
+
+export async function getDocumentRevalidationRuns(): Promise<DocumentRevalidationRunHistoryReport> {
+  const response = await fetch(`${API_BASE_URL}/documents/revalidation-runs?limit=20`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DocumentRevalidationRunHistoryReport>;
 }
 
 export async function runDocumentRevalidation(input: {

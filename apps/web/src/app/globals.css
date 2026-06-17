@@ -2868,6 +2868,15 @@ pre {
   gap: 8px;
 }
 
+.revalidationRunHistory {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d6e0ee;
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
 .revalidationRunCheck {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
