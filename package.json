@@ -20,6 +20,7 @@
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",
     "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
+    "retrieval-robustness:smoke": "pnpm --filter @opspilot/api retrieval-robustness:smoke",
     "index-quality:smoke": "pnpm --filter @opspilot/api index-quality:smoke",
     "document-impact:smoke": "pnpm --filter @opspilot/api document-impact:smoke",
     "permission:smoke": "pnpm --filter @opspilot/api permission:smoke",

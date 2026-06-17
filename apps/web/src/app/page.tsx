@@ -8,6 +8,7 @@ import {
   AnswerProof,
   AnswerQualityGate,
   AnswerReplay,
+  analyzeRetrievalRobustness,
   AnswerTrace,
   askOpsPilot,
   AskResponse,
@@ -56,6 +57,7 @@ import {
   QuestionAuditBundle,
   previewRetrieval,
   RetrievalPreviewResponse,
+  RetrievalRobustnessReport,
   simulateSlackMention,
   SlackSimulationTrace,
   syncGithubDocuments,
@@ -183,6 +185,7 @@ export default function Home() {
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
+  const [retrievalRobustness, setRetrievalRobustness] = useState<RetrievalRobustnessReport | null>(null);
   const [retrievalLimit, setRetrievalLimit] = useState(5);
   const [incidentDescription, setIncidentDescription] = useState(
     "정산 배치가 30분 이상 지연되고 settlement.dlq.count가 120이면 어떻게 대응해야 해?"
@@ -205,6 +208,7 @@ export default function Home() {
   const [loading, setLoading] = useState<
     | "ask"
     | "retrieval"
+    | "retrieval-robustness"
     | "incident"
     | "ingest"
     | "verify"
@@ -278,6 +282,30 @@ export default function Home() {
       setRetrievalPreview(await previewRetrieval({ question, teamSlugs, roles, limit: retrievalLimit }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "검색 미리보기 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runRetrievalRobustness() {
+    setError(null);
+    setLoading("retrieval-robustness");
+    try {
+      setRetrievalRobustness(
+        await analyzeRetrievalRobustness({
+          question,
+          teamSlugs,
+          roles,
+          limit: retrievalLimit,
+          variants: [
+            question.replace(/무엇이야|뭐야|알려줘/gu, "").trim(),
+            `${question.replace(/[?？!！.。]+$/u, "").trim()} 기준`,
+            `${question.replace(/[?？!！.。]+$/u, "").trim()} 절차`
+          ].filter((variant) => variant.length >= 2 && variant !== question.trim())
+        })
+      );
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "검색 강건성 진단 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1494,6 +1522,73 @@ export default function Home() {
               </>
             ) : (
               <p className="empty">검색 미리보기를 실행하면 신뢰도 추정, 점수 격차, 출처 다양성, 컨텍스트 예산 진단을 확인합니다.</p>
+            )}
+          </section>
+
+          <section className="retrievalRobustnessPanel" aria-label="검색 강건성 리포트">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">회귀 진단</p>
+                <h2>검색 강건성 리포트</h2>
+              </div>
+              {retrievalRobustness ? (
+                <span className={retrievalRobustness.status === "stable" ? "badge" : "badge review"}>
+                  {formatRobustnessStatus(retrievalRobustness.status)}
+                </span>
+              ) : null}
+            </div>
+            <button
+              className="secondaryButton"
+              disabled={loading === "retrieval-robustness"}
+              onClick={runRetrievalRobustness}
+              type="button"
+            >
+              {loading === "retrieval-robustness" ? "강건성 진단 중..." : "질문 변형 안정성 진단"}
+            </button>
+            {retrievalRobustness ? (
+              <>
+                <div className="diagnosticStats">
+                  <Metric label="1순위 안정성" value={formatPercent(retrievalRobustness.summary.topSourceStability)} />
+                  <Metric label="출처 겹침" value={formatPercent(retrievalRobustness.summary.averageSourceOverlap)} />
+                  <Metric label="평균 신뢰도" value={formatPercent(retrievalRobustness.summary.averageConfidenceEstimate)} />
+                  <Metric label="점수 흔들림" value={formatScore(retrievalRobustness.summary.maxScoreDelta)} />
+                </div>
+                <div className="diagnosticBanner">
+                  <span>{formatRobustnessAction(retrievalRobustness.recommendedAction)}</span>
+                  <code>
+                    변형 {retrievalRobustness.summary.variantCount}개 · 권한 차단 {retrievalRobustness.summary.permissionDeniedTotal}개
+                  </code>
+                </div>
+                <div className="diagnosticChecks">
+                  {retrievalRobustness.checks.map((check) => (
+                    <article className="diagnosticCheck" key={check.id}>
+                      <div>
+                        <span className={`statusDot ${check.status}`} />
+                        <strong>{check.label}</strong>
+                        <code>{formatDiagnosticMetric(check)}</code>
+                      </div>
+                      <p>{check.message}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="robustnessRuns">
+                  <article>
+                    <span>기준 질문</span>
+                    <strong>{retrievalRobustness.baseline.topSourcePath ?? "출처 없음"}</strong>
+                    <p>{retrievalRobustness.baseline.query}</p>
+                  </article>
+                  {retrievalRobustness.variants.map((variant) => (
+                    <article key={`${variant.rank}-${variant.query}`}>
+                      <span>{variant.topSourceMatchesBaseline ? "일치" : "불일치"}</span>
+                      <strong>{variant.topSourcePath ?? "출처 없음"}</strong>
+                      <p>{variant.query}</p>
+                      <code>겹침 {formatPercent(variant.sourceOverlapWithBaseline)} · 신뢰 {formatPercent(variant.confidenceEstimate)}</code>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="empty">질문 변형을 자동 생성해 1순위 출처 안정성, 출처 겹침, 권한 경계, 점수 흔들림을 확인합니다.</p>
             )}
           </section>
 
@@ -3004,7 +3099,25 @@ function formatRecommendedAction(action: string): string {
   return labels[action] ?? action;
 }
 
-function formatDiagnosticMetric(check: RetrievalPreviewResponse["diagnostics"]["checks"][number]): string {
+function formatRobustnessStatus(status: string): string {
+  const labels: Record<string, string> = {
+    stable: "안정",
+    review: "검토 필요",
+    unstable: "불안정"
+  };
+  return labels[status] ?? status;
+}
+
+function formatRobustnessAction(action: string): string {
+  const labels: Record<string, string> = {
+    answer: "질문 표현이 바뀌어도 같은 근거로 답변 가능",
+    review_top_sources: "상위 출처를 확인한 뒤 답변 권고",
+    rewrite_query_or_add_docs: "질문 보강 또는 문서 별칭 추가 필요"
+  };
+  return labels[action] ?? action;
+}
+
+function formatDiagnosticMetric(check: { metric?: number; threshold?: number }): string {
   if (typeof check.metric !== "number") {
     return "측정값 없음";
   }

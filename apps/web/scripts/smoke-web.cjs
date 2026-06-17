@@ -174,6 +174,11 @@ async function main() {
     await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "질문 변형 안정성 진단" }).click();
+    await page.locator(".retrievalRobustnessPanel").getByText("검색 강건성 리포트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalRobustnessPanel").getByText("1순위 안정성", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalRobustnessPanel").getByText("출처 겹침", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".robustnessRuns").getByText("기준 질문", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".rankingExplanation").first().scrollIntoViewIfNeeded();
     await page.screenshot({ path: retrievalScreenshotPath, fullPage: false });
 
@@ -193,6 +198,10 @@ async function main() {
       (await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).isVisible()) &&
       (await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).isVisible()) &&
       (await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().isVisible());
+    const retrievalRobustnessVisible =
+      (await page.locator(".retrievalRobustnessPanel").getByText("검색 강건성 리포트", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalRobustnessPanel").getByText("1순위 안정성", { exact: true }).isVisible()) &&
+      (await page.locator(".robustnessRuns").getByText("기준 질문", { exact: true }).isVisible());
 
     await page.locator(".railNav").getByRole("button", { name: /^대응 / }).click();
     await page.getByRole("heading", { name: "장애 대응 플랜" }).waitFor({ timeout: 10000 });
@@ -415,6 +424,7 @@ async function main() {
         rankingExplanationVisible &&
         retrievalBoundaryVisible &&
         retrievalDiagnosticsVisible &&
+        retrievalRobustnessVisible &&
         incidentPlanVisible &&
         evaluationVisible &&
         documentMatchVisible &&
@@ -480,6 +490,7 @@ async function main() {
         rankingExplanationVisible,
         retrievalBoundaryVisible,
         retrievalDiagnosticsVisible,
+        retrievalRobustnessVisible,
         incidentPlanVisible,
         evaluationVisible,
         documentMatchVisible,

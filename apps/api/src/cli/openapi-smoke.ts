@@ -14,6 +14,7 @@ type OpenApiOperation = {
 const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId?: string }> = [
   { path: "/ask", method: "post", operationId: "AgentController_ask" },
   { path: "/retrieval/preview", method: "post", operationId: "AgentController_previewRetrieval" },
+  { path: "/retrieval/robustness", method: "post", operationId: "AgentController_analyzeRetrievalRobustness" },
   { path: "/incidents/plan", method: "post", operationId: "AgentController_createIncidentPlan" },
   { path: "/permission-boundary/matrix", method: "get", operationId: "AuthzController_getPermissionBoundaryMatrix" },
   { path: "/documents", method: "get", operationId: "DocumentsController_listDocuments" },
@@ -51,6 +52,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
 const REQUIRED_SCHEMAS = [
   "AskDto",
   "RetrievalPreviewDto",
+  "RetrievalRobustnessDto",
   "IncidentPlanDto",
   "UpsertMarkdownDocumentDto",
   "SyncGithubDocumentsDto",
@@ -76,6 +78,7 @@ async function main() {
     const askRequestSchema = getRequestSchemaRef(document, "/ask", "post");
     const askHasIdempotencyHeader = hasHeaderParameter(document, "/ask", "post", "x-idempotency-key");
     const retrievalPreviewSchema = getRequestSchemaRef(document, "/retrieval/preview", "post");
+    const retrievalRobustnessSchema = getRequestSchemaRef(document, "/retrieval/robustness", "post");
     const incidentPlanSchema = getRequestSchemaRef(document, "/incidents/plan", "post");
     const markdownRequestSchema = getRequestSchemaRef(document, "/documents/markdown", "post");
     const updateApprovalSchema = getRequestSchemaRef(document, "/approvals/{id}", "patch");
@@ -87,6 +90,7 @@ async function main() {
       askRequestSchema === "#/components/schemas/AskDto" &&
       askHasIdempotencyHeader &&
       retrievalPreviewSchema === "#/components/schemas/RetrievalPreviewDto" &&
+      retrievalRobustnessSchema === "#/components/schemas/RetrievalRobustnessDto" &&
       incidentPlanSchema === "#/components/schemas/IncidentPlanDto" &&
       markdownRequestSchema === "#/components/schemas/UpsertMarkdownDocumentDto" &&
       updateApprovalSchema === "#/components/schemas/UpdateApprovalDto";
@@ -103,6 +107,7 @@ async function main() {
       requestSchemas: {
         ask: askRequestSchema,
         retrievalPreview: retrievalPreviewSchema,
+        retrievalRobustness: retrievalRobustnessSchema,
         incidentPlan: incidentPlanSchema,
         markdown: markdownRequestSchema,
         updateApproval: updateApprovalSchema

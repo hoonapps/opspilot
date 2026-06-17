@@ -16,6 +16,7 @@ GET /docs-json
 
 - `POST /ask`: RAG 답변 생성
 - `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
+- `POST /retrieval/robustness`: 질문 변형별 1순위 출처 안정성, 출처 겹침, 점수 흔들림, 권한 경계 재검사
 - `POST /incidents/plan`: 런북 기반 장애 대응 플랜, 심각도, 승인 경계, 커뮤니케이션, 복구 검증 생성
 - `GET /documents`: 문서 목록, 청크 수, 보안 메타데이터 확인
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
@@ -68,6 +69,27 @@ pnpm openapi:smoke
 - `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
+
+## 검색 강건성 리포트
+
+```txt
+POST /retrieval/robustness
+```
+
+같은 의도를 가진 질문 변형을 자동/수동으로 실행해 검색 결과가 흔들리는지 확인합니다.
+
+- `summary.topSourceStability`: 변형 질문이 기준 질문과 같은 1순위 출처로 수렴한 비율
+- `summary.averageSourceOverlap`: 기준 질문 후보 문서와 변형 질문 후보 문서의 평균 Jaccard overlap
+- `summary.averageConfidenceEstimate`: 변형 검색 전체의 평균 신뢰도 추정
+- `summary.maxScoreDelta`: 기준 질문 대비 최고 점수의 최대 변동폭
+- `checks`: 1순위 출처 안정성, 출처 겹침, 평균 신뢰도, 점수 흔들림, 권한 경계 재검사
+- `variants`: 변형 질문별 top source, overlap, 권한 차단 수, 검색어
+
+```bash
+pnpm retrieval-robustness:smoke
+```
+
+이 smoke는 테스트 문서를 색인한 뒤 질문 표현을 바꿔도 같은 근거 문서로 수렴하는지 검증합니다. RAG가 “한 번 맞았다”가 아니라 “표현이 바뀌어도 운영 의도를 안정적으로 찾는다”는 점을 보여주기 위한 포트폴리오 증거입니다.
 
 ## 색인 품질 리포트
 

@@ -2522,6 +2522,7 @@ pre {
 .approvalPanel,
 .retrievalPanel,
 .retrievalDiagnostics,
+.retrievalRobustnessPanel,
 .retrievalResults {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2545,6 +2546,13 @@ pre {
   display: grid;
   gap: 12px;
   border-top: 3px solid var(--warning);
+  box-shadow: none;
+}
+
+.retrievalRobustnessPanel {
+  display: grid;
+  gap: 12px;
+  border-top: 3px solid var(--success);
   box-shadow: none;
 }
 
@@ -2780,6 +2788,55 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #0f172a;
+}
+
+.robustnessRuns {
+  display: grid;
+  gap: 8px;
+}
+
+.robustnessRuns article {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) minmax(0, 1fr) minmax(160px, auto);
+  gap: 8px 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #dcfce7;
+  border-radius: 8px;
+  background: #f0fdf4;
+}
+
+.robustnessRuns span {
+  display: inline-flex;
+  justify-content: center;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #166534;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.robustnessRuns strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.robustnessRuns p {
+  grid-column: 2 / -1;
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.robustnessRuns code {
+  color: #166534;
+  text-align: right;
 }
 
 .candidateList {
@@ -3905,6 +3962,7 @@ pre {
   .replaySummary,
   .groundingItem,
   .contextChunkItem,
+  .robustnessRuns article,
   .proofChecklist,
   .proofItem,
   .versionSummary,
@@ -3918,6 +3976,7 @@ pre {
 
   .queryPlanHeader code,
   .queryPlanStage code,
+  .robustnessRuns code,
   .rankingExplanationHead code,
   .accessExplanation code {
     max-width: none;
@@ -3930,6 +3989,10 @@ pre {
   }
 
   .queryPlanStage small {
+    grid-column: 1;
+  }
+
+  .robustnessRuns p {
     grid-column: 1;
   }
 

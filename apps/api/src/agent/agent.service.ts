@@ -69,6 +69,48 @@ export type RetrievalPreviewResponse = {
   }>;
 };
 
+export type RetrievalRobustnessReport = {
+  schemaVersion: "opspilot.retrieval_robustness.v1";
+  generatedAt: string;
+  baselineQuestion: string;
+  status: "stable" | "review" | "unstable";
+  recommendedAction: "answer" | "review_top_sources" | "rewrite_query_or_add_docs";
+  summary: {
+    variantCount: number;
+    topSourceStability: number;
+    averageSourceOverlap: number;
+    averageConfidenceEstimate: number;
+    maxScoreDelta: number;
+    permissionDeniedTotal: number;
+  };
+  checks: Array<{
+    id: "top_source_stability" | "source_overlap" | "confidence_floor" | "score_drift" | "permission_boundary";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    message: string;
+  }>;
+  baseline: RetrievalRobustnessRun;
+  variants: RetrievalRobustnessRun[];
+};
+
+export type RetrievalRobustnessRun = {
+  query: string;
+  rank: number;
+  diagnosticsStatus: RetrievalDiagnostics["status"];
+  recommendedAction: RetrievalDiagnostics["recommendedAction"];
+  confidenceEstimate: number;
+  topScore: number;
+  topSourcePath: string | null;
+  topSourceTitle: string | null;
+  sourcePaths: string[];
+  sourceOverlapWithBaseline: number;
+  topSourceMatchesBaseline: boolean;
+  permissionDeniedCount: number;
+  queryTerms: string[];
+};
+
 export type RetrievalDiagnostics = {
   status: "ready" | "review" | "blocked";
   recommendedAction: "answer" | "answer_with_context_review" | "human_review" | "clarify_or_expand_sources";
@@ -327,6 +369,62 @@ export class AgentService {
         heading: typeof result.metadata.heading === "string" ? result.metadata.heading : null,
         contentPreview: result.content.slice(0, 520)
       }))
+    };
+  }
+
+  async analyzeRetrievalRobustness(
+    question: string,
+    context: RequestContext,
+    variants: string[] = [],
+    limit = 5
+  ): Promise<RetrievalRobustnessReport> {
+    const safeLimit = Math.max(1, Math.min(limit, 10));
+    const uniqueQueries = buildRobustnessQueries(question, variants);
+    const previews = await Promise.all(uniqueQueries.map((query) => this.previewRetrieval(query, context, safeLimit)));
+    const baselinePreview = previews[0];
+    const baselinePaths = baselinePreview.candidates.map((candidate) => candidate.path);
+    const baselineTopPath = baselinePaths[0] ?? null;
+    const runs = previews.map((preview, index) => toRobustnessRun(preview, index + 1, baselinePaths, baselineTopPath));
+    const baseline = runs[0];
+    const variantRuns = runs.slice(1);
+    const allRuns = variantRuns.length > 0 ? variantRuns : runs;
+    const topSourceStability = average(allRuns.map((run) => (run.topSourceMatchesBaseline ? 1 : 0)));
+    const averageSourceOverlap = average(allRuns.map((run) => run.sourceOverlapWithBaseline));
+    const averageConfidenceEstimate = average(runs.map((run) => run.confidenceEstimate));
+    const maxScoreDelta = Math.max(...runs.map((run) => Math.abs(run.topScore - baseline.topScore)), 0);
+    const permissionDeniedTotal = runs.reduce((sum, run) => sum + run.permissionDeniedCount, 0);
+    const checks = buildRobustnessChecks({
+      variantCount: variantRuns.length,
+      topSourceStability,
+      averageSourceOverlap,
+      averageConfidenceEstimate,
+      maxScoreDelta,
+      permissionDeniedTotal
+    });
+    const status = checks.some((check) => check.status === "fail")
+      ? "unstable"
+      : checks.some((check) => check.status === "warn")
+        ? "review"
+        : "stable";
+
+    return {
+      schemaVersion: "opspilot.retrieval_robustness.v1",
+      generatedAt: new Date().toISOString(),
+      baselineQuestion: question,
+      status,
+      recommendedAction:
+        status === "stable" ? "answer" : status === "review" ? "review_top_sources" : "rewrite_query_or_add_docs",
+      summary: {
+        variantCount: variantRuns.length,
+        topSourceStability: round(topSourceStability),
+        averageSourceOverlap: round(averageSourceOverlap),
+        averageConfidenceEstimate: round(averageConfidenceEstimate),
+        maxScoreDelta: round(maxScoreDelta),
+        permissionDeniedTotal
+      },
+      checks,
+      baseline,
+      variants: variantRuns
     };
   }
 
@@ -695,6 +793,152 @@ function buildRetrievalQueryPlan(input: {
       }
     ]
   };
+}
+
+function buildRobustnessQueries(question: string, variants: string[]): string[] {
+  const normalized = [question, ...variants, ...defaultQueryVariants(question)]
+    .map((query) => query.trim())
+    .filter((query) => query.length >= 2);
+  return [...new Set(normalized)].slice(0, 7);
+}
+
+function defaultQueryVariants(question: string): string[] {
+  const compact = question.replace(/[?？!！.。]+$/u, "").trim();
+  const variants = [
+    compact,
+    `${compact} 알려줘`,
+    `${compact} 기준`,
+    `${compact} 절차`,
+    compact.replace(/무엇이야|뭐야|어떻게|알려줘/gu, "").trim()
+  ].filter((variant) => variant.length >= 2 && variant !== question.trim());
+
+  return variants;
+}
+
+function toRobustnessRun(
+  preview: RetrievalPreviewResponse,
+  rank: number,
+  baselinePaths: string[],
+  baselineTopPath: string | null
+): RetrievalRobustnessRun {
+  const sourcePaths = preview.candidates.map((candidate) => candidate.path);
+  const topCandidate = preview.candidates[0];
+  const topSourcePath = topCandidate?.path ?? null;
+
+  return {
+    query: preview.query,
+    rank,
+    diagnosticsStatus: preview.diagnostics.status,
+    recommendedAction: preview.diagnostics.recommendedAction,
+    confidenceEstimate: round(preview.diagnostics.confidenceEstimate),
+    topScore: round(preview.diagnostics.topScore),
+    topSourcePath,
+    topSourceTitle: topCandidate?.title ?? null,
+    sourcePaths,
+    sourceOverlapWithBaseline: round(jaccard(sourcePaths, baselinePaths)),
+    topSourceMatchesBaseline: baselineTopPath !== null && topSourcePath === baselineTopPath,
+    permissionDeniedCount: preview.permissionAudit.deniedCandidateCount,
+    queryTerms: preview.diagnostics.queryTerms
+  };
+}
+
+function buildRobustnessChecks(input: {
+  variantCount: number;
+  topSourceStability: number;
+  averageSourceOverlap: number;
+  averageConfidenceEstimate: number;
+  maxScoreDelta: number;
+  permissionDeniedTotal: number;
+}): RetrievalRobustnessReport["checks"] {
+  const stabilityThreshold = Number(process.env.RETRIEVAL_ROBUSTNESS_MIN_TOP_SOURCE_STABILITY ?? 0.8);
+  const overlapThreshold = Number(process.env.RETRIEVAL_ROBUSTNESS_MIN_SOURCE_OVERLAP ?? 0.55);
+  const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
+  const maxScoreDeltaThreshold = Number(process.env.RETRIEVAL_ROBUSTNESS_MAX_SCORE_DELTA ?? 0.35);
+
+  return [
+    {
+      id: "top_source_stability",
+      label: "1순위 출처 안정성",
+      status: thresholdStatus(input.topSourceStability, stabilityThreshold),
+      metric: round(input.topSourceStability),
+      threshold: stabilityThreshold,
+      message:
+        input.topSourceStability >= stabilityThreshold
+          ? "질문 변형 대부분이 같은 1순위 출처로 수렴합니다."
+          : "질문 표현이 조금만 바뀌어도 1순위 출처가 흔들립니다. 문서 제목, 별칭, 키워드 보강이 필요합니다."
+    },
+    {
+      id: "source_overlap",
+      label: "출처 겹침",
+      status: thresholdStatus(input.averageSourceOverlap, overlapThreshold),
+      metric: round(input.averageSourceOverlap),
+      threshold: overlapThreshold,
+      message:
+        input.averageSourceOverlap >= overlapThreshold
+          ? "변형 질문의 후보 문서 집합이 기준 질문과 충분히 겹칩니다."
+          : "변형 질문이 다른 문서 집합으로 흩어집니다. 관련 런북/정책 문서의 용어 정렬을 확인해야 합니다."
+    },
+    {
+      id: "confidence_floor",
+      label: "평균 신뢰도",
+      status: thresholdStatus(input.averageConfidenceEstimate, confidenceThreshold),
+      metric: round(input.averageConfidenceEstimate),
+      threshold: confidenceThreshold,
+      message:
+        input.averageConfidenceEstimate >= confidenceThreshold
+          ? "변형 질문 전체 평균 신뢰도가 답변 기준을 넘습니다."
+          : "변형 질문 평균 신뢰도가 낮아 답변 전 검토가 필요합니다."
+    },
+    {
+      id: "score_drift",
+      label: "점수 흔들림",
+      status: input.maxScoreDelta <= maxScoreDeltaThreshold ? "pass" : input.maxScoreDelta <= maxScoreDeltaThreshold * 1.5 ? "warn" : "fail",
+      metric: round(input.maxScoreDelta),
+      threshold: maxScoreDeltaThreshold,
+      message:
+        input.maxScoreDelta <= maxScoreDeltaThreshold
+          ? "변형 질문 간 최고 점수 변동이 허용 범위 안입니다."
+          : "일부 변형 질문에서 최고 점수가 크게 흔들립니다. 검색어 별칭 또는 청크 구조를 보강해야 합니다."
+    },
+    {
+      id: "permission_boundary",
+      label: "권한 경계 재검사",
+      status: input.permissionDeniedTotal > 0 ? "warn" : "pass",
+      metric: input.permissionDeniedTotal,
+      threshold: 0,
+      message:
+        input.permissionDeniedTotal > 0
+          ? `${input.permissionDeniedTotal}개 후보가 변형 검색 중 권한 경계에서 차단됐습니다. 답변 후보에는 허용 출처만 포함됩니다.`
+          : "변형 검색 전체에서 권한 차단 후보 없이 허용 출처만 검색됐습니다."
+    }
+  ];
+}
+
+function jaccard(left: string[], right: string[]): number {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  const union = new Set([...leftSet, ...rightSet]);
+  if (union.size === 0) {
+    return 0;
+  }
+  let intersection = 0;
+  for (const item of leftSet) {
+    if (rightSet.has(item)) {
+      intersection += 1;
+    }
+  }
+  return intersection / union.size;
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function round(value: number): number {
+  return Number(value.toFixed(3));
 }
 
 function formatDeniedByVisibility(deniedByVisibility: Record<string, number>): string {

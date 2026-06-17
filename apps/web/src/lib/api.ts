@@ -371,6 +371,48 @@ export type RetrievalPreviewResponse = {
   }>;
 };
 
+export type RetrievalRobustnessReport = {
+  schemaVersion: "opspilot.retrieval_robustness.v1";
+  generatedAt: string;
+  baselineQuestion: string;
+  status: "stable" | "review" | "unstable";
+  recommendedAction: "answer" | "review_top_sources" | "rewrite_query_or_add_docs";
+  summary: {
+    variantCount: number;
+    topSourceStability: number;
+    averageSourceOverlap: number;
+    averageConfidenceEstimate: number;
+    maxScoreDelta: number;
+    permissionDeniedTotal: number;
+  };
+  checks: Array<{
+    id: "top_source_stability" | "source_overlap" | "confidence_floor" | "score_drift" | "permission_boundary";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    message: string;
+  }>;
+  baseline: RetrievalRobustnessRun;
+  variants: RetrievalRobustnessRun[];
+};
+
+export type RetrievalRobustnessRun = {
+  query: string;
+  rank: number;
+  diagnosticsStatus: RetrievalPreviewResponse["diagnostics"]["status"];
+  recommendedAction: RetrievalPreviewResponse["diagnostics"]["recommendedAction"];
+  confidenceEstimate: number;
+  topScore: number;
+  topSourcePath: string | null;
+  topSourceTitle: string | null;
+  sourcePaths: string[];
+  sourceOverlapWithBaseline: number;
+  topSourceMatchesBaseline: boolean;
+  permissionDeniedCount: number;
+  queryTerms: string[];
+};
+
 export type IncidentResponsePlan = {
   planId: string;
   generatedAt: string;
@@ -1150,6 +1192,31 @@ export async function previewRetrieval(input: {
   }
 
   return response.json() as Promise<RetrievalPreviewResponse>;
+}
+
+export async function analyzeRetrievalRobustness(input: {
+  question: string;
+  teamSlugs: string;
+  roles: string;
+  limit: number;
+  variants?: string[];
+}): Promise<RetrievalRobustnessReport> {
+  const response = await fetch(`${API_BASE_URL}/retrieval/robustness`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    },
+    body: JSON.stringify({ question: input.question, variants: input.variants, limit: input.limit })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<RetrievalRobustnessReport>;
 }
 
 export async function createIncidentPlan(input: {

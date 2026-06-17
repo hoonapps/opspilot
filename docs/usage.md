@@ -153,6 +153,19 @@ pnpm index-quality:smoke
 - 컨텍스트 예산 포함/제외
 - 리뷰 없이 답변 가능한지 또는 담당자 검토가 필요한지
 
+같은 화면의 `검색 강건성 리포트`에서는 `질문 변형 안정성 진단`을 눌러 다음을 확인합니다.
+
+- 같은 의도의 질문 변형들이 같은 1순위 출처로 수렴하는지
+- 기준 질문과 변형 질문의 후보 출처가 얼마나 겹치는지
+- 평균 신뢰도와 최고 점수 변동폭이 기준 안에 있는지
+- 변형 검색 중 권한 경계에서 차단된 후보가 있었는지
+
+CLI로는 같은 흐름을 아래 명령으로 검증합니다.
+
+```bash
+pnpm retrieval-robustness:smoke
+```
+
 ## 7. 장애 대응 플랜 확인
 
 웹 콘솔에서 `대응` 화면을 엽니다.
@@ -250,6 +263,7 @@ CLI 검증:
 
 ```bash
 pnpm eval
+pnpm retrieval-robustness:smoke
 pnpm agreement:smoke
 pnpm trace:smoke
 pnpm replay:smoke

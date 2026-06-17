@@ -110,6 +110,9 @@ jobs:
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
+      - name: Retrieval robustness smoke
+        run: pnpm retrieval-robustness:smoke
+
       - name: Index quality report smoke
         run: pnpm index-quality:smoke
 
