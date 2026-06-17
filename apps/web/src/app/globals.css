@@ -3264,6 +3264,7 @@ pre {
 .approvalPanel,
 .retrievalPanel,
 .retrievalDiagnostics,
+.retrievalProfilePanel,
 .retrievalVerificationPanel,
 .retrievalRobustnessPanel,
 .retrievalResults {
@@ -3292,6 +3293,13 @@ pre {
   box-shadow: none;
 }
 
+.retrievalProfilePanel {
+  display: grid;
+  gap: 12px;
+  border-top: 3px solid var(--ink);
+  box-shadow: none;
+}
+
 .retrievalVerificationPanel {
   display: grid;
   gap: 12px;
@@ -3315,6 +3323,7 @@ pre {
 
 .retrievalStats .metric,
 .diagnosticStats .metric,
+.retrievalProfileStats .metric,
 .retrievalVerificationStats .metric {
   min-height: 72px;
   padding: 12px;
@@ -3322,11 +3331,125 @@ pre {
 }
 
 .diagnosticStats,
+.retrievalProfileStats,
 .retrievalVerificationStats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   align-items: start;
+}
+
+.retrievalProfileStats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.retrievalProfileIntegrity {
+  display: grid;
+  grid-template-columns: auto minmax(120px, auto) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.retrievalProfileIntegrity span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.retrievalProfileIntegrity code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.retrievalProfileStages {
+  display: grid;
+  gap: 8px;
+}
+
+.retrievalProfileStage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--success);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.retrievalProfileStage.warn {
+  border-left-color: var(--warning);
+}
+
+.retrievalProfileStage.fail {
+  border-left-color: var(--danger);
+}
+
+.retrievalProfileStage > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.retrievalProfileStage strong,
+.retrievalProfileBottleneck strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.retrievalProfileStage p,
+.retrievalProfileBottleneck p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.retrievalProfileStage code {
+  white-space: nowrap;
+}
+
+.retrievalProfileBottlenecks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.retrievalProfileBottleneck {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.retrievalProfileBottleneck.warn {
+  border-color: #fed7aa;
+  background: #fffbeb;
+}
+
+.retrievalProfileBottleneck.critical {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.retrievalProfileBottleneck code {
+  white-space: normal;
 }
 
 .diagnosticBanner {
@@ -5343,6 +5466,10 @@ pre {
   .permissionPersonaGrid,
   .permissionComparisonList article,
   .diagnosticStats,
+  .retrievalProfileStats,
+  .retrievalProfileIntegrity,
+  .retrievalProfileStage,
+  .retrievalProfileBottlenecks,
   .retrievalVerificationStats,
   .retrievalVerificationRoute,
   .retrievalVerificationAudit div,

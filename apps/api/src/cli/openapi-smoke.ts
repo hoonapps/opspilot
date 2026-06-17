@@ -14,6 +14,7 @@ type OpenApiOperation = {
 const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId?: string }> = [
   { path: "/ask", method: "post", operationId: "AgentController_ask" },
   { path: "/retrieval/preview", method: "post", operationId: "AgentController_previewRetrieval" },
+  { path: "/retrieval/profile", method: "post", operationId: "AgentController_profileRetrieval" },
   { path: "/retrieval/robustness", method: "post", operationId: "AgentController_analyzeRetrievalRobustness" },
   { path: "/retrieval/permission-diff", method: "post", operationId: "AgentController_analyzeRetrievalPermissionDiff" },
   { path: "/incidents/plan", method: "post", operationId: "AgentController_createIncidentPlan" },

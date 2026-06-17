@@ -55,6 +55,11 @@ export class AgentController {
     return this.agentService.previewRetrieval(body.question, parseRequestContext(headers), body.limit);
   }
 
+  @Post("retrieval/profile")
+  profileRetrieval(@Body() body: RetrievalPreviewDto, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.agentService.profileRetrieval(body.question, parseRequestContext(headers), body.limit);
+  }
+
   @Post("retrieval/robustness")
   analyzeRetrievalRobustness(@Body() body: RetrievalRobustnessDto, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.agentService.analyzeRetrievalRobustness(body.question, parseRequestContext(headers), body.variants, body.limit);

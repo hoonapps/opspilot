@@ -248,6 +248,14 @@ async function main() {
     await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "검색 프로파일" }).click();
+    await page.locator(".retrievalProfilePanel").getByText("검색 운영 프로파일", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalProfilePanel").getByText("프로파일 해시", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalProfileStages").getByText("검색과 권한 감사", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalProfileStages").getByText("운영 판단", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".retrievalProfileBottlenecks").getByText(/프로파일 정상|권한 차단 후보|지연|허용 후보/u).first().waitFor({
+      timeout: 10000
+    });
     await page.getByRole("button", { name: "실제 답변까지 검증" }).click();
     await page.locator(".retrievalVerificationPanel").getByText("미리보기-답변 검증", { exact: true }).waitFor({
       timeout: 10000
@@ -291,6 +299,11 @@ async function main() {
       (await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).isVisible()) &&
       (await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).isVisible()) &&
       (await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().isVisible());
+    const retrievalProfileVisible =
+      (await page.locator(".retrievalProfilePanel").getByText("검색 운영 프로파일", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalProfilePanel").getByText("프로파일 해시", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalProfileStages").getByText("검색과 권한 감사", { exact: true }).isVisible()) &&
+      (await page.locator(".retrievalProfileStages").getByText("운영 판단", { exact: true }).isVisible());
     const retrievalRobustnessVisible =
       (await page.locator(".retrievalRobustnessPanel").getByText("검색 강건성 리포트", { exact: true }).isVisible()) &&
       (await page.locator(".retrievalRobustnessPanel").getByText("1순위 안정성", { exact: true }).isVisible()) &&
@@ -597,6 +610,7 @@ async function main() {
         rankingExplanationVisible &&
         retrievalBoundaryVisible &&
         retrievalDiagnosticsVisible &&
+        retrievalProfileVisible &&
         retrievalVerificationVisible &&
         retrievalRobustnessVisible &&
         retrievalPermissionDiffVisible &&
@@ -678,6 +692,7 @@ async function main() {
         rankingExplanationVisible,
         retrievalBoundaryVisible,
         retrievalDiagnosticsVisible,
+        retrievalProfileVisible,
         retrievalVerificationVisible,
         retrievalRobustnessVisible,
         retrievalPermissionDiffVisible,

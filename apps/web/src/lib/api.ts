@@ -640,6 +640,55 @@ export type RetrievalPreviewResponse = {
   }>;
 };
 
+export type RetrievalProfileReport = {
+  schemaVersion: "opspilot.retrieval_profile.v1";
+  generatedAt: string;
+  query: string;
+  limit: number;
+  status: "optimized" | "watch" | "risk";
+  profileHash: string;
+  summary: {
+    endToEndMs: number;
+    searchMs: number;
+    diagnosticsMs: number;
+    candidatePackagingMs: number;
+    allowedCandidateCount: number;
+    deniedCandidateCount: number;
+    candidateWindow: number;
+    confidenceEstimate: number;
+    topScore: number;
+    scoreGap: number;
+    contextTokenUseRatio: number;
+    mode: RetrievalPreviewResponse["diagnostics"]["queryPlan"]["mode"];
+    latencyBudgetMs: number;
+    latencyBudgetStatus: "pass" | "warn" | "fail";
+  };
+  stages: Array<{
+    id: "normalize_query" | "search_with_audit" | "diagnostics" | "candidate_packaging" | "release_decision";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    durationMs: number;
+    budgetMs: number;
+    input: string;
+    output: string;
+    evidence: string;
+  }>;
+  bottlenecks: Array<{
+    id: string;
+    label: string;
+    severity: "info" | "warn" | "critical";
+    message: string;
+    action: string;
+  }>;
+  preview: RetrievalPreviewResponse;
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+    includedFields: string[];
+  };
+};
+
 export type RetrievalRobustnessReport = {
   schemaVersion: "opspilot.retrieval_robustness.v1";
   generatedAt: string;
@@ -1710,6 +1759,30 @@ export async function previewRetrieval(input: {
   }
 
   return response.json() as Promise<RetrievalPreviewResponse>;
+}
+
+export async function profileRetrieval(input: {
+  question: string;
+  teamSlugs: string;
+  roles: string;
+  limit: number;
+}): Promise<RetrievalProfileReport> {
+  const response = await fetch(`${API_BASE_URL}/retrieval/profile`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    },
+    body: JSON.stringify({ question: input.question, limit: input.limit })
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<RetrievalProfileReport>;
 }
 
 export async function analyzeRetrievalRobustness(input: {

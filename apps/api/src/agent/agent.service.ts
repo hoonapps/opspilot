@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
 import { AuthzService } from "../authz/authz.service";
 import { ToolCallStatus } from "../database/entities/types";
+import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 import { AnswerGeneratorService } from "./answer-generator.service";
 import { calculateDocumentAgreement, DocumentAgreement } from "./document-agreement";
@@ -67,6 +68,55 @@ export type RetrievalPreviewResponse = {
     heading?: string | null;
     contentPreview: string;
   }>;
+};
+
+export type RetrievalProfileReport = {
+  schemaVersion: "opspilot.retrieval_profile.v1";
+  generatedAt: string;
+  query: string;
+  limit: number;
+  status: "optimized" | "watch" | "risk";
+  profileHash: string;
+  summary: {
+    endToEndMs: number;
+    searchMs: number;
+    diagnosticsMs: number;
+    candidatePackagingMs: number;
+    allowedCandidateCount: number;
+    deniedCandidateCount: number;
+    candidateWindow: number;
+    confidenceEstimate: number;
+    topScore: number;
+    scoreGap: number;
+    contextTokenUseRatio: number;
+    mode: RetrievalQueryPlan["mode"];
+    latencyBudgetMs: number;
+    latencyBudgetStatus: "pass" | "warn" | "fail";
+  };
+  stages: Array<{
+    id: "normalize_query" | "search_with_audit" | "diagnostics" | "candidate_packaging" | "release_decision";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    durationMs: number;
+    budgetMs: number;
+    input: string;
+    output: string;
+    evidence: string;
+  }>;
+  bottlenecks: Array<{
+    id: string;
+    label: string;
+    severity: "info" | "warn" | "critical";
+    message: string;
+    action: string;
+  }>;
+  preview: RetrievalPreviewResponse;
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+    includedFields: string[];
+  };
 };
 
 export type RetrievalRobustnessReport = {
@@ -407,25 +457,118 @@ export class AgentService {
     const safeLimit = Math.max(1, Math.min(limit, 10));
     const { results, permissionAudit } = await this.searchService.searchWithAudit(question, context, safeLimit);
 
-    return {
+    return buildRetrievalPreview(question, safeLimit, results, permissionAudit);
+  }
+
+  async profileRetrieval(question: string, context: RequestContext, limit = 5): Promise<RetrievalProfileReport> {
+    const safeLimit = Math.max(1, Math.min(limit, 10));
+    const startedAt = Date.now();
+    const normalizeStartedAt = Date.now();
+    const queryTerms = extractQueryTerms(question);
+    const normalizeMs = elapsedMs(normalizeStartedAt);
+
+    const searchStartedAt = Date.now();
+    const { results, permissionAudit } = await this.searchService.searchWithAudit(question, context, safeLimit);
+    const searchMs = elapsedMs(searchStartedAt);
+
+    const diagnosticsStartedAt = Date.now();
+    const diagnostics = buildRetrievalDiagnostics(question, results, permissionAudit);
+    const diagnosticsMs = elapsedMs(diagnosticsStartedAt);
+
+    const packagingStartedAt = Date.now();
+    const preview = buildRetrievalPreview(question, safeLimit, results, permissionAudit, diagnostics);
+    const candidatePackagingMs = elapsedMs(packagingStartedAt);
+    const endToEndMs = elapsedMs(startedAt);
+    const latencyBudgetMs = Number(process.env.RETRIEVAL_PROFILE_LATENCY_BUDGET_MS ?? 500);
+    const latencyBudgetStatus = latencyStatus(endToEndMs, latencyBudgetMs);
+    const stages = buildRetrievalProfileStages({
+      queryTerms,
+      results,
+      permissionAudit,
+      diagnostics,
+      normalizeMs,
+      searchMs,
+      diagnosticsMs,
+      candidatePackagingMs,
+      endToEndMs,
+      latencyBudgetMs
+    });
+    const status: RetrievalProfileReport["status"] =
+      diagnostics.status === "blocked" || stages.some((stage) => stage.status === "fail")
+        ? "risk"
+        : diagnostics.status === "review" || stages.some((stage) => stage.status === "warn")
+          ? "watch"
+          : "optimized";
+    const summary = {
+      endToEndMs,
+      searchMs,
+      diagnosticsMs,
+      candidatePackagingMs,
+      allowedCandidateCount: permissionAudit.allowedCandidateCount,
+      deniedCandidateCount: permissionAudit.deniedCandidateCount,
+      candidateWindow: permissionAudit.candidateWindow,
+      confidenceEstimate: round(diagnostics.confidenceEstimate),
+      topScore: round(diagnostics.topScore),
+      scoreGap: round(diagnostics.scoreGap),
+      contextTokenUseRatio: round(diagnostics.contextPackage.estimatedTokenCount / diagnostics.contextPackage.tokenBudget),
+      mode: diagnostics.queryPlan.mode,
+      latencyBudgetMs,
+      latencyBudgetStatus
+    };
+    const summaryHashBasis = {
+      allowedCandidateCount: summary.allowedCandidateCount,
+      deniedCandidateCount: summary.deniedCandidateCount,
+      candidateWindow: summary.candidateWindow,
+      confidenceEstimate: summary.confidenceEstimate,
+      topScore: summary.topScore,
+      scoreGap: summary.scoreGap,
+      contextTokenUseRatio: summary.contextTokenUseRatio,
+      mode: summary.mode,
+      latencyBudgetMs: summary.latencyBudgetMs,
+      latencyBudgetStatus: summary.latencyBudgetStatus
+    };
+    const hashBasis = {
+      schemaVersion: "opspilot.retrieval_profile.v1",
       query: question,
       limit: safeLimit,
+      status,
+      summary: summaryHashBasis,
       permissionAudit,
-      diagnostics: buildRetrievalDiagnostics(question, results, permissionAudit),
-      candidates: results.map((result, index) => ({
-        rank: index + 1,
-        chunkId: result.chunkId,
-        documentId: result.documentId,
-        title: result.title,
-        path: result.path,
-        visibility: result.visibility,
-        teamSlug: result.teamSlug,
-        score: Number(result.score.toFixed(6)),
-        retrieval: result.retrieval,
-        rankingExplanation: buildRankingExplanation(question, result, permissionAudit),
-        heading: typeof result.metadata.heading === "string" ? result.metadata.heading : null,
-        contentPreview: result.content.slice(0, 520)
-      }))
+      candidates: preview.candidates.map((candidate) => ({
+        rank: candidate.rank,
+        chunkId: candidate.chunkId,
+        documentId: candidate.documentId,
+        path: candidate.path,
+        score: candidate.score,
+        retrieval: candidate.retrieval,
+        heading: candidate.heading
+      })),
+      diagnostics: {
+        status: diagnostics.status,
+        recommendedAction: diagnostics.recommendedAction,
+        checks: diagnostics.checks.map((check) => ({ id: check.id, status: check.status, metric: check.metric })),
+        queryPlan: diagnostics.queryPlan
+      }
+    };
+    const profileHash = sha256(stableStringify(hashBasis));
+
+    return {
+      schemaVersion: "opspilot.retrieval_profile.v1",
+      generatedAt: new Date().toISOString(),
+      query: question,
+      limit: safeLimit,
+      status,
+      profileHash,
+      summary,
+      stages,
+      bottlenecks: buildRetrievalProfileBottlenecks({ diagnostics, permissionAudit, stages, summary }),
+      preview,
+      integrity: {
+        algorithm: "sha256",
+        canonicalization: "stable_json_v1",
+        hash: profileHash,
+        includedFields: ["query", "limit", "permissionAudit", "candidates", "diagnostics.queryPlan", "diagnostics.checks"]
+      }
     };
   }
 
@@ -853,6 +996,35 @@ function normalizeRetrievalScore(source: SearchResult | undefined): number {
   return source.score;
 }
 
+function buildRetrievalPreview(
+  question: string,
+  safeLimit: number,
+  results: SearchResult[],
+  permissionAudit: PermissionBoundaryAudit,
+  diagnostics = buildRetrievalDiagnostics(question, results, permissionAudit)
+): RetrievalPreviewResponse {
+  return {
+    query: question,
+    limit: safeLimit,
+    permissionAudit,
+    diagnostics,
+    candidates: results.map((result, index) => ({
+      rank: index + 1,
+      chunkId: result.chunkId,
+      documentId: result.documentId,
+      title: result.title,
+      path: result.path,
+      visibility: result.visibility,
+      teamSlug: result.teamSlug,
+      score: Number(result.score.toFixed(6)),
+      retrieval: result.retrieval,
+      rankingExplanation: buildRankingExplanation(question, result, permissionAudit),
+      heading: typeof result.metadata.heading === "string" ? result.metadata.heading : null,
+      contentPreview: result.content.slice(0, 520)
+    }))
+  };
+}
+
 function buildRetrievalDiagnostics(
   question: string,
   sources: SearchResult[],
@@ -1066,6 +1238,132 @@ function buildRetrievalQueryPlan(input: {
   };
 }
 
+function buildRetrievalProfileStages(input: {
+  queryTerms: string[];
+  results: SearchResult[];
+  permissionAudit: PermissionBoundaryAudit;
+  diagnostics: RetrievalDiagnostics;
+  normalizeMs: number;
+  searchMs: number;
+  diagnosticsMs: number;
+  candidatePackagingMs: number;
+  endToEndMs: number;
+  latencyBudgetMs: number;
+}): RetrievalProfileReport["stages"] {
+  return [
+    {
+      id: "normalize_query",
+      label: "질문 정규화",
+      status: latencyStatus(input.normalizeMs, 5),
+      durationMs: input.normalizeMs,
+      budgetMs: 5,
+      input: "사용자 질문",
+      output: input.queryTerms.length > 0 ? input.queryTerms.join(", ") : "검색어 없음",
+      evidence: `${input.queryTerms.length}개 검색어를 추출했습니다.`
+    },
+    {
+      id: "search_with_audit",
+      label: "검색과 권한 감사",
+      status: latencyStatus(input.searchMs, Math.min(350, Math.max(120, input.latencyBudgetMs * 0.7))),
+      durationMs: input.searchMs,
+      budgetMs: Math.min(350, Math.max(120, input.latencyBudgetMs * 0.7)),
+      input: `${input.diagnostics.queryPlan.mode} / 후보 창 ${input.permissionAudit.candidateWindow}`,
+      output: `허용 ${input.results.length}개, 차단 ${input.permissionAudit.deniedCandidateCount}개`,
+      evidence: `${formatPermissionEnforcementForProfile(input.permissionAudit.enforcement)} · ${formatDeniedByVisibility(input.permissionAudit.deniedByVisibility)}`
+    },
+    {
+      id: "diagnostics",
+      label: "품질 진단",
+      status: latencyStatus(input.diagnosticsMs, 30),
+      durationMs: input.diagnosticsMs,
+      budgetMs: 30,
+      input: `${input.results.length}개 후보`,
+      output: formatRetrievalDiagnosticsStatus(input.diagnostics.status),
+      evidence: `신뢰도 ${round(input.diagnostics.confidenceEstimate)}, 점수 격차 ${round(input.diagnostics.scoreGap)}`
+    },
+    {
+      id: "candidate_packaging",
+      label: "후보 패키징",
+      status: latencyStatus(input.candidatePackagingMs, 30),
+      durationMs: input.candidatePackagingMs,
+      budgetMs: 30,
+      input: "랭킹 설명, 헤딩, 미리보기",
+      output: `${input.results.length}개 후보 카드`,
+      evidence: input.results[0] ? `1순위 ${input.results[0].path}` : "패키징할 후보 없음"
+    },
+    {
+      id: "release_decision",
+      label: "운영 판단",
+      status: input.diagnostics.status === "blocked" ? "fail" : input.diagnostics.status === "review" ? "warn" : latencyStatus(input.endToEndMs, input.latencyBudgetMs),
+      durationMs: input.endToEndMs,
+      budgetMs: input.latencyBudgetMs,
+      input: `전체 ${input.endToEndMs}ms`,
+      output: formatRecommendedActionForProfile(input.diagnostics.recommendedAction),
+      evidence: input.diagnostics.checks
+        .filter((check) => check.status !== "pass")
+        .map((check) => check.label)
+        .join(", ") || "검색 품질 체크 통과"
+    }
+  ];
+}
+
+function buildRetrievalProfileBottlenecks(input: {
+  diagnostics: RetrievalDiagnostics;
+  permissionAudit: PermissionBoundaryAudit;
+  stages: RetrievalProfileReport["stages"];
+  summary: RetrievalProfileReport["summary"];
+}): RetrievalProfileReport["bottlenecks"] {
+  const bottlenecks: RetrievalProfileReport["bottlenecks"] = [];
+  for (const stage of input.stages) {
+    if (stage.durationMs > stage.budgetMs) {
+      bottlenecks.push({
+        id: `latency_${stage.id}`,
+        label: `${stage.label} 지연`,
+        severity: stage.status === "fail" ? "critical" : "warn",
+        message: `${stage.label} 단계가 ${stage.durationMs}ms로 budget ${stage.budgetMs}ms를 넘었습니다.`,
+        action: stage.id === "search_with_audit" ? "후보 창, pgvector 인덱스, Elasticsearch 미러 상태를 확인하세요." : "단계 입력과 출력 크기를 줄이거나 캐시 가능성을 검토하세요."
+      });
+    }
+  }
+  for (const check of input.diagnostics.checks.filter((item) => item.status !== "pass")) {
+    bottlenecks.push({
+      id: `quality_${check.id}`,
+      label: check.label,
+      severity: check.status === "fail" ? "critical" : "warn",
+      message: check.message,
+      action: check.id === "permission_boundary" ? "검색 전 권한 필터와 호출자 역할/팀을 확인하세요." : "문서 제목, 별칭, 청크 구조, 평가 케이스를 보강하세요."
+    });
+  }
+  if (input.permissionAudit.deniedCandidateCount > 0) {
+    bottlenecks.push({
+      id: "permission_denied_candidates",
+      label: "권한 차단 후보",
+      severity: "info",
+      message: `${input.permissionAudit.deniedCandidateCount}개 후보가 권한 경계에서 제외됐습니다.`,
+      action: "민감 문서 경로가 답변 후보에 포함되지 않는지 권한별 검색 비교로 재확인하세요."
+    });
+  }
+  if (input.summary.contextTokenUseRatio >= 0.9) {
+    bottlenecks.push({
+      id: "context_budget_pressure",
+      label: "컨텍스트 예산 압박",
+      severity: "warn",
+      message: `컨텍스트 예산 사용률이 ${Math.round(input.summary.contextTokenUseRatio * 100)}%입니다.`,
+      action: "상위 청크 수, 청크 길이, 중복 문서 후보를 조정하세요."
+    });
+  }
+  if (bottlenecks.length === 0) {
+    bottlenecks.push({
+      id: "profile_clean",
+      label: "프로파일 정상",
+      severity: "info",
+      message: "검색 latency, 권한 경계, 컨텍스트 예산, 품질 진단이 현재 기준을 통과했습니다.",
+      action: "현재 프로파일 해시를 배포 전 기준값으로 보관할 수 있습니다."
+    });
+  }
+  return bottlenecks;
+}
+
 function buildRobustnessQueries(question: string, variants: string[]): string[] {
   const normalized = [question, ...variants, ...defaultQueryVariants(question)]
     .map((query) => query.trim())
@@ -1212,6 +1510,44 @@ function round(value: number): number {
   return Number(value.toFixed(3));
 }
 
+function elapsedMs(startedAt: number): number {
+  return Math.max(0, Date.now() - startedAt);
+}
+
+function latencyStatus(value: number, budgetMs: number): "pass" | "warn" | "fail" {
+  if (value <= budgetMs) {
+    return "pass";
+  }
+  return value <= budgetMs * 2 ? "warn" : "fail";
+}
+
+function formatPermissionEnforcementForProfile(enforcement: PermissionBoundaryAudit["enforcement"]): string {
+  const labels: Record<PermissionBoundaryAudit["enforcement"], string> = {
+    pre_ranking_sql_filter: "검색 전 SQL 권한 필터",
+    postgres_recheck_after_elasticsearch: "Elasticsearch 후보 PostgreSQL 재검사"
+  };
+  return labels[enforcement];
+}
+
+function formatRetrievalDiagnosticsStatus(status: RetrievalDiagnostics["status"]): string {
+  const labels: Record<RetrievalDiagnostics["status"], string> = {
+    ready: "자동 답변 가능",
+    review: "검토 권고",
+    blocked: "근거 보강 필요"
+  };
+  return labels[status];
+}
+
+function formatRecommendedActionForProfile(action: RetrievalDiagnostics["recommendedAction"]): string {
+  const labels: Record<RetrievalDiagnostics["recommendedAction"], string> = {
+    answer: "자동 답변",
+    answer_with_context_review: "컨텍스트 확인 후 답변",
+    human_review: "담당자 검토",
+    clarify_or_expand_sources: "질문 보강 또는 문서 추가"
+  };
+  return labels[action];
+}
+
 function formatDeniedByVisibility(deniedByVisibility: Record<string, number>): string {
   const entries = Object.entries(deniedByVisibility);
   if (entries.length === 0) {
@@ -1277,4 +1613,18 @@ function buildContextPackage(sources: SearchResult[]): ContextPackage {
 
 function estimateTokens(value: string): number {
   return Math.max(1, Math.ceil(value.length / 4));
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
 }

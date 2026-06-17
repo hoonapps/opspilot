@@ -169,6 +169,15 @@ pnpm revalidation-run:smoke
 - 컨텍스트 예산 포함/제외
 - 리뷰 없이 답변 가능한지 또는 담당자 검토가 필요한지
 
+같은 화면의 `검색 프로파일`을 누르면 운영 관점의 단계별 프로파일을 확인합니다.
+
+- 전체 지연과 검색 지연
+- 단계별 latency budget
+- 권한 차단 후보 수
+- 컨텍스트 예산 사용률
+- 프로파일 해시
+- 병목과 조치 액션
+
 같은 화면의 `검색 강건성 리포트`에서는 `질문 변형 안정성 진단`을 눌러 다음을 확인합니다.
 
 - 같은 의도의 질문 변형들이 같은 1순위 출처로 수렴하는지
@@ -179,6 +188,7 @@ pnpm revalidation-run:smoke
 CLI로는 같은 흐름을 아래 명령으로 검증합니다.
 
 ```bash
+pnpm retrieval-profile:smoke
 pnpm retrieval-permission-diff:smoke
 pnpm retrieval-robustness:smoke
 ```
@@ -369,6 +379,7 @@ pnpm indexing:smoke
 pnpm queue:smoke
 pnpm github:smoke
 pnpm index-snapshot:smoke
+pnpm retrieval-profile:smoke
 pnpm permission:smoke
 pnpm authn:smoke
 pnpm redaction:smoke

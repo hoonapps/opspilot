@@ -75,7 +75,9 @@ import {
   PermissionBoundaryMatrix,
   PortfolioReadinessReport,
   QuestionAuditBundle,
+  profileRetrieval,
   previewRetrieval,
+  RetrievalProfileReport,
   RetrievalPreviewResponse,
   RetrievalPermissionDiffReport,
   RetrievalRobustnessReport,
@@ -229,6 +231,7 @@ export default function Home() {
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
+  const [retrievalProfile, setRetrievalProfile] = useState<RetrievalProfileReport | null>(null);
   const [retrievalVerification, setRetrievalVerification] = useState<RetrievalVerification | null>(null);
   const [retrievalRobustness, setRetrievalRobustness] = useState<RetrievalRobustnessReport | null>(null);
   const [retrievalPermissionDiff, setRetrievalPermissionDiff] = useState<RetrievalPermissionDiffReport | null>(null);
@@ -259,6 +262,7 @@ export default function Home() {
   const [loading, setLoading] = useState<
     | "ask"
     | "retrieval"
+    | "retrieval-profile"
     | "retrieval-verification"
     | "retrieval-robustness"
     | "retrieval-permission-diff"
@@ -356,6 +360,20 @@ export default function Home() {
       setRetrievalPreview(await previewRetrieval({ question, teamSlugs, roles, limit: retrievalLimit }));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "검색 미리보기 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runRetrievalProfile() {
+    setError(null);
+    setLoading("retrieval-profile");
+    try {
+      const report = await profileRetrieval({ question, teamSlugs, roles, limit: retrievalLimit });
+      setRetrievalProfile(report);
+      setRetrievalPreview(report.preview);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "검색 프로파일 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -1664,6 +1682,9 @@ export default function Home() {
             <button className="secondaryButton" disabled={loading === "retrieval"} type="submit">
 	              {loading === "retrieval" ? "검색 중..." : "검색 미리보기"}
             </button>
+            <button className="secondaryButton" disabled={loading === "retrieval-profile"} onClick={runRetrievalProfile} type="button">
+              {loading === "retrieval-profile" ? "프로파일링 중..." : "검색 프로파일"}
+            </button>
           </form>
 
           <section className="retrievalPanel">
@@ -1870,6 +1891,62 @@ export default function Home() {
               </>
             ) : (
               <p className="empty">검색 미리보기를 실행하면 신뢰도 추정, 점수 격차, 출처 다양성, 컨텍스트 예산 진단을 확인합니다.</p>
+            )}
+          </section>
+
+          <section className="retrievalProfilePanel" aria-label="검색 운영 프로파일">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">프로파일</p>
+                <h2>검색 운영 프로파일</h2>
+              </div>
+              {retrievalProfile ? (
+                <span className={retrievalProfile.status === "optimized" ? "badge" : "badge review"}>
+                  {formatRetrievalProfileStatus(retrievalProfile.status)}
+                </span>
+              ) : null}
+            </div>
+            {retrievalProfile ? (
+              <>
+                <div className="retrievalProfileStats">
+                  <Metric label="전체 지연" value={formatDuration(retrievalProfile.summary.endToEndMs)} />
+                  <Metric label="검색" value={formatDuration(retrievalProfile.summary.searchMs)} />
+                  <Metric label="후보 창" value={String(retrievalProfile.summary.candidateWindow)} />
+                  <Metric label="차단 후보" value={String(retrievalProfile.summary.deniedCandidateCount)} />
+                  <Metric label="예산 사용" value={formatPercent(retrievalProfile.summary.contextTokenUseRatio)} />
+                  <Metric label="프로파일 해시" value={shortHash(retrievalProfile.profileHash)} />
+                </div>
+                <div className="retrievalProfileIntegrity">
+                  <span>{formatRetrievalMode(retrievalProfile.summary.mode)}</span>
+                  <code>{retrievalProfile.integrity.canonicalization}</code>
+                  <code>{retrievalProfile.integrity.includedFields.join(", ")}</code>
+                </div>
+                <div className="retrievalProfileStages">
+                  {retrievalProfile.stages.map((stage, index) => (
+                    <article className={`retrievalProfileStage ${stage.status}`} key={stage.id}>
+                      <span>{index + 1}</span>
+                      <div>
+                        <strong>{stage.label}</strong>
+                        <p>{stage.evidence}</p>
+                      </div>
+                      <code>
+                        {formatDuration(stage.durationMs)} / {formatDuration(stage.budgetMs)}
+                      </code>
+                    </article>
+                  ))}
+                </div>
+                <div className="retrievalProfileBottlenecks">
+                  {retrievalProfile.bottlenecks.slice(0, 4).map((item) => (
+                    <article className={`retrievalProfileBottleneck ${item.severity}`} key={item.id}>
+                      <strong>{item.label}</strong>
+                      <p>{item.message}</p>
+                      <code>{item.action}</code>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="empty">검색 프로파일을 실행하면 단계별 latency budget, 권한 차단 후보, 컨텍스트 예산, 결과 해시를 운영 관점으로 확인합니다.</p>
             )}
           </section>
 
@@ -4220,6 +4297,15 @@ function formatRetrievalHealth(status: string): string {
     blocked: "근거 부족"
   };
   return labels[status] ?? status;
+}
+
+function formatRetrievalProfileStatus(status: RetrievalProfileReport["status"]): string {
+  const labels: Record<RetrievalProfileReport["status"], string> = {
+    optimized: "운영 가능",
+    watch: "관찰 필요",
+    risk: "개선 필요"
+  };
+  return labels[status];
 }
 
 function formatRecommendedAction(action: string): string {

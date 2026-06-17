@@ -16,6 +16,7 @@ GET /docs-json
 
 - `POST /ask`: RAG 답변 생성
 - `POST /retrieval/preview`: 답변 생성 전 검색 후보, 후보별 랭킹 설명, 권한 감사, 검색 실행 계획, 검색 품질 진단 확인
+- `POST /retrieval/profile`: 검색 미리보기 결과에 단계별 latency budget, 병목, 프로파일 해시를 더한 운영 프로파일 확인
 - `POST /retrieval/robustness`: 질문 변형별 1순위 출처 안정성, 출처 겹침, 점수 흔들림, 권한 경계 재검사
 - `POST /retrieval/permission-diff`: 공개 사용자/support/payments/ops_admin 페르소나별 검색 후보와 권한 차단 결과 비교
 - `POST /incidents/plan`: 런북 기반 장애 대응 플랜, 심각도, 승인 경계, 커뮤니케이션, 복구 검증 생성
@@ -78,6 +79,26 @@ pnpm openapi:smoke
 - `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
+
+## 검색 운영 프로파일
+
+```txt
+POST /retrieval/profile
+```
+
+`POST /retrieval/preview`와 같은 입력을 받지만, 운영 프로파일 리포트를 추가로 반환합니다. 이 리포트는 검색 결과가 맞는지만 보지 않고, 검색이 운영 latency budget 안에서 실행됐는지, 어떤 단계가 병목인지, 권한 감사와 컨텍스트 예산이 어떤 상태인지 보여줍니다.
+
+- `summary`: 전체 지연, 검색 지연, 진단 지연, 후보 패키징 지연, 후보 창, 차단 후보, 컨텍스트 예산 사용률
+- `stages`: 질문 정규화, 검색과 권한 감사, 품질 진단, 후보 패키징, 운영 판단 단계별 duration/budget/status
+- `bottlenecks`: 지연, 권한 차단 후보, 품질 경고, 컨텍스트 예산 압박에 대한 조치
+- `profileHash`: 검색 결과와 진단 계획을 SHA-256으로 묶은 재현성 해시
+- `preview`: 같은 검색 후보/진단 payload
+
+검증:
+
+```bash
+pnpm retrieval-profile:smoke
+```
 
 ## 검색 강건성 리포트
 
