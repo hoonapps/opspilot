@@ -1280,6 +1280,129 @@ pre {
   white-space: nowrap;
 }
 
+.lineagePanel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #cdd9ea;
+  border-radius: 8px;
+  background: #f7fbff;
+}
+
+.lineageSummary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lineageGraph {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lineageNode {
+  min-height: 126px;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 10px;
+}
+
+.lineageNode > span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.lineageNode--source > span {
+  background: #e8f7f0;
+  color: #047857;
+}
+
+.lineageNode--tool > span,
+.lineageNode--approval > span {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.lineageNode--gate > span {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.lineageNode strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.lineageNode p {
+  min-height: 34px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.lineageNode code {
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--ink);
+  padding: 4px 6px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+}
+
+.lineageEdges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lineageEdges article {
+  min-width: 0;
+  border: 1px dashed #b8c7dc;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 8px;
+}
+
+.lineageEdges span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.lineageEdges p {
+  margin: 5px 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lineageEdges code {
+  color: var(--muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+}
+
 .proofHeader {
   display: flex;
   align-items: center;
@@ -4930,6 +5053,9 @@ pre {
   .qualityGateSummary,
   .qualityGateChecks,
   .qualityGateCheck,
+  .lineageSummary,
+  .lineageGraph,
+  .lineageEdges,
   .replaySummary,
   .groundingItem,
   .contextChunkItem,

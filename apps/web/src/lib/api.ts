@@ -1087,6 +1087,46 @@ export type AnswerQualityGate = {
   };
 };
 
+export type AnswerLineageGraph = {
+  schemaVersion: "opspilot.answer_lineage_graph.v1";
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "verified" | "review_required" | "incomplete";
+  summary: {
+    nodeCount: number;
+    edgeCount: number;
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    feedbackCount: number;
+    restrictedSourceCount: number;
+    pendingApprovalCount: number;
+    documentAgreementScore: number;
+    groundingCoverageRatio: number;
+    sourceAccessRechecked: true;
+  };
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+  nodes: Array<{
+    id: string;
+    kind: "question" | "answer" | "source" | "tool" | "approval" | "feedback" | "gate";
+    label: string;
+    status: string;
+    occurredAt?: string;
+    detail: Record<string, unknown>;
+  }>;
+  edges: Array<{
+    from: string;
+    to: string;
+    label: string;
+    kind: "created" | "grounded_by" | "called" | "requires" | "rated" | "checks";
+  }>;
+};
+
 export type QuestionAuditBundle = {
   schemaVersion: "opspilot.question_audit_bundle.v1";
   questionId: string;
@@ -1935,6 +1975,26 @@ export async function getAnswerEvidenceBundle(input: {
   }
 
   return response.json() as Promise<AnswerEvidenceBundle>;
+}
+
+export async function getAnswerLineage(input: {
+  answerId: string;
+  teamSlugs: string;
+  roles: string;
+}): Promise<AnswerLineageGraph> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/lineage`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerLineageGraph>;
 }
 
 export async function getAnswerQualityGate(input: {

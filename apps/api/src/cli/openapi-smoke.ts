@@ -31,6 +31,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/answers/{id}/proof", method: "get" },
   { path: "/answers/{id}/replay", method: "get" },
   { path: "/answers/{id}/evidence-bundle", method: "get" },
+  { path: "/answers/{id}/lineage", method: "get" },
   { path: "/answers/{id}/quality-gate", method: "get" },
   { path: "/questions/{id}/audit-bundle", method: "get" },
   { path: "/tool-calls/registry", method: "get" },

@@ -279,6 +279,50 @@ export type AnswerQualityGate = {
   };
 };
 
+export type AnswerLineageGraph = {
+  schemaVersion: "opspilot.answer_lineage_graph.v1";
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "verified" | "review_required" | "incomplete";
+  summary: {
+    nodeCount: number;
+    edgeCount: number;
+    sourceCount: number;
+    toolCallCount: number;
+    approvalCount: number;
+    feedbackCount: number;
+    restrictedSourceCount: number;
+    pendingApprovalCount: number;
+    documentAgreementScore: number;
+    groundingCoverageRatio: number;
+    sourceAccessRechecked: true;
+  };
+  integrity: {
+    algorithm: "sha256";
+    canonicalization: "stable_json_v1";
+    hash: string;
+  };
+  nodes: AnswerLineageNode[];
+  edges: AnswerLineageEdge[];
+};
+
+export type AnswerLineageNode = {
+  id: string;
+  kind: "question" | "answer" | "source" | "tool" | "approval" | "feedback" | "gate";
+  label: string;
+  status: string;
+  occurredAt?: string;
+  detail: Record<string, unknown>;
+};
+
+export type AnswerLineageEdge = {
+  from: string;
+  to: string;
+  label: string;
+  kind: "created" | "grounded_by" | "called" | "requires" | "rated" | "checks";
+};
+
 @Injectable()
 export class AnswerTraceService {
   constructor(
@@ -588,6 +632,30 @@ export class AnswerTraceService {
         proof,
         replay
       }
+    };
+
+    return {
+      ...unsigned,
+      integrity: {
+        algorithm: "sha256",
+        canonicalization: "stable_json_v1",
+        hash: sha256StableJson(unsigned)
+      }
+    };
+  }
+
+  async getLineageGraph(answerId: string, context: RequestContext): Promise<AnswerLineageGraph> {
+    const trace = await this.getTrace(answerId, context);
+    const graph = buildLineageGraph(trace);
+    const unsigned = {
+      schemaVersion: "opspilot.answer_lineage_graph.v1" as const,
+      answerId: trace.answer.id,
+      questionId: trace.answer.questionId,
+      generatedAt: new Date().toISOString(),
+      status: graph.status,
+      summary: graph.summary,
+      nodes: graph.nodes,
+      edges: graph.edges
     };
 
     return {
@@ -1066,6 +1134,180 @@ function buildQualityGateChecks(input: {
         : "출처 접근 권한 재검사를 확인하지 못했습니다."
     }
   ];
+}
+
+function buildLineageGraph(trace: AnswerTrace): Pick<AnswerLineageGraph, "status" | "summary" | "nodes" | "edges"> {
+  const questionNodeId = `question:${trace.answer.questionId}`;
+  const answerNodeId = `answer:${trace.answer.id}`;
+  const gateNodeId = `gate:${trace.answer.id}`;
+  const nodes: AnswerLineageNode[] = [
+    {
+      id: questionNodeId,
+      kind: "question",
+      label: "질문",
+      status: trace.answer.channel ?? "web",
+      occurredAt: trace.timeline.find((event) => event.kind === "question")?.at ?? trace.answer.createdAt,
+      detail: {
+        question: trace.answer.question,
+        channel: trace.answer.channel ?? "web",
+        roles: Array.isArray(trace.answer.actor.roles) ? trace.answer.actor.roles : [],
+        teamSlugs: Array.isArray(trace.answer.actor.teamSlugs) ? trace.answer.actor.teamSlugs : []
+      }
+    },
+    {
+      id: answerNodeId,
+      kind: "answer",
+      label: "답변",
+      status: trace.summary.needsHumanReview ? "검토 필요" : "자동 답변",
+      occurredAt: trace.answer.createdAt,
+      detail: {
+        confidence: trace.summary.confidence,
+        documentAgreementScore: trace.summary.documentAgreementScore,
+        groundingCoverageRatio: trace.grounding.coverageRatio,
+        answerTokenCount: trace.summary.answerTokenCount,
+        coveredAnswerTokenCount: trace.summary.coveredAnswerTokenCount
+      }
+    },
+    {
+      id: gateNodeId,
+      kind: "gate",
+      label: "운영 공유 게이트",
+      status: lineageStatus(trace),
+      occurredAt: trace.answer.createdAt,
+      detail: {
+        sourceAccessRechecked: true,
+        pendingApprovalCount: trace.approvals.filter((approval) => approval.status === "pending").length,
+        feedbackCount: trace.feedback.length,
+        toolCallCount: trace.toolCalls.length
+      }
+    }
+  ];
+  const edges: AnswerLineageEdge[] = [
+    { from: questionNodeId, to: answerNodeId, label: "답변 생성", kind: "created" },
+    { from: answerNodeId, to: gateNodeId, label: "공유 가능성 검사", kind: "checks" }
+  ];
+
+  trace.sources.forEach((source) => {
+    const sourceNodeId = `source:${source.chunkId}`;
+    nodes.push({
+      id: sourceNodeId,
+      kind: "source",
+      label: source.title,
+      status: source.visibility,
+      detail: {
+        path: source.path,
+        rank: source.rank,
+        score: source.score,
+        visibility: source.visibility,
+        teamSlug: source.teamSlug ?? null,
+        chunkIndex: source.chunkIndex
+      }
+    });
+    edges.push({ from: questionNodeId, to: sourceNodeId, label: `검색 후보 #${source.rank}`, kind: "grounded_by" });
+    edges.push({ from: sourceNodeId, to: answerNodeId, label: "답변 근거", kind: "grounded_by" });
+    edges.push({ from: sourceNodeId, to: gateNodeId, label: "권한 재검사", kind: "checks" });
+  });
+
+  trace.toolCalls.forEach((toolCall) => {
+    const toolNodeId = `tool:${toolCall.id}`;
+    nodes.push({
+      id: toolNodeId,
+      kind: "tool",
+      label: toolCall.toolName,
+      status: toolCall.status,
+      occurredAt: toolCall.createdAt,
+      detail: {
+        toolName: toolCall.toolName,
+        status: toolCall.status,
+        outputSummary: summarizeLineageToolOutput(toolCall.output)
+      }
+    });
+    edges.push({ from: questionNodeId, to: toolNodeId, label: "도구 호출", kind: "called" });
+    edges.push({ from: toolNodeId, to: gateNodeId, label: "감사 로그", kind: "checks" });
+  });
+
+  trace.approvals.forEach((approval) => {
+    const approvalNodeId = `approval:${approval.id}`;
+    nodes.push({
+      id: approvalNodeId,
+      kind: "approval",
+      label: approval.action,
+      status: approval.status,
+      occurredAt: approval.createdAt,
+      detail: {
+        action: approval.action,
+        reason: approval.reason
+      }
+    });
+    edges.push({ from: answerNodeId, to: approvalNodeId, label: "사람 승인 필요", kind: "requires" });
+    edges.push({ from: approvalNodeId, to: gateNodeId, label: "승인 상태 반영", kind: "checks" });
+  });
+
+  trace.feedback.forEach((feedback) => {
+    const feedbackNodeId = `feedback:${feedback.id}`;
+    nodes.push({
+      id: feedbackNodeId,
+      kind: "feedback",
+      label: feedback.rating > 0 ? "도움됨" : "개선 필요",
+      status: feedback.rating > 0 ? "positive" : "negative",
+      occurredAt: feedback.createdAt,
+      detail: {
+        rating: feedback.rating,
+        comment: feedback.comment ?? null
+      }
+    });
+    edges.push({ from: answerNodeId, to: feedbackNodeId, label: "피드백", kind: "rated" });
+    edges.push({ from: feedbackNodeId, to: gateNodeId, label: "품질 신호", kind: "checks" });
+  });
+
+  const summary = {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    sourceCount: trace.sources.length,
+    toolCallCount: trace.toolCalls.length,
+    approvalCount: trace.approvals.length,
+    feedbackCount: trace.feedback.length,
+    restrictedSourceCount: trace.sources.filter((source) => source.visibility === "restricted").length,
+    pendingApprovalCount: trace.approvals.filter((approval) => approval.status === "pending").length,
+    documentAgreementScore: trace.summary.documentAgreementScore,
+    groundingCoverageRatio: trace.grounding.coverageRatio,
+    sourceAccessRechecked: true as const
+  };
+
+  return {
+    status: lineageStatus(trace),
+    summary,
+    nodes,
+    edges
+  };
+}
+
+function lineageStatus(trace: AnswerTrace): AnswerLineageGraph["status"] {
+  if (trace.sources.length === 0 || trace.toolCalls.length === 0) {
+    return "incomplete";
+  }
+  if (trace.summary.needsHumanReview || trace.approvals.some((approval) => approval.status === "pending")) {
+    return "review_required";
+  }
+  return "verified";
+}
+
+function summarizeLineageToolOutput(output: Record<string, unknown>): string {
+  if (typeof output.sourceCount === "number") {
+    const permissionAudit = output.permissionAudit as { deniedCandidateCount?: unknown } | undefined;
+    const denied =
+      permissionAudit && typeof permissionAudit.deniedCandidateCount === "number"
+        ? `, 차단 후보 ${permissionAudit.deniedCandidateCount}개`
+        : "";
+    return `출처 ${output.sourceCount}개${denied}`;
+  }
+  if (typeof output.approvalStatus === "string") {
+    return `승인 상태 ${output.approvalStatus}`;
+  }
+  if (typeof output.itemCount === "number") {
+    return `체크리스트 ${output.itemCount}개`;
+  }
+  return "출력 요약 없음";
 }
 
 function qualityGateStatus(checks: AnswerQualityGate["checks"]): AnswerQualityGate["status"] {

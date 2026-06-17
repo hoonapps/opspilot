@@ -33,6 +33,7 @@ GET /docs-json
 - `GET /answers/{id}/proof`: 답변 증명 패킷
 - `GET /answers/{id}/replay`: 현재 문서 기준 답변 변경 감지
 - `GET /answers/{id}/evidence-bundle`: 추적, 증명, 재실행, 권한 재검사, SHA-256 무결성 해시를 묶은 감사용 증거 번들
+- `GET /answers/{id}/lineage`: 질문, 답변, 출처, 도구 호출, 승인, 피드백, 신뢰 게이트를 노드/엣지로 묶은 계보 그래프
 - `GET /answers/{id}/quality-gate`: 개별 답변을 공유 가능/검토 필요/차단으로 판정하는 신뢰 게이트
 - `GET /questions/{id}/audit-bundle`: 질문 기준 출처 계보, 도구 호출 정책 검사, 승인/피드백, 권한 재검사, SHA-256 해시를 묶은 감사 번들
 - `GET /tool-calls/registry`: 에이전트 도구 계약 확인
@@ -240,6 +241,28 @@ GET /answers/{id}/evidence-bundle
 ```bash
 pnpm evidence-bundle:smoke
 ```
+
+## 답변 계보 그래프
+
+```txt
+GET /answers/{id}/lineage
+```
+
+응답은 하나의 답변이 어떤 운영 증거로 만들어졌는지 그래프로 복원합니다.
+
+- `nodes`: 질문, 답변, 출처, 도구 호출, 승인, 피드백, 신뢰 게이트
+- `edges`: 생성, 근거 연결, 도구 호출, 승인 필요, 피드백 반영, 권한 재검사
+- `summary.documentAgreementScore`: 답변과 근거 문서의 일치율
+- `summary.sourceAccessRechecked`: 현재 호출자 권한으로 출처 접근을 다시 확인했는지 여부
+- `integrity.hash`: 반환된 계보 payload의 SHA-256 해시
+
+검증:
+
+```bash
+pnpm lineage:smoke
+```
+
+스모크는 민감 작업 질문에서 제한 출처, `request_human_approval` 도구 호출, 승인 대기, 피드백, 신뢰 게이트, SHA-256 해시가 계보 그래프에 모두 남는지 확인합니다.
 
 ## 답변 신뢰 게이트
 

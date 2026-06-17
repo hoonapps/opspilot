@@ -6,6 +6,7 @@ import {
   ApiRequestObservabilityReport,
   AuditLedgerReport,
   AnswerEvidenceBundle,
+  AnswerLineageGraph,
   AnswerProof,
   AnswerQualityGate,
   AnswerReplay,
@@ -27,6 +28,7 @@ import {
   EvaluationReport,
   getApiRequestObservability,
   getAuditLedger,
+  getAnswerLineage,
   getAnswerProof,
   getAnswerEvidenceBundle,
   getAnswerQualityGate,
@@ -201,6 +203,7 @@ export default function Home() {
   const [proof, setProof] = useState<AnswerProof | null>(null);
   const [replay, setReplay] = useState<AnswerReplay | null>(null);
   const [evidenceBundle, setEvidenceBundle] = useState<AnswerEvidenceBundle | null>(null);
+  const [lineageGraph, setLineageGraph] = useState<AnswerLineageGraph | null>(null);
   const [qualityGate, setQualityGate] = useState<AnswerQualityGate | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
@@ -299,12 +302,13 @@ export default function Home() {
     setLoading("ask");
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextQualityGate] = await fetchAnswerEvidence(nextAnswer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextLineageGraph, nextQualityGate] = await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setLineageGraph(nextLineageGraph);
       setQualityGate(nextQualityGate);
       setApprovals(await listApprovals());
     } catch (requestError) {
@@ -436,11 +440,12 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`피드백 저장됨 (${feedback.rating > 0 ? "도움됨" : "개선 필요"})`);
       setFeedbackComment("");
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextQualityGate] = await fetchAnswerEvidence(answer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextLineageGraph, nextQualityGate] = await fetchAnswerEvidence(answer.answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setLineageGraph(nextLineageGraph);
       setQualityGate(nextQualityGate);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "피드백 요청에 실패했습니다.");
@@ -764,11 +769,12 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextQualityGate] = await fetchAnswerEvidence(answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextLineageGraph, nextQualityGate] = await fetchAnswerEvidence(answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setLineageGraph(nextLineageGraph);
       setQualityGate(nextQualityGate);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "답변 추적 요청에 실패했습니다.");
@@ -795,12 +801,13 @@ export default function Home() {
 
   async function fetchAnswerEvidence(
     answerId: string
-  ): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle, AnswerQualityGate]> {
+  ): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle, AnswerLineageGraph, AnswerQualityGate]> {
     return Promise.all([
       getAnswerTrace({ answerId, teamSlugs, roles }),
       getAnswerProof({ answerId, teamSlugs, roles }),
       getAnswerReplay({ answerId, teamSlugs, roles }),
       getAnswerEvidenceBundle({ answerId, teamSlugs, roles }),
+      getAnswerLineage({ answerId, teamSlugs, roles }),
       getAnswerQualityGate({ answerId, teamSlugs, roles })
     ]);
   }
@@ -1188,6 +1195,46 @@ export default function Home() {
 	                      <span>도구 {evidenceBundle.summary.toolCallCount}</span>
 	                      <span>승인 {evidenceBundle.summary.approvalCount}</span>
 	                      <span>피드백 {evidenceBundle.summary.feedbackCount}</span>
+                    </div>
+                  </div>
+                ) : null}
+                {lineageGraph ? (
+                  <div className="lineagePanel" aria-label="답변 계보 그래프">
+                    <div className="proofHeader">
+                      <div>
+                        <span>답변 계보 그래프</span>
+                        <strong>{formatLineageStatus(lineageGraph.status)}</strong>
+                      </div>
+                      <code>{lineageGraph.integrity.algorithm}:{shortHash(lineageGraph.integrity.hash)}</code>
+                    </div>
+                    <div className="lineageSummary">
+                      <Metric label="노드" value={String(lineageGraph.summary.nodeCount)} />
+                      <Metric label="엣지" value={String(lineageGraph.summary.edgeCount)} />
+                      <Metric label="출처" value={String(lineageGraph.summary.sourceCount)} />
+                      <Metric label="도구" value={String(lineageGraph.summary.toolCallCount)} />
+                      <Metric label="승인" value={String(lineageGraph.summary.approvalCount)} />
+                      <Metric label="제한 출처" value={String(lineageGraph.summary.restrictedSourceCount)} />
+                    </div>
+                    <div className="lineageGraph">
+                      {lineageGraph.nodes.slice(0, 10).map((node) => (
+                        <article className={`lineageNode lineageNode--${node.kind}`} key={node.id}>
+                          <span>{formatLineageKind(node.kind)}</span>
+                          <strong>{node.label}</strong>
+                          <p>{summarizeLineageNode(node)}</p>
+                          <code>{formatLineageNodeStatus(node)}</code>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="lineageEdges">
+                      {lineageGraph.edges.slice(0, 8).map((edge, index) => (
+                        <article key={`${edge.from}-${edge.to}-${index}`}>
+                          <span>{formatLineageEdgeKind(edge.kind)}</span>
+                          <p>
+                            {shortLineageId(edge.from)} → {shortLineageId(edge.to)}
+                          </p>
+                          <code>{edge.label}</code>
+                        </article>
+                      ))}
                     </div>
                   </div>
                 ) : null}
@@ -3578,6 +3625,103 @@ function formatQuestionAuditKind(kind: string): string {
     policy: "정책"
   };
   return labels[kind] ?? kind;
+}
+
+function formatLineageStatus(status: AnswerLineageGraph["status"]): string {
+  const labels: Record<AnswerLineageGraph["status"], string> = {
+    verified: "검증됨",
+    review_required: "검토 필요",
+    incomplete: "계보 부족"
+  };
+  return labels[status];
+}
+
+function formatLineageKind(kind: AnswerLineageGraph["nodes"][number]["kind"]): string {
+  const labels: Record<AnswerLineageGraph["nodes"][number]["kind"], string> = {
+    question: "질문",
+    answer: "답변",
+    source: "출처",
+    tool: "도구",
+    approval: "승인",
+    feedback: "피드백",
+    gate: "게이트"
+  };
+  return labels[kind];
+}
+
+function formatLineageEdgeKind(kind: AnswerLineageGraph["edges"][number]["kind"]): string {
+  const labels: Record<AnswerLineageGraph["edges"][number]["kind"], string> = {
+    created: "생성",
+    grounded_by: "근거",
+    called: "호출",
+    requires: "승인",
+    rated: "평가",
+    checks: "검사"
+  };
+  return labels[kind];
+}
+
+function formatLineageNodeStatus(node: AnswerLineageGraph["nodes"][number]): string {
+  if (node.kind === "source") {
+    return formatVisibility(node.status);
+  }
+  if (node.kind === "tool" || node.kind === "approval") {
+    return formatRuntimeStatus(node.status);
+  }
+  if (node.kind === "feedback") {
+    return node.status === "positive" ? "긍정" : "부정";
+  }
+  if (node.kind === "gate") {
+    return formatLineageStatus(node.status as AnswerLineageGraph["status"]);
+  }
+  return node.status;
+}
+
+function summarizeLineageNode(node: AnswerLineageGraph["nodes"][number]): string {
+  if (node.kind === "question" && typeof node.detail.question === "string") {
+    return node.detail.question;
+  }
+  if (node.kind === "answer") {
+    const confidence = typeof node.detail.confidence === "number" ? formatPercent(node.detail.confidence) : "해당 없음";
+    const agreement =
+      typeof node.detail.documentAgreementScore === "number" ? formatPercent(node.detail.documentAgreementScore) : "해당 없음";
+    return `신뢰도 ${confidence} · 일치율 ${agreement}`;
+  }
+  if (node.kind === "source") {
+    const path = typeof node.detail.path === "string" ? node.detail.path : "경로 없음";
+    const rank = typeof node.detail.rank === "number" ? `#${node.detail.rank}` : "#?";
+    return `${rank} ${path}`;
+  }
+  if (node.kind === "tool") {
+    return typeof node.detail.outputSummary === "string" ? node.detail.outputSummary : "도구 출력 요약 없음";
+  }
+  if (node.kind === "approval") {
+    return typeof node.detail.action === "string" ? node.detail.action : "승인 요청";
+  }
+  if (node.kind === "feedback") {
+    return typeof node.detail.comment === "string" && node.detail.comment ? node.detail.comment : "피드백 의견 없음";
+  }
+  if (node.kind === "gate") {
+    const pending = typeof node.detail.pendingApprovalCount === "number" ? node.detail.pendingApprovalCount : 0;
+    const toolCount = typeof node.detail.toolCallCount === "number" ? node.detail.toolCallCount : 0;
+    return `대기 승인 ${pending}개 · 도구 호출 ${toolCount}개`;
+  }
+  return "계보 노드";
+}
+
+function shortLineageId(id: string): string {
+  const [kind, raw] = id.split(":");
+  const knownKinds: Record<string, AnswerLineageGraph["nodes"][number]["kind"]> = {
+    question: "question",
+    answer: "answer",
+    source: "source",
+    tool: "tool",
+    approval: "approval",
+    feedback: "feedback",
+    gate: "gate"
+  };
+  const label = knownKinds[kind] ? formatLineageKind(knownKinds[kind]) : kind;
+  return `${label}:${shortId(raw ?? id)}`;
 }
 
 function formatRuntimeStatus(status: string): string {

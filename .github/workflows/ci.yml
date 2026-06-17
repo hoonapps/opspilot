@@ -167,6 +167,9 @@ jobs:
       - name: Answer trace smoke
         run: pnpm trace:smoke
 
+      - name: Answer lineage graph smoke
+        run: pnpm lineage:smoke
+
       - name: Answer evidence bundle smoke
         run: pnpm evidence-bundle:smoke
 

@@ -336,6 +336,21 @@ async function main() {
     await page.locator("[aria-label='답변 증거 번들']").getByText("sha256:", { exact: false }).waitFor({
       timeout: 10000
     });
+    await page.locator("[aria-label='답변 계보 그래프']").getByText("답변 계보 그래프", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator("[aria-label='답변 계보 그래프']").getByText("노드", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator("[aria-label='답변 계보 그래프']").getByText("엣지", { exact: true }).waitFor({
+      timeout: 10000
+    });
+    await page.locator("[aria-label='답변 계보 그래프']").getByText("권한 재검사", { exact: true }).first().waitFor({
+      timeout: 10000
+    });
+    await page.locator("[aria-label='답변 계보 그래프']").getByText("sha256:", { exact: false }).waitFor({
+      timeout: 10000
+    });
     await page.locator(".traceTimeline").getByText("질문 저장", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceTimeline").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
@@ -367,6 +382,11 @@ async function main() {
         .getByText("opspilot.answer_evidence_bundle.v1", { exact: true })
         .isVisible()) &&
       (await page.locator("[aria-label='답변 증거 번들']").getByText("sha256:", { exact: false }).isVisible());
+    const lineageGraphVisible =
+      (await page.locator("[aria-label='답변 계보 그래프']").getByText("답변 계보 그래프", { exact: true }).isVisible()) &&
+      (await page.locator("[aria-label='답변 계보 그래프']").getByText("게이트", { exact: true }).first().isVisible()) &&
+      (await page.locator("[aria-label='답변 계보 그래프']").getByText("권한 재검사", { exact: true }).first().isVisible()) &&
+      (await page.locator("[aria-label='답변 계보 그래프']").getByText("sha256:", { exact: false }).isVisible());
     const answerText = await answerPanel.innerText();
     const sourceText = await page.locator(".sourceList").innerText();
     const metaText = await page.locator(".answerMeta").innerText();
@@ -552,6 +572,7 @@ async function main() {
         proofPacketVisible &&
         replayDriftVisible &&
         evidenceBundleVisible &&
+        lineageGraphVisible &&
         toolRegistryVisible &&
         toolRegistryApprovalVisible &&
         toolRegistryIncidentVisible &&
@@ -627,6 +648,7 @@ async function main() {
         proofPacketVisible,
         replayDriftVisible,
         evidenceBundleVisible,
+        lineageGraphVisible,
         toolRegistryVisible,
         toolRegistryApprovalVisible,
         toolRegistryIncidentVisible,

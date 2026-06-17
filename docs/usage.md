@@ -260,6 +260,7 @@ pnpm trace:smoke
 - 답변 증명 패킷
 - 답변 변경 감지
 - 답변 증거 번들
+- 답변 계보 그래프
 - 답변 신뢰 게이트
 - 감사 원장 루트 해시
 - 검토 사유
@@ -275,6 +276,7 @@ pnpm agreement:smoke
 pnpm trace:smoke
 pnpm replay:smoke
 pnpm evidence-bundle:smoke
+pnpm lineage:smoke
 pnpm quality-gate:smoke
 pnpm question-audit:smoke
 pnpm audit-ledger:smoke
@@ -293,6 +295,8 @@ pnpm action-plan:smoke
 같은 화면의 `포트폴리오 증거 보드`는 RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 데모 산출물을 서버에서 한 번에 집계합니다. 이 패널은 `GET /observability/portfolio-readiness` 응답을 사용하며, 면접에서는 “현재 데모가 보여줄 준비가 됐는지”를 먼저 설명한 뒤 아래 화면으로 들어가면 됩니다.
 
 같은 화면의 `증거 번들`은 추적, 증명, 재실행 결과를 한 번에 묶은 감사용 결과이며, `opspilot.answer_evidence_bundle.v1` 스키마와 `sha256` 해시를 함께 보여줍니다. 민감 작업 질문을 실행하면 출처 수, 도구 호출 수, 승인 수, 피드백 수, 권한 경계 재검사 결과까지 같이 확인할 수 있습니다.
+
+같은 화면의 `답변 계보 그래프`는 질문, 답변, 출처, 도구 호출, 승인, 피드백, 신뢰 게이트를 노드/엣지로 보여줍니다. 면접에서는 이 영역에서 “RAG 답변이 어떤 문서에 근거했고, 어떤 도구 호출과 사람 승인 경계가 최종 판정에 영향을 줬는지”를 한 번에 설명하면 됩니다. `pnpm lineage:smoke`는 이 그래프가 제한 출처, 승인 대기, 피드백, 권한 재검사, SHA-256 해시까지 포함하는지 확인합니다.
 
 웹 콘솔 `대응` 화면에서는 장애 대응 플랜 아래 `감사 번들`이 표시됩니다. 이 영역은 저장된 질문 ID를 기준으로 `opspilot.question_audit_bundle.v1`을 조회해 답변 행이 없는 작업 흐름도 감사합니다. `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`의 기대 상태와 실제 상태가 일치하는지, 출처 계보가 어떤 문서로 이어지는지, 현재 호출자 권한으로 출처 접근이 다시 확인됐는지, 번들 해시가 무엇인지 확인할 수 있습니다.
 
@@ -364,6 +368,7 @@ pnpm portfolio-readiness:smoke
 pnpm audit-ledger:smoke
 pnpm error-budget:smoke
 pnpm evidence-bundle:smoke
+pnpm lineage:smoke
 pnpm quality-gate:smoke
 pnpm web:smoke
 ```
