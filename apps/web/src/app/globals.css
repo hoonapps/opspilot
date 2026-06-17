@@ -770,6 +770,60 @@ pre {
   box-shadow: none;
 }
 
+.indexProof {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #cfe4df;
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+  background: #f2fbf8;
+}
+
+.indexProof.warning {
+  border-color: rgba(154, 75, 19, 0.28);
+  border-top-color: #f59e0b;
+  background: var(--warning-bg);
+}
+
+.proofGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.proofGrid .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.proofDetails {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.proofDetails span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.proofDetails code {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .knowledgePanel {
   display: grid;
   grid-column: 1 / -1;
@@ -1277,6 +1331,8 @@ pre {
   .fieldGrid,
   .quickGrid,
   .inventoryStats,
+  .proofGrid,
+  .proofDetails,
   .inventoryGrid,
   .retrievalStats,
   .scoreBars,

@@ -50,6 +50,19 @@ const quickQuestions = [
 
 type ConsoleScreen = "ask" | "retrieval" | "documents" | "quality" | "review" | "audit";
 
+type IndexProof = {
+  path: string;
+  query: string;
+  chunkCount: number;
+  topSourcePath: string | null;
+  topScore: number | null;
+  sourceHit: boolean;
+  documentAgreement: number;
+  confidence: number;
+  answerId: string;
+  verifiedAt: string;
+};
+
 const screens: Array<{ id: ConsoleScreen; label: string; title: string; description: string }> = [
   {
     id: "ask",
@@ -111,6 +124,7 @@ export default function Home() {
   const [retrievalLimit, setRetrievalLimit] = useState(5);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
+  const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
   const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
@@ -119,6 +133,7 @@ export default function Home() {
     | "ask"
     | "retrieval"
     | "ingest"
+    | "verify"
     | "github"
     | "documents"
     | "approval"
@@ -223,12 +238,48 @@ export default function Home() {
     try {
       const nextIngest = await upsertMarkdown({ path, markdown });
       setIngest(nextIngest);
-      setQuestion("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
+      const verificationQuery = "고객 공지 SLA와 15분 공지 기준은 무엇이야?";
+      setQuestion(verificationQuery);
       const nextDocuments = await listDocuments();
       setDocuments(nextDocuments);
       setSelectedDocumentId(nextDocuments.find((document) => document.path === nextIngest.path)?.id ?? nextDocuments[0]?.id ?? null);
+      await verifyIndexedDocument(nextIngest, verificationQuery);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Indexing request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function verifyIndexedDocument(targetIngest = ingest, query = question) {
+    if (!targetIngest) {
+      return;
+    }
+
+    setError(null);
+    setLoading((current) => current ?? "verify");
+    try {
+      const [preview, verificationAnswer] = await Promise.all([
+        previewRetrieval({ question: query, teamSlugs, roles, limit: 5 }),
+        askOpsPilot({ question: query, teamSlugs, roles })
+      ]);
+      const topCandidate = preview.candidates[0] ?? null;
+      const topSource = verificationAnswer.sources[0] ?? null;
+      setRetrievalPreview(preview);
+      setIndexProof({
+        path: targetIngest.path,
+        query,
+        chunkCount: targetIngest.chunks,
+        topSourcePath: topSource?.path ?? topCandidate?.path ?? null,
+        topScore: topSource?.score ?? topCandidate?.score ?? null,
+        sourceHit: topSource?.path === targetIngest.path || topCandidate?.path === targetIngest.path,
+        documentAgreement: verificationAnswer.documentAgreement.score,
+        confidence: verificationAnswer.confidence,
+        answerId: verificationAnswer.answerId,
+        verifiedAt: new Date().toISOString()
+      });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Index verification request failed");
     } finally {
       setLoading(null);
     }
@@ -879,12 +930,42 @@ export default function Home() {
               <textarea value={markdown} onChange={(event) => setMarkdown(event.target.value)} rows={10} />
             </label>
             <button className="secondaryButton" disabled={loading === "ingest"} type="submit">
-              {loading === "ingest" ? "Indexing..." : "Upsert document"}
+              {loading === "ingest" ? "Indexing..." : "Upsert and verify RAG"}
+            </button>
+            <button className="smallButton" disabled={!ingest || loading === "verify"} onClick={() => verifyIndexedDocument()} type="button">
+              {loading === "verify" ? "Verifying..." : "Verify indexed document"}
             </button>
             {ingest ? (
               <p className="ingestResult">
                 {ingest.title} indexed as {ingest.chunks} chunks.
               </p>
+            ) : null}
+            {indexProof ? (
+              <section className={indexProof.sourceHit ? "indexProof" : "indexProof warning"} aria-label="index verification proof">
+                <div className="sectionHeader compact">
+                  <div>
+                    <p className="eyebrow">Proof</p>
+                    <h2>{indexProof.sourceHit ? "Indexed doc is retrievable" : "Top source mismatch"}</h2>
+                  </div>
+                  <span className={indexProof.sourceHit ? "badge" : "badge review"}>{indexProof.sourceHit ? "Source hit" : "Review"}</span>
+                </div>
+                <div className="proofGrid">
+                  <Metric label="Chunks" value={String(indexProof.chunkCount)} />
+                  <Metric label="Top score" value={indexProof.topScore === null ? "n/a" : formatScore(indexProof.topScore)} />
+                  <Metric label="Answer match" value={formatPercent(indexProof.documentAgreement)} />
+                  <Metric label="Confidence" value={formatPercent(indexProof.confidence)} />
+                </div>
+                <div className="proofDetails">
+                  <span>query</span>
+                  <code>{indexProof.query}</code>
+                  <span>expected</span>
+                  <code>{indexProof.path}</code>
+                  <span>top source</span>
+                  <code>{indexProof.topSourcePath ?? "none"}</code>
+                  <span>answer</span>
+                  <code>{indexProof.answerId}</code>
+                </div>
+              </section>
             ) : null}
           </form>
 

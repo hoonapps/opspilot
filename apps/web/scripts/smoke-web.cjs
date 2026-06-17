@@ -29,18 +29,23 @@ async function main() {
 
     await page.getByRole("button", { name: /Documents/ }).click();
     await page.getByRole("heading", { name: "Manage knowledge base" }).waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "Upsert document" }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "Upsert and verify RAG" }).waitFor({ timeout: 10000 });
     const githubSyncFormVisible = await page.getByRole("button", { name: "Sync GitHub docs" }).isVisible();
     const indexInventoryVisible = await page.getByText("Index inventory and chunks", { exact: true }).isVisible();
 
-    await page.getByRole("button", { name: "Upsert document" }).click();
+    await page.getByRole("button", { name: "Upsert and verify RAG" }).click();
     await page.getByText("Status Page Incident Communication indexed as", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".documentList").getByText("public/status-page-policy.md", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".chunkItem span").getByText("Customer Notice SLA", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".securityLine").getByText("hash:", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".indexProof").getByText("Indexed doc is retrievable", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexProof").getByText("Source hit", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
     const inventoryVisible = await page.locator(".inventoryStats").getByText("Documents", { exact: true }).isVisible();
     const chunkPreviewVisible = await page.locator(".chunkInspector").getByText("publish the first status page notice", { exact: false }).isVisible();
     const securitySummaryVisible = await page.locator(".securityLine").getByText("redacted:", { exact: false }).isVisible();
+    const indexProofVisible = await page.locator(".indexProof").getByText("Indexed doc is retrievable", { exact: true }).isVisible();
+    const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("Source hit", { exact: true }).isVisible();
 
     await page.getByRole("button", { name: /Retrieval/ }).click();
     await page.getByLabel("Query").fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
@@ -135,6 +140,8 @@ async function main() {
         inventoryVisible &&
         chunkPreviewVisible &&
         securitySummaryVisible &&
+        indexProofVisible &&
+        indexProofSourceHitVisible &&
         retrievalPreviewVisible &&
         retrievalScoreVisible &&
         retrievalBoundaryVisible &&
@@ -162,6 +169,8 @@ async function main() {
         inventoryVisible,
         chunkPreviewVisible,
         securitySummaryVisible,
+        indexProofVisible,
+        indexProofSourceHitVisible,
         retrievalPreviewVisible,
         retrievalScoreVisible,
         retrievalBoundaryVisible,

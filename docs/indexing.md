@@ -38,6 +38,15 @@ The inventory endpoint returns indexed documents with visibility, team boundary,
 
 The Documents screen in the Next.js console calls the same endpoint after Markdown upsert and GitHub sync. The demo screenshot intentionally shows this inventory next to the chunk inspector so reviewers can see the generated chunks instead of trusting a hidden ingestion job.
 
+After a Markdown upsert, the console also runs an indexed-document proof:
+
+1. refresh document inventory
+2. call retrieval preview for the verification query
+3. call `/ask` with the same query
+4. display chunk count, top source path, retrieval score, answer agreement, and confidence
+
+This makes the portfolio demo explicit: a reviewer can see that a newly added Markdown file was parsed, chunked, embedded, retrieved, and used as grounded answer evidence.
+
 ## Queued Markdown Indexing
 
 ```bash
