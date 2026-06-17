@@ -114,8 +114,8 @@ async function main() {
     await page.locator(".diagnosticStats").getByText("신뢰도 추정", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticBanner").getByText("컨텍스트 예산", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".queryPlanPanel").getByText("검색 실행 계획", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".queryPlanStages").getByText("권한 경계", { exact: false }).waitFor({ timeout: 10000 });
-    await page.locator(".queryPlanStages").getByText("컨텍스트 패키징", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".queryPlanStages").getByText("3. 권한 경계", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().waitFor({ timeout: 10000 });
 
@@ -129,7 +129,7 @@ async function main() {
     const retrievalDiagnosticsVisible =
       (await page.locator(".retrievalDiagnostics").getByText("검색 품질 진단", { exact: true }).isVisible()) &&
       (await page.locator(".queryPlanPanel").getByText("검색 실행 계획", { exact: true }).isVisible()) &&
-      (await page.locator(".queryPlanStages").getByText("컨텍스트 패키징", { exact: false }).isVisible()) &&
+      (await page.locator(".queryPlanStages").getByText("5. 컨텍스트 패키징", { exact: true }).isVisible()) &&
       (await page.locator(".diagnosticChecks").getByText("권한 경계", { exact: true }).isVisible()) &&
       (await page.locator(".contextChunkList").getByText("토큰", { exact: false }).first().isVisible());
 
