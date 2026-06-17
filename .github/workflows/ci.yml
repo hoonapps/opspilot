@@ -104,6 +104,9 @@ jobs:
       - name: Evaluation history smoke
         run: pnpm eval:history-smoke
 
+      - name: Evaluation case detail smoke
+        run: pnpm eval:cases-smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

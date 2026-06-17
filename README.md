@@ -106,7 +106,7 @@ http://localhost:3000/docs
 
 자세한 로컬 실행 순서와 데모 시나리오는 [docs/usage.md](docs/usage.md)에 정리했습니다.
 
-웹 콘솔에서도 `사용법` 화면을 열면 다음 흐름을 그대로 따라 할 수 있습니다.
+웹 콘솔에서도 `사용법` 화면을 열면 다음 흐름을 그대로 따라 할 수 있습니다. 실행 중인 웹 콘솔에서는 `http://localhost:3001/usage`로 독립 사용법 페이지를 바로 열 수 있습니다.
 
 1. PostgreSQL/Redis 실행
 2. DB 마이그레이션
@@ -285,7 +285,7 @@ EVAL_MIN_DOCUMENT_AGREEMENT_SCORE=0.8
 EVAL_MIN_CITATION_ACCURACY=1
 ```
 
-`pnpm eval`은 기준값이 깨지면 실패합니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다.
+`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다.
 
 ## CI
 

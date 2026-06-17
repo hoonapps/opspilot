@@ -16,6 +16,7 @@ import {
   DocumentIndexQualityReport,
   DocumentVersionHistory,
   enqueueMarkdownIndexingJob,
+  EvaluationCaseReport,
   EvaluationHistory,
   EvaluationReport,
   getApiRequestObservability,
@@ -25,6 +26,7 @@ import {
   getAnswerTrace,
   getDocumentVersionHistory,
   getDocumentIndexQuality,
+  getEvaluationCases,
   getEvaluationHistory,
   getIndexingQueueHealth,
   getLatestEvaluation,
@@ -167,6 +169,7 @@ export default function Home() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
+  const [evaluationCases, setEvaluationCases] = useState<EvaluationCaseReport | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [apiRequests, setApiRequests] = useState<ApiRequestObservabilityReport | null>(null);
   const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
@@ -507,9 +510,10 @@ export default function Home() {
     setError(null);
     setLoading("evaluation");
     try {
-      const [latest, history] = await Promise.all([getLatestEvaluation(), getEvaluationHistory()]);
+      const [latest, history, cases] = await Promise.all([getLatestEvaluation(), getEvaluationHistory(), getEvaluationCases()]);
       setEvaluation(latest);
       setEvaluationHistory(history);
+      setEvaluationCases(cases);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "평가 요청에 실패했습니다.");
     } finally {
@@ -656,9 +660,14 @@ export default function Home() {
           <h1>{currentScreen.title}</h1>
           <p className="headerLead">{currentScreen.description}</p>
         </div>
-	        <div className="statusGroup" aria-label="시스템 상태">
-	          <span className="statusDot" />
-	          <span>API 대상: localhost:3000</span>
+	        <div className="topbarActions">
+	          <a className="topbarLink" href="/usage">
+	            전체 사용법
+	          </a>
+	          <div className="statusGroup" aria-label="시스템 상태">
+	            <span className="statusDot" />
+	            <span>API 연결: localhost:3000</span>
+	          </div>
 	        </div>
 	      </header>
 
@@ -721,7 +730,7 @@ export default function Home() {
               <span>
 	                신뢰도 {confidencePercent}% · 문서 일치율 {documentAgreementPercent}%
 	              </span>
-	                <span>{answer?.toolCalls.map((tool) => `${tool.toolName}: ${formatRuntimeStatus(tool.status)}`).join(", ") ?? "아직 도구 호출 없음"}</span>
+	                <span>{answer?.toolCalls.map((tool) => `${formatToolName(tool.toolName)}: ${formatRuntimeStatus(tool.status)}`).join(", ") ?? "아직 도구 호출 없음"}</span>
 	              <span>
 	                {answer?.idempotency
 	                  ? `멱등성 ${answer.idempotency.replayed ? "재사용" : "신규"} · ${shortHash(answer.idempotency.requestHash)}`
@@ -879,7 +888,7 @@ export default function Home() {
                     </div>
                     <div className="proofEvidence">
 	                      <span>출처 {proof.evidence.sourcePaths.length}</span>
-	                      <span>도구 {proof.evidence.toolCalls.map((tool) => `${tool.toolName}:${formatRuntimeStatus(tool.status)}`).join(" ")}</span>
+	                      <span>도구 {proof.evidence.toolCalls.map((tool) => `${formatToolName(tool.toolName)}:${formatRuntimeStatus(tool.status)}`).join(" ")}</span>
 	                      <span>검토 {proof.evidence.reviewReasons.join(" ") || "없음"}</span>
                     </div>
                   </div>
@@ -1131,7 +1140,7 @@ export default function Home() {
                   </div>
                   <div>
                     <span>도구 호출</span>
-                    <strong>{incidentPlan.audit.toolCalls.map((tool) => tool.toolName).join(" → ")}</strong>
+                    <strong>{incidentPlan.audit.toolCalls.map((tool) => formatToolName(tool.toolName)).join(" → ")}</strong>
                     <p>{incidentPlan.audit.persistedQuestionId}</p>
                   </div>
                   <div>
@@ -1179,7 +1188,7 @@ export default function Home() {
                           {questionAuditBundle.policyChecks.map((check) => (
                             <article className="questionAuditItem" key={check.toolCallId}>
                               <div>
-                                <strong>{check.toolName}</strong>
+                                <strong>{formatToolName(check.toolName)}</strong>
                                 <p>
                                   기대 {formatRuntimeStatus(check.expectedStatus)} · 실제 {formatRuntimeStatus(check.actualStatus)}
                                 </p>
@@ -1456,7 +1465,7 @@ export default function Home() {
                           {candidate.rankingExplanation.matchedQueryTerms.length > 0 ? (
                             candidate.rankingExplanation.matchedQueryTerms.slice(0, 8).map((term) => <code key={term}>{term}</code>)
                           ) : (
-                            <code>semantic_only</code>
+                            <code>의미 기반만 사용</code>
                           )}
                         </div>
                       </div>
@@ -1526,7 +1535,7 @@ export default function Home() {
 	                            <strong>{formatReleaseGateLabel(check.id, check.label)}</strong>
 	                            <p>{formatReleaseGateEvidence(check.id, check.evidence)}</p>
 	                          </div>
-	                          <code>{check.owner}</code>
+	                          <code>{formatReleaseGateOwner(check.owner)}</code>
 	                        </article>
                       ))}
                     </div>
@@ -1542,7 +1551,7 @@ export default function Home() {
                 </div>
                 <div className="opsBreakdown">
 	                  <span>도구</span>
-                  <code>{formatCountMap(observability.toolCalls.byName)}</code>
+                  <code>{formatToolCountMap(observability.toolCalls.byName)}</code>
 	                  <span>상태</span>
                   <code>{formatStatusCountMap(observability.toolCalls.byStatus)}</code>
 	                  <span>색인</span>
@@ -1605,7 +1614,7 @@ export default function Home() {
 	                          <span className={objective.status === "ok" ? "badge" : "badge review"}>{formatSloStatus(objective.status)}</span>
                           <div className="sloMeter">
                             <span>
-                              {formatPercent(objective.actual)} {objective.operator} {formatPercent(objective.target)}
+                              {formatPercent(objective.actual)} {formatSloOperator(objective.operator)} {formatPercent(objective.target)}
                             </span>
 	                            <strong>예산 {formatPercent(objective.errorBudgetRemaining)}</strong>
                           </div>
@@ -1667,6 +1676,54 @@ export default function Home() {
                       </article>
                     ))}
                   </div>
+                ) : null}
+                {evaluationCases ? (
+                  <section className="evalCaseReport" aria-label="평가 케이스 상세 리포트">
+                    <div className="evalHistoryHead">
+                      <span>케이스 상세 리포트</span>
+                      <code>고위험 {evaluationCases.summary.highRisk}개 · 최저 일치 {formatPercent(evaluationCases.summary.lowestAgreement)}</code>
+                    </div>
+                    <div className="evalCaseSummary">
+                      <Metric label="통과" value={String(evaluationCases.summary.passed)} />
+                      <Metric label="주의" value={String(evaluationCases.summary.warning)} />
+                      <Metric label="실패" value={String(evaluationCases.summary.failed)} />
+                      <Metric label="인용 누락" value={String(evaluationCases.summary.missingCitation)} />
+                    </div>
+                    <div className="evalCaseDetailList">
+                      {evaluationCases.cases.map((item) => (
+                        <article className="evalCaseDetail" key={item.id}>
+                          <div className="evalCaseHead">
+                            <div>
+                              <strong>{item.id}</strong>
+                              <p>
+                                위험도 {formatRiskLevel(item.riskLevel)} · 1순위 {item.topSource ?? "없음"}
+                              </p>
+                            </div>
+                            <span className={item.status === "pass" ? "badge" : "badge review"}>{formatGateStatus(item.status)}</span>
+                          </div>
+                          <div className="evalCaseChecks">
+                            {item.checks.map((check) => (
+                              <div className="evalCaseCheck" key={`${item.id}-${check.id}`}>
+                                <span className={check.status === "pass" ? "badge" : "badge review"}>{formatGateStatus(check.status)}</span>
+                                <div>
+                                  <strong>{formatEvaluationCheckLabel(check.id, check.label)}</strong>
+                                  <p>{check.evidence}</p>
+                                </div>
+                                <code>{check.metric === undefined ? "-" : `${formatPercent(check.metric)} / ${formatPercent(check.threshold ?? 0)}`}</code>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="evalRecommendations">
+                            {item.recommendations.length > 0 ? (
+                              item.recommendations.map((recommendation) => <p key={`${item.id}-${recommendation}`}>{recommendation}</p>)
+                            ) : (
+                              <p>추가 조치가 필요하지 않습니다.</p>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
                 ) : null}
                 <div className="evalCaseExplorer" aria-label="평가 케이스 탐색기">
                   {evaluation.rows.map((row) => (
@@ -1816,7 +1873,7 @@ export default function Home() {
 	                    <span>답변</span>
                     <code>{slackTrace.trace.answerId}</code>
 	                    <span>도구</span>
-                    <code>{slackTrace.trace.toolCalls.map((tool) => `${tool.toolName}:${formatRuntimeStatus(tool.status)}`).join(" ") || "없음"}</code>
+                    <code>{slackTrace.trace.toolCalls.map((tool) => `${formatToolName(tool.toolName)}:${formatRuntimeStatus(tool.status)}`).join(" ") || "없음"}</code>
                   </div>
                 </>
               ) : (
@@ -1828,7 +1885,7 @@ export default function Home() {
                 toolCalls.map((tool) => (
                   <div className="auditItem" key={tool.id}>
                     <div>
-                      <strong>{tool.toolName}</strong>
+                      <strong>{formatToolName(tool.toolName)}</strong>
 	                      <p>{tool.question ?? "연결된 질문 없음"}</p>
                     </div>
 	                    <span className={tool.status === "needs_approval" ? "badge review" : "badge"}>{formatRuntimeStatus(tool.status)}</span>
@@ -2420,12 +2477,23 @@ function formatPersonaLabel(matrix: PermissionBoundaryMatrix, personaId: string)
   return matrix.policy.personas.find((persona) => persona.id === personaId)?.label ?? personaId;
 }
 
-function formatCountMap(values: Record<string, number>): string {
+function formatToolCountMap(values: Record<string, number>): string {
   const entries = Object.entries(values);
   if (entries.length === 0) {
     return "없음";
   }
-  return entries.map(([key, value]) => `${key}:${value}`).join(" ");
+  return entries.map(([key, value]) => `${formatToolName(key)}:${value}`).join(" ");
+}
+
+function formatToolName(name: string): string {
+  const labels: Record<string, string> = {
+    search_documents: "문서 검색",
+    create_runbook_checklist: "런북 체크리스트 생성",
+    create_incident_response_plan: "장애 대응 플랜 생성",
+    request_human_approval: "사람 승인 요청",
+    save_feedback: "피드백 저장"
+  };
+  return labels[name] ? `${labels[name]} (${name})` : name;
 }
 
 function formatSchemaType(value: string): string {
@@ -2464,6 +2532,26 @@ function formatGateStatus(status: string): string {
     breach: "위반"
   };
   return labels[status] ?? status;
+}
+
+function formatRiskLevel(level: string): string {
+  const labels: Record<string, string> = {
+    low: "낮음",
+    medium: "중간",
+    high: "높음"
+  };
+  return labels[level] ?? level;
+}
+
+function formatEvaluationCheckLabel(id: string, fallback: string): string {
+  const labels: Record<string, string> = {
+    source_hit: "기대 출처 적중",
+    top_source: "1순위 출처",
+    human_review: "사람 검토 경계",
+    document_agreement: "문서 일치율",
+    citation: "출처 인용"
+  };
+  return labels[id] ?? fallback;
 }
 
 function formatIndexQualityStatus(status: string): string {
@@ -2526,6 +2614,24 @@ function formatReleaseStatus(status: string): string {
     block: "차단"
   };
   return labels[status] ?? status;
+}
+
+function formatReleaseGateOwner(owner: string): string {
+  const labels: Record<string, string> = {
+    platform: "플랫폼",
+    rag: "RAG",
+    ops: "운영",
+    quality: "품질"
+  };
+  return labels[owner] ?? owner;
+}
+
+function formatSloOperator(operator: string): string {
+  const labels: Record<string, string> = {
+    gte: "이상",
+    lte: "이하"
+  };
+  return labels[operator] ?? operator;
 }
 
 function formatProofStatus(status: string): string {

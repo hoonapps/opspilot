@@ -37,6 +37,7 @@ GET /docs-json
 - `POST /feedback`: 답변 피드백 저장
 - `GET /evaluations/latest`: 최신 평가 결과
 - `GET /evaluations/history`: 평가 이력
+- `GET /evaluations/cases`: 최신 평가 run의 케이스별 실패 원인, 위험도, 개선 권고
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
 - `GET /observability/slo`: SLO 가드레일

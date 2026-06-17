@@ -480,6 +480,43 @@ export type EvaluationHistory = {
   }>;
 };
 
+export type EvaluationCaseReport = {
+  suiteName: string;
+  runId: string;
+  createdAt: string;
+  total: number;
+  summary: {
+    passed: number;
+    warning: number;
+    failed: number;
+    highRisk: number;
+    lowestAgreement: number;
+    missingCitation: number;
+  };
+  thresholds: EvaluationReport["thresholds"];
+  cases: Array<{
+    id: string;
+    status: "pass" | "warn" | "fail";
+    riskLevel: "low" | "medium" | "high";
+    expectedSources: string[];
+    actualSources: string[];
+    topSource: string | null;
+    confidence: number;
+    documentAgreement: number;
+    needsHumanReview: boolean;
+    citationPresent: boolean;
+    checks: Array<{
+      id: "source_hit" | "top_source" | "human_review" | "document_agreement" | "citation";
+      label: string;
+      status: "pass" | "warn" | "fail";
+      metric?: number;
+      threshold?: number;
+      evidence: string;
+    }>;
+    recommendations: string[];
+  }>;
+};
+
 export type ToolCallAuditItem = {
   id: string;
   questionId: string | null;
@@ -1204,6 +1241,17 @@ export async function getEvaluationHistory(limit = 6): Promise<EvaluationHistory
   }
 
   return response.json() as Promise<EvaluationHistory>;
+}
+
+export async function getEvaluationCases(): Promise<EvaluationCaseReport | null> {
+  const response = await fetch(`${API_BASE_URL}/evaluations/cases`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { report: EvaluationCaseReport | null };
+  return data.report;
 }
 
 export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {

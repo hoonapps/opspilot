@@ -231,6 +231,33 @@ h2 {
   line-height: 1.55;
 }
 
+.topbarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topbarLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbeafe;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbarLink:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .statusGroup {
   display: inline-flex;
   align-items: center;
@@ -2685,6 +2712,97 @@ pre {
   border-top: 3px solid var(--info);
 }
 
+.evalCaseReport {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.evalCaseSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evalCaseSummary .metric {
+  min-height: 64px;
+  box-shadow: none;
+}
+
+.evalCaseDetailList {
+  display: grid;
+  gap: 10px;
+}
+
+.evalCaseDetail {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.evalCaseChecks {
+  display: grid;
+  gap: 8px;
+}
+
+.evalCaseCheck {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.evalCaseCheck strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.evalCaseCheck p,
+.evalRecommendations p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.evalCaseCheck code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.evalRecommendations {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f2fbf8;
+}
+
+.evalRecommendations p {
+  color: #17453f;
+}
+
 .evalCaseExplorer {
   display: grid;
   gap: 10px;
@@ -3498,7 +3616,9 @@ pre {
   .scoreContributionList,
   .accessExplanation,
   .evalGrid,
+  .evalCaseSummary,
   .evalCaseMetrics,
+  .evalCaseCheck,
   .evalSourceCompare,
   .evalHistoryHead,
   .evalHistoryItem,

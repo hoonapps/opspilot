@@ -16,4 +16,9 @@ export class EvaluationController {
   history(@Query("suiteName") suiteName?: string, @Query("limit") limit?: string) {
     return this.evaluationService.history(suiteName ?? "seed-ops-wiki", Number(limit ?? 8));
   }
+
+  @Get("cases")
+  cases(@Query("suiteName") suiteName?: string) {
+    return this.evaluationService.cases(suiteName ?? "seed-ops-wiki");
+  }
 }

@@ -32,6 +32,7 @@ OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 - direct indexing smoke
 - queue indexing smoke와 BullMQ 큐 관제 검증
 - GitHub sync smoke
+- evaluation case detail smoke
 - review workflow smoke
 - 답변 trace/proof smoke
 - answer 답변 drift smoke

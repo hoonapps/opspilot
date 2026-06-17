@@ -15,6 +15,7 @@
     "eval": "pnpm --filter @opspilot/api eval",
     "eval:gate-smoke": "pnpm --filter @opspilot/api eval:gate-smoke",
     "eval:history-smoke": "pnpm --filter @opspilot/api eval:history-smoke",
+    "eval:cases-smoke": "pnpm --filter @opspilot/api eval:cases-smoke",
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",

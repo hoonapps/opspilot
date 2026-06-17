@@ -85,6 +85,45 @@ export type EvaluationHistory = {
   items: EvaluationHistoryItem[];
 };
 
+export type EvaluationCaseReport = {
+  suiteName: string;
+  runId: string;
+  createdAt: string;
+  total: number;
+  summary: {
+    passed: number;
+    warning: number;
+    failed: number;
+    highRisk: number;
+    lowestAgreement: number;
+    missingCitation: number;
+  };
+  thresholds: EvaluationThresholds;
+  cases: EvaluationCaseDetail[];
+};
+
+export type EvaluationCaseDetail = {
+  id: string;
+  status: "pass" | "warn" | "fail";
+  riskLevel: "low" | "medium" | "high";
+  expectedSources: string[];
+  actualSources: string[];
+  topSource: string | null;
+  confidence: number;
+  documentAgreement: number;
+  needsHumanReview: boolean;
+  citationPresent: boolean;
+  checks: Array<{
+    id: "source_hit" | "top_source" | "human_review" | "document_agreement" | "citation";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric?: number;
+    threshold?: number;
+    evidence: string;
+  }>;
+  recommendations: string[];
+};
+
 export type EvaluationMetrics = {
   sourceHitRate: number;
   topSourceAccuracy: number;
@@ -291,6 +330,36 @@ export class EvaluationService {
     };
   }
 
+  async cases(suiteName: string): Promise<{ report: EvaluationCaseReport | null }> {
+    const latest = await this.latest(suiteName);
+    if (!latest.report) {
+      return { report: null };
+    }
+
+    const runId = await this.latestRunId(suiteName);
+    const thresholds = latest.report.thresholds;
+    const cases = latest.report.rows.map((row) => buildEvaluationCase(row, thresholds));
+
+    return {
+      report: {
+        suiteName,
+        runId,
+        createdAt: latest.report.createdAt,
+        total: cases.length,
+        summary: {
+          passed: cases.filter((item) => item.status === "pass").length,
+          warning: cases.filter((item) => item.status === "warn").length,
+          failed: cases.filter((item) => item.status === "fail").length,
+          highRisk: cases.filter((item) => item.riskLevel === "high").length,
+          lowestAgreement: cases.length > 0 ? Math.min(...cases.map((item) => item.documentAgreement)) : 0,
+          missingCitation: cases.filter((item) => !item.citationPresent).length
+        },
+        thresholds,
+        cases
+      }
+    };
+  }
+
   private async loadSourceContents(chunkIds: string[]): Promise<string[]> {
     if (chunkIds.length === 0) {
       return [];
@@ -306,6 +375,21 @@ export class EvaluationService {
     )) as Array<{ content: string }>;
 
     return rows.map((row) => row.content);
+  }
+
+  private async latestRunId(suiteName: string): Promise<string> {
+    const [row] = (await this.orm.em.fork().getConnection().execute(
+      `
+        select details
+        from evaluation_results
+        where suite_name = ?
+        order by created_at desc
+        limit 1;
+      `,
+      [suiteName]
+    )) as Array<{ details: EvaluationMetricDetails | string }>;
+
+    return normalizeDetails(row?.details).runId ?? "unknown";
   }
 }
 
@@ -471,4 +555,100 @@ function buildMetricDeltas(
     }),
     {}
   );
+}
+
+function buildEvaluationCase(row: EvalReport["rows"][number], thresholds: EvaluationThresholds): EvaluationCaseDetail {
+  const restrictedExpected = row.expectedSources.some((source) => source.includes("restricted/"));
+  const topSource = row.actualSources[0] ?? null;
+  const checks: EvaluationCaseDetail["checks"] = [
+    {
+      id: "source_hit",
+      label: "기대 출처 적중",
+      status: row.hit ? "pass" : "fail",
+      evidence: row.hit
+        ? "반환 출처에 기대 문서가 포함됐습니다."
+        : `기대 출처 ${row.expectedSources.join(", ")}를 찾지 못했습니다.`
+    },
+    {
+      id: "top_source",
+      label: "1순위 출처 정확도",
+      status: topSource && row.expectedSources.includes(topSource) ? "pass" : row.hit ? "warn" : "fail",
+      evidence: topSource
+        ? `1순위 출처는 ${topSource}입니다.`
+        : "반환된 출처가 없습니다."
+    },
+    {
+      id: "human_review",
+      label: "사람 검토 경계",
+      status: restrictedExpected ? (row.needsHumanReview ? "pass" : "fail") : "pass",
+      evidence: restrictedExpected
+        ? row.needsHumanReview
+          ? "제한 문서 기대 케이스에서 사람 검토가 켜졌습니다."
+          : "제한 문서 기대 케이스인데 사람 검토가 켜지지 않았습니다."
+        : row.needsHumanReview
+          ? "제한 문서 기대 케이스가 아니므로 사람 검토 여부는 실패 조건이 아닙니다."
+          : "추가 사람 검토가 필요하지 않습니다."
+    },
+    {
+      id: "document_agreement",
+      label: "문서 일치율",
+      status: row.documentAgreement >= thresholds.documentAgreementScore ? "pass" : row.documentAgreement >= thresholds.documentAgreementScore * 0.8 ? "warn" : "fail",
+      metric: row.documentAgreement,
+      threshold: thresholds.documentAgreementScore,
+      evidence: `답변과 근거 문서의 토큰 일치율은 ${formatPercent(row.documentAgreement)}입니다.`
+    },
+    {
+      id: "citation",
+      label: "출처 인용",
+      status: row.citationPresent ? "pass" : "fail",
+      evidence: row.citationPresent ? "답변 본문이 반환 출처를 직접 인용합니다." : "답변 본문에서 반환 출처 인용을 찾지 못했습니다."
+    }
+  ];
+  const failCount = checks.filter((check) => check.status === "fail").length;
+  const warnCount = checks.filter((check) => check.status === "warn").length;
+
+  return {
+    id: row.id,
+    status: failCount > 0 ? "fail" : warnCount > 0 ? "warn" : "pass",
+    riskLevel: failCount >= 2 || !row.hit ? "high" : failCount === 1 || warnCount > 0 ? "medium" : "low",
+    expectedSources: row.expectedSources,
+    actualSources: row.actualSources,
+    topSource,
+    confidence: row.confidence,
+    documentAgreement: row.documentAgreement,
+    needsHumanReview: row.needsHumanReview,
+    citationPresent: row.citationPresent,
+    checks,
+    recommendations: buildCaseRecommendations(row, checks)
+  };
+}
+
+function buildCaseRecommendations(row: EvalReport["rows"][number], checks: EvaluationCaseDetail["checks"]): string[] {
+  const recommendations = checks.flatMap((check) => {
+    if (check.status === "pass") {
+      return [];
+    }
+    if (check.id === "source_hit") {
+      return ["기대 문서의 제목, 별칭, 운영 키워드를 보강하거나 chunking 결과를 확인하세요."];
+    }
+    if (check.id === "top_source") {
+      return ["검색 랭킹 가중치와 문서별 중복 청크를 점검해 기대 문서가 1순위로 오도록 조정하세요."];
+    }
+    if (check.id === "human_review") {
+      return ["restricted 문서 또는 민감 작업 질문의 review reason과 approval boundary 조건을 확인하세요."];
+    }
+    if (check.id === "document_agreement") {
+      return ["답변 템플릿이 근거 문서 밖 표현을 과하게 만들지 않는지 확인하고 근거 스니펫을 늘리세요."];
+    }
+    if (check.id === "citation") {
+      return ["답변 생성 템플릿에 출처 제목 또는 path를 명시적으로 포함시키세요."];
+    }
+    return [];
+  });
+
+  return [...new Set(recommendations)].slice(0, 4);
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
