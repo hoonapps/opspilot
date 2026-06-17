@@ -7,12 +7,14 @@ import {
   askOpsPilot,
   AskResponse,
   createFeedback,
+  DocumentInventoryItem,
   EvaluationReport,
   getAnswerTrace,
   getLatestEvaluation,
   getObservabilitySummary,
   GithubSyncResponse,
   IngestResponse,
+  listDocuments,
   listRecentToolCalls,
   listApprovals,
   ObservabilitySummary,
@@ -99,10 +101,22 @@ export default function Home() {
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
+  const [documents, setDocuments] = useState<DocumentInventoryItem[]>([]);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<
-    "ask" | "ingest" | "github" | "approval" | "audit" | "evaluation" | "observability" | "feedback" | "trace" | null
+    | "ask"
+    | "ingest"
+    | "github"
+    | "documents"
+    | "approval"
+    | "audit"
+    | "evaluation"
+    | "observability"
+    | "feedback"
+    | "trace"
+    | null
   >(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +124,19 @@ export default function Home() {
   const documentAgreementPercent = useMemo(() => Math.round((answer?.documentAgreement.score ?? 0) * 100), [answer]);
   const visibleApprovals = useMemo(() => approvals.slice(0, 3), [approvals]);
   const currentScreen = screens.find((screen) => screen.id === activeScreen) ?? screens[0];
+  const selectedDocument = useMemo(
+    () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
+    [documents, selectedDocumentId]
+  );
+  const documentStats = useMemo(
+    () => ({
+      total: documents.length,
+      chunks: documents.reduce((sum, document) => sum + document.chunkCount, 0),
+      restricted: documents.filter((document) => document.visibility === "restricted").length,
+      redactions: documents.reduce((sum, document) => sum + getRedactionCount(document), 0)
+    }),
+    [documents]
+  );
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,8 +196,12 @@ export default function Home() {
     setError(null);
     setLoading("ingest");
     try {
-      setIngest(await upsertMarkdown({ path, markdown }));
+      const nextIngest = await upsertMarkdown({ path, markdown });
+      setIngest(nextIngest);
       setQuestion("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
+      const nextDocuments = await listDocuments();
+      setDocuments(nextDocuments);
+      setSelectedDocumentId(nextDocuments.find((document) => document.path === nextIngest.path)?.id ?? nextDocuments[0]?.id ?? null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Indexing request failed");
     } finally {
@@ -192,8 +223,29 @@ export default function Home() {
       });
       setGithubSync(result);
       setQuestion("OpsPilot의 permission boundary는 어디에서 적용돼?");
+      const nextDocuments = await listDocuments();
+      setDocuments(nextDocuments);
+      setSelectedDocumentId(
+        nextDocuments.find((document) => document.path.startsWith(result.source))?.id ?? nextDocuments[0]?.id ?? null
+      );
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "GitHub sync request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadDocuments() {
+    setError(null);
+    setLoading("documents");
+    try {
+      const nextDocuments = await listDocuments();
+      setDocuments(nextDocuments);
+      setSelectedDocumentId((currentId) =>
+        currentId && nextDocuments.some((document) => document.id === currentId) ? currentId : nextDocuments[0]?.id ?? null
+      );
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Document inventory request failed");
     } finally {
       setLoading(null);
     }
@@ -584,6 +636,80 @@ export default function Home() {
 
           {activeScreen === "documents" ? (
           <>
+          <section className="knowledgePanel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Knowledge Base</p>
+                <h2>Index inventory and chunks</h2>
+              </div>
+              <button className="smallButton" disabled={loading === "documents"} onClick={loadDocuments} type="button">
+                {loading === "documents" ? "Loading..." : "Refresh index"}
+              </button>
+            </div>
+
+            <div className="inventoryStats">
+              <Metric label="Documents" value={String(documentStats.total)} />
+              <Metric label="Chunks" value={String(documentStats.chunks)} />
+              <Metric label="Restricted" value={String(documentStats.restricted)} />
+              <Metric label="Redactions" value={String(documentStats.redactions)} />
+            </div>
+
+            {documents.length > 0 ? (
+              <div className="inventoryGrid">
+                <div className="documentList" aria-label="indexed documents">
+                  {documents.map((document) => (
+                    <button
+                      className={selectedDocument?.id === document.id ? "documentRow active" : "documentRow"}
+                      key={document.id}
+                      onClick={() => setSelectedDocumentId(document.id)}
+                      type="button"
+                    >
+                      <span>
+                        <strong>{document.title}</strong>
+                        <small>{document.path}</small>
+                      </span>
+                      <code>{document.chunkCount} chunks</code>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="chunkInspector">
+                  {selectedDocument ? (
+                    <>
+                      <div className="chunkHeader">
+                        <div>
+                          <span>{selectedDocument.visibility}</span>
+                          <strong>{selectedDocument.title}</strong>
+                          <p>{selectedDocument.path}</p>
+                        </div>
+                        <code>v{selectedDocument.latestVersion}</code>
+                      </div>
+                      <div className="securityLine">
+                        <span>team: {selectedDocument.teamSlug ?? "public"}</span>
+                        <span>redacted: {getRedactionCount(selectedDocument)}</span>
+                        <span>hash: {selectedDocument.contentHash.slice(0, 10)}</span>
+                      </div>
+                      <div className="chunkList">
+                        {selectedDocument.chunks.map((chunk) => (
+                          <article className="chunkItem" key={chunk.id}>
+                            <div>
+                              <strong>#{chunk.chunkIndex}</strong>
+                              <span>{chunk.heading ?? "Document body"}</span>
+                              <code>{chunk.contentLength} chars</code>
+                            </div>
+                            <p>{chunk.contentPreview}</p>
+                          </article>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <p className="empty">Refresh the index or upsert a Markdown document to inspect chunking output.</p>
+            )}
+          </section>
+
           <form onSubmit={submitMarkdown} className="indexPanel" id="index">
             <div className="sectionHeader compact">
               <div>
@@ -712,4 +838,8 @@ function formatCountMap(values: Record<string, number>): string {
 
 function formatReviewReasonCode(code: AskResponse["reviewReasons"][number]["code"]): string {
   return code.replace(/_/g, " ");
+}
+
+function getRedactionCount(document: DocumentInventoryItem): number {
+  return typeof document.metadata.security?.redactionCount === "number" ? document.metadata.security.redactionCount : 0;
 }

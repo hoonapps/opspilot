@@ -74,6 +74,33 @@ export type GithubSyncResponse = {
   documents: IngestResponse[];
 };
 
+export type DocumentInventoryItem = {
+  id: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+  contentHash: string;
+  metadata: {
+    security?: {
+      redactionCount?: number;
+      redactionPatterns?: string[];
+    };
+    tags?: string[];
+    [key: string]: unknown;
+  };
+  chunkCount: number;
+  latestVersion: number;
+  updatedAt: string;
+  chunks: Array<{
+    id: string;
+    chunkIndex: number;
+    heading?: string | null;
+    contentPreview: string;
+    contentLength: number;
+  }>;
+};
+
 export type EvaluationReport = {
   suiteName: string;
   createdAt: string;
@@ -300,6 +327,17 @@ export async function syncGithubDocuments(input: {
   }
 
   return response.json() as Promise<GithubSyncResponse>;
+}
+
+export async function listDocuments(): Promise<DocumentInventoryItem[]> {
+  const response = await fetch(`${API_BASE_URL}/documents`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { documents: DocumentInventoryItem[] };
+  return data.documents;
 }
 
 export async function getLatestEvaluation(): Promise<EvaluationReport | null> {

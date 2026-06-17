@@ -20,6 +20,11 @@ export class DocumentsController {
     return this.documentsService.ingestSeedDocuments();
   }
 
+  @Get()
+  listDocuments() {
+    return this.documentsService.listInventory();
+  }
+
   @Post("markdown")
   upsertMarkdownDocument(@Body() body: UpsertMarkdownDocumentDto) {
     return this.documentsService.ingestMarkdown(body.path, body.markdown);

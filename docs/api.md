@@ -17,6 +17,7 @@ GET /docs-json
 `pnpm openapi:smoke` generates the same OpenAPI document used by the running API and verifies the portfolio-critical API surface:
 
 - `POST /ask`
+- `GET /documents`
 - `POST /documents/markdown`
 - `POST /documents/github/sync`
 - `POST /documents/indexing-jobs/markdown`
@@ -37,3 +38,5 @@ It also verifies request schemas for the main write paths and confirms the `x-op
 ## Why It Matters
 
 This keeps the public API contract from silently drifting while the RAG agent grows. A reviewer can inspect `/docs` for manual testing, while CI proves that key operations and DTO schemas still exist.
+
+`GET /documents` is intentionally part of the public contract because the portfolio demo needs to prove indexing state, not just final answers. It exposes document inventory and chunk previews for verification while keeping raw embeddings internal.

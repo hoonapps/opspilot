@@ -16,6 +16,48 @@ type IngestedDocument = {
   changed: boolean;
 };
 
+type DocumentInventoryRow = {
+  id: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+  metadata: Record<string, unknown>;
+  contentHash: string;
+  chunkCount: number | string;
+  latestVersion: number | string;
+  updatedAt: string;
+};
+
+type ChunkPreviewRow = {
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  contentPreview: string;
+  contentLength: number | string;
+  heading?: string | null;
+};
+
+export type DocumentInventoryItem = {
+  id: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+  contentHash: string;
+  metadata: Record<string, unknown>;
+  chunkCount: number;
+  latestVersion: number;
+  updatedAt: string;
+  chunks: Array<{
+    id: string;
+    chunkIndex: number;
+    heading?: string | null;
+    contentPreview: string;
+    contentLength: number;
+  }>;
+};
+
 @Injectable()
 export class DocumentsService {
   constructor(
@@ -39,6 +81,94 @@ export class DocumentsService {
     }
 
     return { documents };
+  }
+
+  async listInventory(limit = 50): Promise<{ documents: DocumentInventoryItem[] }> {
+    const em = this.orm.em.fork();
+    const connection = em.getConnection();
+    const documents = (await connection.execute<DocumentInventoryRow[]>(
+      `
+        select
+          d.id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.metadata,
+          d.content_hash as "contentHash",
+          count(distinct c.id)::int as "chunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          d.updated_at as "updatedAt"
+        from documents d
+        left join document_chunks c on c.document_id = d.id
+        left join document_versions v on v.document_id = d.id
+        group by d.id
+        order by d.updated_at desc
+        limit ?;
+      `,
+      [limit]
+    )) as DocumentInventoryRow[];
+
+    if (documents.length === 0) {
+      return { documents: [] };
+    }
+
+    const chunkRows = (await connection.execute<ChunkPreviewRow[]>(
+      `
+        with ranked as (
+          select
+            c.id,
+            c.document_id as "documentId",
+            c.chunk_index as "chunkIndex",
+            left(c.content, 360) as "contentPreview",
+            char_length(c.content)::int as "contentLength",
+            c.metadata ->> 'heading' as heading,
+            row_number() over (partition by c.document_id order by c.chunk_index) as rank
+          from document_chunks c
+          where c.document_id in (${documents.map(() => "?::uuid").join(", ")})
+        )
+        select
+          id,
+          "documentId",
+          "chunkIndex",
+          "contentPreview",
+          "contentLength",
+          heading
+        from ranked
+        where rank <= 3
+        order by "documentId", "chunkIndex";
+      `,
+      documents.map((document) => document.id)
+    )) as ChunkPreviewRow[];
+
+    const chunksByDocumentId = new Map<string, DocumentInventoryItem["chunks"]>();
+    for (const chunk of chunkRows) {
+      const chunks = chunksByDocumentId.get(chunk.documentId) ?? [];
+      chunks.push({
+        id: chunk.id,
+        chunkIndex: chunk.chunkIndex,
+        heading: chunk.heading,
+        contentPreview: chunk.contentPreview,
+        contentLength: Number(chunk.contentLength)
+      });
+      chunksByDocumentId.set(chunk.documentId, chunks);
+    }
+
+    return {
+      documents: documents.map((document) => ({
+        id: document.id,
+        path: document.path,
+        title: document.title,
+        visibility: document.visibility,
+        teamSlug: document.teamSlug,
+        contentHash: document.contentHash,
+        metadata: document.metadata,
+        chunkCount: Number(document.chunkCount),
+        latestVersion: Number(document.latestVersion),
+        updatedAt: document.updatedAt,
+        chunks: chunksByDocumentId.get(document.id) ?? []
+      }))
+    };
   }
 
   async ingestMarkdown(path: string, raw: string): Promise<IngestedDocument> {

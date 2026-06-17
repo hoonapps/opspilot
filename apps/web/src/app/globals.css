@@ -312,6 +312,7 @@ h2 {
 .sidePanel,
 .answerPanel,
 .indexPanel,
+.knowledgePanel,
 .errorPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -697,6 +698,199 @@ pre {
   box-shadow: none;
 }
 
+.knowledgePanel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 14px;
+  padding: 16px;
+  box-shadow: none;
+}
+
+.inventoryStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.inventoryStats .metric {
+  min-height: 72px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.inventoryGrid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
+  gap: 12px;
+}
+
+.documentList,
+.chunkInspector {
+  min-height: 370px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+}
+
+.documentList {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-height: 460px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.documentRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 10px;
+  text-align: left;
+}
+
+.documentRow:hover,
+.documentRow.active {
+  border-color: rgba(15, 118, 110, 0.28);
+  background: #f2fbf8;
+}
+
+.documentRow strong,
+.chunkHeader strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documentRow small {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documentRow code,
+.chunkHeader code,
+.chunkItem code {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chunkInspector {
+  display: grid;
+  align-content: start;
+  overflow: hidden;
+}
+
+.chunkHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.chunkHeader span {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 7px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 6px;
+  background: var(--info-soft);
+  color: var(--info);
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.chunkHeader p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.securityLine {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.securityLine span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chunkList {
+  display: grid;
+  gap: 10px;
+  max-height: 328px;
+  overflow: auto;
+  padding: 12px;
+}
+
+.chunkItem {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.chunkItem div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.chunkItem strong {
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
+.chunkItem span {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chunkItem p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .evalPanel,
 .observabilityPanel,
 .auditPanel,
@@ -885,6 +1079,8 @@ pre {
   .workspace,
   .fieldGrid,
   .quickGrid,
+  .inventoryStats,
+  .inventoryGrid,
   .evalGrid,
   .opsGrid,
   .opsBreakdown,
@@ -892,6 +1088,15 @@ pre {
   .reasonItem,
   .tracePanel,
   .feedbackBar {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace.documents .sidePanel,
+  .workspace.quality .sidePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .securityLine {
     grid-template-columns: 1fr;
   }
 }

@@ -29,9 +29,16 @@ async function main() {
 
     await page.getByRole("button", { name: /Documents/ }).click();
     const githubSyncFormVisible = await page.getByRole("button", { name: "Sync GitHub docs" }).isVisible();
+    const indexInventoryVisible = await page.getByText("Index inventory and chunks", { exact: true }).isVisible();
 
     await page.getByRole("button", { name: "Upsert document" }).click();
     await page.getByText("Status Page Incident Communication indexed as", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".documentList").getByText("public/status-page-policy.md", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".chunkItem span").getByText("Customer Notice SLA", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".securityLine").getByText("hash:", { exact: false }).waitFor({ timeout: 10000 });
+    const inventoryVisible = await page.locator(".inventoryStats").getByText("Documents", { exact: true }).isVisible();
+    const chunkPreviewVisible = await page.locator(".chunkInspector").getByText("publish the first status page notice", { exact: false }).isVisible();
+    const securitySummaryVisible = await page.locator(".securityLine").getByText("redacted:", { exact: false }).isVisible();
 
     await page.getByRole("button", { name: /Ask/ }).click();
     await page
@@ -102,6 +109,10 @@ async function main() {
         approvalText.includes("sensitive_operation") &&
         feedbackSaved &&
         githubSyncFormVisible &&
+        indexInventoryVisible &&
+        inventoryVisible &&
+        chunkPreviewVisible &&
+        securitySummaryVisible &&
         evaluationVisible &&
         documentMatchVisible &&
         citationVisible &&
@@ -121,6 +132,10 @@ async function main() {
         approvalQueueVisible: approvalText.includes("sensitive_operation"),
         feedbackSaved,
         githubSyncFormVisible,
+        indexInventoryVisible,
+        inventoryVisible,
+        chunkPreviewVisible,
+        securitySummaryVisible,
         evaluationVisible,
         documentMatchVisible,
         citationVisible,

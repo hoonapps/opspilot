@@ -5,7 +5,7 @@ OpsPilot keeps its product proof close to the code. The checked-in design artifa
 ## Assets
 
 - `docs/assets/opspilot-dashboard.svg`: editable SVG product board showing the target operating model for a permission-aware RAG agent console.
-- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, evidence panel, operations telemetry, quality gates, approval queue, audit feed, and a dedicated Documents screen for Markdown upsert and GitHub sync.
+- `docs/assets/opspilot-web-console.png`: Playwright-generated screenshot from the real Next.js console. The current console shell follows the dashboard pattern from Open Design.app: persistent workspace rail, screen list navigation, top status bar, KPI strip, evidence panel, operations telemetry, quality gates, approval queue, audit feed, and a dedicated Documents screen for Markdown upsert, GitHub sync, index inventory, and chunk inspection.
 
 The PNG is refreshed by `pnpm web:smoke` after the API and web console are running. This makes the README image a runtime artifact, not a static marketing mockup.
 
@@ -22,18 +22,19 @@ The local `/Applications/Open Design.app` desktop app was launched during the de
 - Make permission boundaries visible through denied candidate counts and review reasons.
 - Keep sensitive actions separate from automatic answers through the approval queue.
 - Expose evaluation metrics in the same surface used for demos.
-- Keep document upsert and GitHub sync in a dedicated Documents screen so re-indexing can be demonstrated live without hiding the controls below the answer workflow.
+- Keep document upsert, GitHub sync, index inventory, and chunk previews in a dedicated Documents screen so re-indexing can be demonstrated live without hiding the controls below the answer workflow.
 
 ## Portfolio Demo Path
 
 1. Run the local stack and ingest seed documents.
 2. Open the Quality screen and load the latest evaluation report.
 3. Open the Documents screen and upsert the sample status-page Markdown document.
-4. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
-5. Ask the production DB write question and verify human approval is required.
-6. Open the Review screen and inspect the approval queue.
-7. Open the Audit screen and inspect the persisted tool-call trail.
-8. Save feedback and refresh the answer trace.
+4. Verify that the inventory count, selected document, content hash, redaction summary, and generated chunk previews update before asking a question.
+5. Open the Ask screen, ask the status-page SLA question, and verify the new source appears.
+6. Ask the production DB write question and verify human approval is required.
+7. Open the Review screen and inspect the approval queue.
+8. Open the Audit screen and inspect the persisted tool-call trail.
+9. Save feedback and refresh the answer trace.
 
 This is the same path covered by the Playwright web smoke test.
 

@@ -28,6 +28,16 @@ curl -X POST http://localhost:3000/documents/markdown \
 
 If the document path already exists, OpsPilot updates the document metadata, records a new document version when the redacted content hash changed, replaces old chunks, and indexes fresh chunks. Raw secret values are not stored in document versions, chunk content, embeddings, or Elasticsearch mirrors.
 
+## Index Inventory
+
+```bash
+curl http://localhost:3000/documents
+```
+
+The inventory endpoint returns indexed documents with visibility, team boundary, content hash, latest version, chunk count, redaction summary, and the first chunk previews. This is the fastest way to prove that a newly uploaded Markdown document was parsed, redacted, chunked, embedded, and stored before asking a RAG question.
+
+The Documents screen in the Next.js console calls the same endpoint after Markdown upsert and GitHub sync. The demo screenshot intentionally shows this inventory next to the chunk inspector so reviewers can see the generated chunks instead of trusting a hidden ingestion job.
+
 ## Queued Markdown Indexing
 
 ```bash

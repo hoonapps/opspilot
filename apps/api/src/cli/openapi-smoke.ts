@@ -12,6 +12,7 @@ type OpenApiOperation = {
 
 const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId?: string }> = [
   { path: "/ask", method: "post", operationId: "AgentController_ask" },
+  { path: "/documents", method: "get", operationId: "DocumentsController_listDocuments" },
   { path: "/documents/markdown", method: "post", operationId: "DocumentsController_upsertMarkdownDocument" },
   { path: "/documents/github/sync", method: "post", operationId: "DocumentsController_syncGithubDocuments" },
   { path: "/documents/indexing-jobs/markdown", method: "post" },
