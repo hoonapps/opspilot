@@ -1052,6 +1052,139 @@ pre {
   background: #f8fbff;
 }
 
+.qualityGatePanel {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.qualityGatePanel--pass {
+  border-color: #bbf7d0;
+  background: #f5fff7;
+}
+
+.qualityGatePanel--review {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.qualityGatePanel--block {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.qualityGateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.qualityGateHeader span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.qualityGateHeader strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.qualityGateHeader code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.qualityGateSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.qualityGateSummary div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.qualityGateSummary span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.qualityGateSummary strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qualityGateChecks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.qualityGateCheck {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.qualityGateCheck strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.qualityGateCheck p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.qualityGateCheck code {
+  grid-column: 2;
+  justify-self: start;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
 .replaySummary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3766,6 +3899,9 @@ pre {
   .boundaryAudit,
   .reasonItem,
   .traceSummary,
+  .qualityGateSummary,
+  .qualityGateChecks,
+  .qualityGateCheck,
   .replaySummary,
   .groundingItem,
   .contextChunkItem,
@@ -3787,6 +3923,10 @@ pre {
     max-width: none;
     grid-column: 1;
     text-align: left;
+  }
+
+  .qualityGateCheck code {
+    grid-column: auto;
   }
 
   .queryPlanStage small {

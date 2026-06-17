@@ -224,6 +224,61 @@ export type AnswerEvidenceBundle = {
   };
 };
 
+export type AnswerQualityGate = {
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "pass" | "review" | "block";
+  score: number;
+  decision: {
+    label: string;
+    recommendedAction: "share" | "review_before_share" | "block_and_rework";
+    reasons: string[];
+  };
+  thresholds: {
+    minConfidence: number;
+    minDocumentAgreement: number;
+    minGroundingCoverage: number;
+    minSourceOverlap: number;
+  };
+  summary: {
+    proofStatus: AnswerProof["status"];
+    replayStatus: AnswerReplay["status"];
+    needsHumanReview: boolean;
+    approvalStatus: "not_required" | "approved" | "pending" | "rejected" | "missing";
+    positiveFeedbackCount: number;
+    negativeFeedbackCount: number;
+    confidence: number;
+    documentAgreementScore: number;
+    groundingCoverageRatio: number;
+    sourceOverlapRatio: number;
+    sourceAccessRechecked: true;
+  };
+  checks: Array<{
+    id:
+      | "proof_verified"
+      | "replay_stable"
+      | "approval_resolved"
+      | "feedback_signal"
+      | "confidence_floor"
+      | "document_agreement"
+      | "grounding_coverage"
+      | "source_overlap"
+      | "permission_boundary";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  evidenceLinks: {
+    trace: string;
+    proof: string;
+    replay: string;
+    evidenceBundle: string;
+  };
+};
+
 @Injectable()
 export class AnswerTraceService {
   constructor(
@@ -544,6 +599,57 @@ export class AnswerTraceService {
       }
     };
   }
+
+  async getQualityGate(answerId: string, context: RequestContext): Promise<AnswerQualityGate> {
+    const bundle = await this.getEvidenceBundle(answerId, context);
+    const thresholds = {
+      minConfidence: readProofThreshold("QUALITY_GATE_MIN_CONFIDENCE", Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3)),
+      minDocumentAgreement: bundle.artifacts.proof.thresholds.minDocumentAgreement,
+      minGroundingCoverage: bundle.artifacts.proof.thresholds.minGroundingCoverage,
+      minSourceOverlap: readProofThreshold("REPLAY_MIN_SOURCE_OVERLAP", 0.6)
+    };
+    const approvalStatus = summarizeApprovalStatus(bundle.artifacts.trace);
+    const checks = buildQualityGateChecks({ bundle, thresholds, approvalStatus });
+    const status = qualityGateStatus(checks);
+    const reasons = checks
+      .filter((check) => check.status !== "pass")
+      .map((check) => `${check.label}: ${check.evidence}`);
+
+    return {
+      answerId: bundle.answerId,
+      questionId: bundle.questionId,
+      generatedAt: new Date().toISOString(),
+      status,
+      score: ratio(checks.filter((check) => check.status === "pass").length, checks.length),
+      decision: {
+        label: qualityGateLabel(status),
+        recommendedAction:
+          status === "pass" ? "share" : status === "review" ? "review_before_share" : "block_and_rework",
+        reasons
+      },
+      thresholds,
+      summary: {
+        proofStatus: bundle.summary.proofStatus,
+        replayStatus: bundle.summary.replayStatus,
+        needsHumanReview: bundle.summary.needsHumanReview,
+        approvalStatus,
+        positiveFeedbackCount: bundle.artifacts.trace.feedback.filter((item) => item.rating > 0).length,
+        negativeFeedbackCount: bundle.artifacts.trace.feedback.filter((item) => item.rating < 0).length,
+        confidence: bundle.artifacts.trace.summary.confidence,
+        documentAgreementScore: bundle.summary.documentAgreementScore,
+        groundingCoverageRatio: bundle.summary.groundingCoverageRatio,
+        sourceOverlapRatio: bundle.summary.sourceOverlapRatio,
+        sourceAccessRechecked: bundle.actorBoundary.sourceAccessRechecked
+      },
+      checks,
+      evidenceLinks: {
+        trace: `/answers/${bundle.answerId}/trace`,
+        proof: `/answers/${bundle.answerId}/proof`,
+        replay: `/answers/${bundle.answerId}/replay`,
+        evidenceBundle: `/answers/${bundle.answerId}/evidence-bundle`
+      }
+    };
+  }
 }
 
 type AnswerTraceRow = {
@@ -690,7 +796,7 @@ function buildProofChecks(
   const searchTool = trace.toolCalls.find((toolCall) => toolCall.toolName === "search_documents");
   const approvalTool = trace.toolCalls.find((toolCall) => toolCall.toolName === "request_human_approval");
   const reviewReasons = readReviewReasonCodes(trace.answer.metadata.reviewReasons);
-  const needsSensitiveApproval = trace.summary.needsHumanReview || reviewReasons.includes("sensitive_action");
+  const needsSensitiveApproval = reviewReasons.includes("sensitive_action");
   const contextWithinBudget = trace.contextPackage.estimatedTokenCount <= trace.contextPackage.tokenBudget;
   const evidenceSnippetCount = trace.grounding.sources.reduce((total, source) => total + source.evidenceSnippets.length, 0);
 
@@ -841,6 +947,145 @@ function replayStatus(checks: AnswerReplay["checks"]): AnswerReplay["status"] {
     return "needs_review";
   }
   return "stable";
+}
+
+function summarizeApprovalStatus(trace: AnswerTrace): AnswerQualityGate["summary"]["approvalStatus"] {
+  const reviewReasons = readReviewReasonCodes(trace.answer.metadata.reviewReasons);
+  if (!reviewReasons.includes("sensitive_action")) {
+    return "not_required";
+  }
+  if (trace.approvals.some((approval) => approval.status === "approved")) {
+    return "approved";
+  }
+  if (trace.approvals.some((approval) => approval.status === "pending")) {
+    return "pending";
+  }
+  if (trace.approvals.some((approval) => approval.status === "rejected")) {
+    return "rejected";
+  }
+  return "missing";
+}
+
+function buildQualityGateChecks(input: {
+  bundle: AnswerEvidenceBundle;
+  thresholds: AnswerQualityGate["thresholds"];
+  approvalStatus: AnswerQualityGate["summary"]["approvalStatus"];
+}): AnswerQualityGate["checks"] {
+  const { bundle, thresholds, approvalStatus } = input;
+  const trace = bundle.artifacts.trace;
+  const positiveFeedback = trace.feedback.filter((item) => item.rating > 0).length;
+  const negativeFeedback = trace.feedback.filter((item) => item.rating < 0).length;
+
+  return [
+    {
+      id: "proof_verified",
+      label: "증명 패킷",
+      status:
+        bundle.summary.proofStatus === "verified"
+          ? "pass"
+          : bundle.summary.proofStatus === "review_required"
+            ? "warn"
+            : "fail",
+      evidence: `증명 상태는 ${bundle.summary.proofStatus}입니다.`
+    },
+    {
+      id: "replay_stable",
+      label: "재실행 안정성",
+      status: bundle.summary.replayStatus === "stable" ? "pass" : bundle.summary.replayStatus === "needs_review" ? "warn" : "fail",
+      evidence: `현재 검색 재실행 상태는 ${bundle.summary.replayStatus}입니다.`
+    },
+    {
+      id: "approval_resolved",
+      label: "승인 경계",
+      status:
+        approvalStatus === "not_required" || approvalStatus === "approved"
+          ? "pass"
+          : approvalStatus === "pending"
+            ? "warn"
+            : "fail",
+      evidence:
+        approvalStatus === "not_required"
+          ? "민감 작업 승인이 필요하지 않습니다."
+          : approvalStatus === "approved"
+            ? "민감 작업 승인 요청이 승인됐습니다."
+            : approvalStatus === "pending"
+              ? "민감 작업 승인 요청이 아직 대기 중입니다."
+              : approvalStatus === "rejected"
+                ? "민감 작업 승인 요청이 반려됐습니다."
+                : "필요한 승인 기록을 찾지 못했습니다."
+    },
+    {
+      id: "feedback_signal",
+      label: "피드백 신호",
+      status: negativeFeedback > 0 ? "fail" : positiveFeedback > 0 ? "pass" : "warn",
+      evidence:
+        negativeFeedback > 0
+          ? `개선 필요 피드백 ${negativeFeedback}개가 있습니다.`
+          : positiveFeedback > 0
+            ? `도움됨 피드백 ${positiveFeedback}개가 있습니다.`
+            : "아직 답변 피드백이 없습니다."
+    },
+    {
+      id: "confidence_floor",
+      label: "신뢰도 하한",
+      status: thresholdStatus(trace.summary.confidence, thresholds.minConfidence),
+      evidence: `답변 신뢰도는 ${formatRatio(trace.summary.confidence)}입니다.`,
+      metric: trace.summary.confidence,
+      threshold: thresholds.minConfidence
+    },
+    {
+      id: "document_agreement",
+      label: "문서 일치율",
+      status: thresholdStatus(bundle.summary.documentAgreementScore, thresholds.minDocumentAgreement),
+      evidence: `답변/문서 일치율은 ${formatRatio(bundle.summary.documentAgreementScore)}입니다.`,
+      metric: bundle.summary.documentAgreementScore,
+      threshold: thresholds.minDocumentAgreement
+    },
+    {
+      id: "grounding_coverage",
+      label: "근거 커버리지",
+      status: thresholdStatus(bundle.summary.groundingCoverageRatio, thresholds.minGroundingCoverage),
+      evidence: `답변 토큰 근거 커버리지는 ${formatRatio(bundle.summary.groundingCoverageRatio)}입니다.`,
+      metric: bundle.summary.groundingCoverageRatio,
+      threshold: thresholds.minGroundingCoverage
+    },
+    {
+      id: "source_overlap",
+      label: "출처 겹침",
+      status: thresholdStatus(bundle.summary.sourceOverlapRatio, thresholds.minSourceOverlap),
+      evidence: `원래 출처와 현재 검색 출처의 겹침은 ${formatRatio(bundle.summary.sourceOverlapRatio)}입니다.`,
+      metric: bundle.summary.sourceOverlapRatio,
+      threshold: thresholds.minSourceOverlap
+    },
+    {
+      id: "permission_boundary",
+      label: "권한 경계",
+      status: bundle.actorBoundary.sourceAccessRechecked ? "pass" : "fail",
+      evidence: bundle.actorBoundary.sourceAccessRechecked
+        ? "출처 접근 권한을 현재 호출자 기준으로 다시 확인했습니다."
+        : "출처 접근 권한 재검사를 확인하지 못했습니다."
+    }
+  ];
+}
+
+function qualityGateStatus(checks: AnswerQualityGate["checks"]): AnswerQualityGate["status"] {
+  if (checks.some((check) => check.status === "fail")) {
+    return "block";
+  }
+  if (checks.some((check) => check.status === "warn")) {
+    return "review";
+  }
+  return "pass";
+}
+
+function qualityGateLabel(status: AnswerQualityGate["status"]): string {
+  if (status === "pass") {
+    return "공유 가능";
+  }
+  if (status === "review") {
+    return "검토 후 공유";
+  }
+  return "차단 후 재작성";
 }
 
 function sha256StableJson(value: unknown): string {

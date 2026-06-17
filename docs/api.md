@@ -30,6 +30,7 @@ GET /docs-json
 - `GET /answers/{id}/proof`: 답변 증명 패킷
 - `GET /answers/{id}/replay`: 현재 문서 기준 답변 변경 감지
 - `GET /answers/{id}/evidence-bundle`: 추적, 증명, 재실행, 권한 재검사, SHA-256 무결성 해시를 묶은 감사용 증거 번들
+- `GET /answers/{id}/quality-gate`: 개별 답변을 공유 가능/검토 필요/차단으로 판정하는 신뢰 게이트
 - `GET /questions/{id}/audit-bundle`: 질문 기준 출처 계보, tool calling 정책 검사, 승인/피드백, 권한 재검사, SHA-256 해시를 묶은 감사 번들
 - `GET /tool-calls/registry`: 에이전트 도구 계약 확인
 - `GET /tool-calls/recent`: 최근 도구 호출 감사 로그
@@ -169,6 +170,31 @@ GET /answers/{id}/evidence-bundle
 ```bash
 pnpm evidence-bundle:smoke
 ```
+
+## 답변 신뢰 게이트
+
+```txt
+GET /answers/{id}/quality-gate
+```
+
+응답은 개별 답변을 운영 채널에 그대로 공유해도 되는지 서버에서 판정합니다. 시스템 전체 품질을 보는 `GET /observability/release-gate`와 달리, 이 엔드포인트는 특정 `answerId` 하나의 증거를 기준으로 판단합니다.
+
+- `status`: `pass`, `review`, `block`
+- `decision.recommendedAction`: `share`, `review_before_share`, `block_and_rework`
+- `summary.proofStatus`: 증명 패킷 상태
+- `summary.replayStatus`: 현재 문서 기준 재실행 안정성
+- `summary.approvalStatus`: 민감 작업 승인 필요 여부와 처리 상태
+- `summary.positiveFeedbackCount`, `negativeFeedbackCount`: 리뷰 피드백 신호
+- `checks[]`: 증명 패킷, replay, 승인, 피드백, confidence, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 경계 체크
+- `evidenceLinks`: trace/proof/replay/evidence-bundle API 경로
+
+검증:
+
+```bash
+pnpm quality-gate:smoke
+```
+
+스모크는 긍정 피드백 전 답변이 `review`에 머무는지, 피드백 후 `pass`가 되는지, 민감 작업 답변이 승인 대기 때문에 `review_before_share`로 남는지 확인합니다.
 
 ## 질문 감사 번들
 

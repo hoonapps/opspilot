@@ -836,6 +836,61 @@ export type AnswerEvidenceBundle = {
   };
 };
 
+export type AnswerQualityGate = {
+  answerId: string;
+  questionId: string;
+  generatedAt: string;
+  status: "pass" | "review" | "block";
+  score: number;
+  decision: {
+    label: string;
+    recommendedAction: "share" | "review_before_share" | "block_and_rework";
+    reasons: string[];
+  };
+  thresholds: {
+    minConfidence: number;
+    minDocumentAgreement: number;
+    minGroundingCoverage: number;
+    minSourceOverlap: number;
+  };
+  summary: {
+    proofStatus: AnswerProof["status"];
+    replayStatus: AnswerReplay["status"];
+    needsHumanReview: boolean;
+    approvalStatus: "not_required" | "approved" | "pending" | "rejected" | "missing";
+    positiveFeedbackCount: number;
+    negativeFeedbackCount: number;
+    confidence: number;
+    documentAgreementScore: number;
+    groundingCoverageRatio: number;
+    sourceOverlapRatio: number;
+    sourceAccessRechecked: true;
+  };
+  checks: Array<{
+    id:
+      | "proof_verified"
+      | "replay_stable"
+      | "approval_resolved"
+      | "feedback_signal"
+      | "confidence_floor"
+      | "document_agreement"
+      | "grounding_coverage"
+      | "source_overlap"
+      | "permission_boundary";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    evidence: string;
+    metric?: number;
+    threshold?: number;
+  }>;
+  evidenceLinks: {
+    trace: string;
+    proof: string;
+    replay: string;
+    evidenceBundle: string;
+  };
+};
+
 export type QuestionAuditBundle = {
   schemaVersion: "opspilot.question_audit_bundle.v1";
   questionId: string;
@@ -1453,6 +1508,26 @@ export async function getAnswerEvidenceBundle(input: {
   }
 
   return response.json() as Promise<AnswerEvidenceBundle>;
+}
+
+export async function getAnswerQualityGate(input: {
+  answerId: string;
+  teamSlugs: string;
+  roles: string;
+}): Promise<AnswerQualityGate> {
+  const response = await fetch(`${API_BASE_URL}/answers/${input.answerId}/quality-gate`, {
+    headers: {
+      "x-team-slugs": input.teamSlugs,
+      "x-user-roles": input.roles,
+      "x-roles": input.roles
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AnswerQualityGate>;
 }
 
 export async function getQuestionAuditBundle(input: {

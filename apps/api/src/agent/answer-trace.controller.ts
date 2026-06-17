@@ -27,4 +27,9 @@ export class AnswerTraceController {
   evidenceBundle(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
     return this.answerTraceService.getEvidenceBundle(id, parseRequestContext(headers));
   }
+
+  @Get(":id/quality-gate")
+  qualityGate(@Param("id") id: string, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.answerTraceService.getQualityGate(id, parseRequestContext(headers));
+  }
 }

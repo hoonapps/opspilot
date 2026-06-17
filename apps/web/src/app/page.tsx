@@ -6,6 +6,7 @@ import {
   ApiRequestObservabilityReport,
   AnswerEvidenceBundle,
   AnswerProof,
+  AnswerQualityGate,
   AnswerReplay,
   AnswerTrace,
   askOpsPilot,
@@ -23,6 +24,7 @@ import {
   getApiRequestObservability,
   getAnswerProof,
   getAnswerEvidenceBundle,
+  getAnswerQualityGate,
   getAnswerReplay,
   getAnswerTrace,
   getDocumentImpact,
@@ -168,6 +170,7 @@ export default function Home() {
   const [proof, setProof] = useState<AnswerProof | null>(null);
   const [replay, setReplay] = useState<AnswerReplay | null>(null);
   const [evidenceBundle, setEvidenceBundle] = useState<AnswerEvidenceBundle | null>(null);
+  const [qualityGate, setQualityGate] = useState<AnswerQualityGate | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
@@ -252,12 +255,13 @@ export default function Home() {
     setLoading("ask");
     try {
       const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle] = await fetchAnswerEvidence(nextAnswer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextQualityGate] = await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setQualityGate(nextQualityGate);
       setApprovals(await listApprovals());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "질문 요청에 실패했습니다.");
@@ -312,11 +316,12 @@ export default function Home() {
       const feedback = await createFeedback({ answerId: answer.answerId, rating, comment: feedbackComment });
       setFeedbackStatus(`피드백 저장됨 (${feedback.rating > 0 ? "도움됨" : "개선 필요"})`);
       setFeedbackComment("");
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle] = await fetchAnswerEvidence(answer.answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextQualityGate] = await fetchAnswerEvidence(answer.answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setQualityGate(nextQualityGate);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "피드백 요청에 실패했습니다.");
     } finally {
@@ -605,11 +610,12 @@ export default function Home() {
     setError(null);
     setLoading("trace");
     try {
-      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle] = await fetchAnswerEvidence(answerId);
+      const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextQualityGate] = await fetchAnswerEvidence(answerId);
       setTrace(nextTrace);
       setProof(nextProof);
       setReplay(nextReplay);
       setEvidenceBundle(nextEvidenceBundle);
+      setQualityGate(nextQualityGate);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "답변 추적 요청에 실패했습니다.");
     } finally {
@@ -633,12 +639,15 @@ export default function Home() {
     }
   }
 
-  async function fetchAnswerEvidence(answerId: string): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle]> {
+  async function fetchAnswerEvidence(
+    answerId: string
+  ): Promise<[AnswerTrace, AnswerProof, AnswerReplay, AnswerEvidenceBundle, AnswerQualityGate]> {
     return Promise.all([
       getAnswerTrace({ answerId, teamSlugs, roles }),
       getAnswerProof({ answerId, teamSlugs, roles }),
       getAnswerReplay({ answerId, teamSlugs, roles }),
-      getAnswerEvidenceBundle({ answerId, teamSlugs, roles })
+      getAnswerEvidenceBundle({ answerId, teamSlugs, roles }),
+      getAnswerQualityGate({ answerId, teamSlugs, roles })
     ]);
   }
 
@@ -816,6 +825,51 @@ export default function Home() {
 	                    {loading === "trace" ? "새로고침 중..." : "추적 새로고침"}
                   </button>
                 </div>
+                {qualityGate ? (
+                  <div className={`qualityGatePanel qualityGatePanel--${qualityGate.status}`} aria-label="답변 신뢰 게이트">
+                    <div className="qualityGateHeader">
+                      <div>
+                        <span>답변 신뢰 게이트</span>
+                        <strong>{qualityGate.decision.label}</strong>
+                      </div>
+                      <code>
+                        {formatQualityGateStatus(qualityGate.status)} · 통과율 {formatPercent(qualityGate.score)}
+                      </code>
+                    </div>
+                    <div className="qualityGateSummary">
+                      <div>
+                        <span>권장 액션</span>
+                        <strong>{formatQualityGateAction(qualityGate.decision.recommendedAction)}</strong>
+                      </div>
+                      <div>
+                        <span>승인</span>
+                        <strong>{formatApprovalGateStatus(qualityGate.summary.approvalStatus)}</strong>
+                      </div>
+                      <div>
+                        <span>피드백</span>
+                        <strong>
+                          +{qualityGate.summary.positiveFeedbackCount} / -{qualityGate.summary.negativeFeedbackCount}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>재실행</span>
+                        <strong>{formatReplayStatus(qualityGate.summary.replayStatus)}</strong>
+                      </div>
+                    </div>
+                    <div className="qualityGateChecks">
+                      {qualityGate.checks.map((check) => (
+                        <article className="qualityGateCheck" key={check.id}>
+                          <span className={check.status === "pass" ? "badge" : "badge review"}>{formatGateStatus(check.status)}</span>
+                          <div>
+                            <strong>{formatQualityGateCheckLabel(check.id, check.label)}</strong>
+                            <p>{formatQualityGateEvidence(check.evidence)}</p>
+                          </div>
+                          <code>{formatProofMetric(check)}</code>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="groundingPanel" aria-label="근거 커버리지">
                   <div className="groundingHeader">
                     <div>
@@ -2735,6 +2789,65 @@ function formatReplayStatus(status: string): string {
     drifted: "변경 감지"
   };
   return labels[status] ?? status;
+}
+
+function formatQualityGateStatus(status: string): string {
+  const labels: Record<string, string> = {
+    pass: "통과",
+    review: "검토 필요",
+    block: "차단"
+  };
+  return labels[status] ?? status;
+}
+
+function formatQualityGateAction(action: string): string {
+  const labels: Record<string, string> = {
+    share: "공유 가능",
+    review_before_share: "검토 후 공유",
+    block_and_rework: "차단 후 재작성"
+  };
+  return labels[action] ?? action;
+}
+
+function formatApprovalGateStatus(status: string): string {
+  const labels: Record<string, string> = {
+    not_required: "불필요",
+    approved: "승인됨",
+    pending: "대기 중",
+    rejected: "반려됨",
+    missing: "누락"
+  };
+  return labels[status] ?? status;
+}
+
+function formatQualityGateCheckLabel(id: string, fallback: string): string {
+  const labels: Record<string, string> = {
+    proof_verified: "증명 패킷",
+    replay_stable: "재실행 안정성",
+    approval_resolved: "승인 경계",
+    feedback_signal: "피드백 신호",
+    confidence_floor: "신뢰도 하한",
+    document_agreement: "문서 일치율",
+    grounding_coverage: "근거 커버리지",
+    source_overlap: "출처 겹침",
+    permission_boundary: "권한 경계"
+  };
+  return labels[id] ?? fallback;
+}
+
+function formatQualityGateEvidence(evidence: string): string {
+  const labels: Record<string, string> = {
+    verified: "검증됨",
+    review_required: "검토 필요",
+    insufficient_evidence: "근거 부족",
+    stable: "안정",
+    needs_review: "검토 필요",
+    drifted: "변경 감지"
+  };
+  return evidence.replace(
+    /\b(verified|review_required|insufficient_evidence|stable|needs_review|drifted)\b/g,
+    (value) => labels[value] ?? value
+  );
 }
 
 function formatQuestionAuditStatus(status: string): string {

@@ -244,6 +244,10 @@ async function main() {
     await page.locator(".boundaryAudit").getByText("차단 후보", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("추적", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".qualityGatePanel").getByText("답변 신뢰 게이트", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".qualityGatePanel").getByText("검토 후 공유", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".qualityGatePanel").getByText("승인 경계", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".qualityGatePanel").getByText("대기 중", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".traceSummary").getByText("승인", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".tracePanel").getByText("커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".groundingPanel").getByText("근거 커버리지", { exact: true }).waitFor({ timeout: 10000 });
@@ -277,6 +281,11 @@ async function main() {
     const boundaryAuditVisible = await page.locator(".boundaryAudit").getByText("검색 전 SQL 권한 필터", { exact: false }).isVisible();
     const reviewReasonVisible = await page.locator(".reviewReasons").getByText("민감 작업", { exact: false }).isVisible();
     const traceVisible = await page.locator(".tracePanel").getByText("추적 새로고침", { exact: true }).isVisible();
+    const answerQualityGateVisible =
+      (await page.locator(".qualityGatePanel").getByText("답변 신뢰 게이트", { exact: true }).isVisible()) &&
+      (await page.locator(".qualityGatePanel").getByText("검토 후 공유", { exact: false }).first().isVisible()) &&
+      (await page.locator(".qualityGatePanel").getByText("승인 경계", { exact: true }).isVisible()) &&
+      (await page.locator(".qualityGatePanel").getByText("대기 중", { exact: true }).isVisible());
     const traceTimelineVisible = await page.locator(".traceTimeline").getByText("답변 생성", { exact: true }).isVisible();
     const groundingVisible = await page.locator(".groundingPanel").getByText("근거 커버리지", { exact: true }).isVisible();
     const evidenceSnippetVisible = await page.locator(".evidenceSnippetList").getByText("매칭", { exact: false }).first().isVisible();
@@ -419,6 +428,7 @@ async function main() {
         boundaryAuditVisible &&
         reviewReasonVisible &&
         traceVisible &&
+        answerQualityGateVisible &&
         traceTimelineVisible &&
         groundingVisible &&
         evidenceSnippetVisible &&
@@ -483,6 +493,7 @@ async function main() {
         boundaryAuditVisible,
         reviewReasonVisible,
         traceVisible,
+        answerQualityGateVisible,
         traceTimelineVisible,
         groundingVisible,
         evidenceSnippetVisible,

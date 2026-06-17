@@ -34,6 +34,7 @@
     "review:smoke": "pnpm --filter @opspilot/api review:smoke",
     "trace:smoke": "pnpm --filter @opspilot/api trace:smoke",
     "evidence-bundle:smoke": "pnpm --filter @opspilot/api evidence-bundle:smoke",
+    "quality-gate:smoke": "pnpm --filter @opspilot/api quality-gate:smoke",
     "question-audit:smoke": "pnpm --filter @opspilot/api question-audit:smoke",
     "replay:smoke": "pnpm --filter @opspilot/api replay:smoke",
     "portfolio:demo": "pnpm --filter @opspilot/api portfolio:demo",

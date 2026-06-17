@@ -161,6 +161,9 @@ jobs:
       - name: Answer evidence bundle smoke
         run: pnpm evidence-bundle:smoke
 
+      - name: Answer quality gate smoke
+        run: pnpm quality-gate:smoke
+
       - name: Question audit bundle smoke
         run: pnpm question-audit:smoke
 

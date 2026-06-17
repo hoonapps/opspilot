@@ -34,6 +34,7 @@
     "review:smoke": "ts-node src/cli/review-smoke.ts",
     "trace:smoke": "ts-node src/cli/answer-trace-smoke.ts",
     "evidence-bundle:smoke": "ts-node src/cli/evidence-bundle-smoke.ts",
+    "quality-gate:smoke": "ts-node src/cli/answer-quality-gate-smoke.ts",
     "question-audit:smoke": "ts-node src/cli/question-audit-bundle-smoke.ts",
     "replay:smoke": "ts-node src/cli/answer-replay-smoke.ts",
     "portfolio:demo": "ts-node src/cli/portfolio-demo.ts",
