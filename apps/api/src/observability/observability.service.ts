@@ -137,6 +137,39 @@ export type ReleaseGateCheck = {
   threshold?: number;
 };
 
+export type OperationalActionPlan = {
+  schemaVersion: "opspilot.operational_action_plan.v1";
+  generatedAt: string;
+  status: ReleaseGateStatus;
+  summary: {
+    actionCount: number;
+    p0: number;
+    p1: number;
+    p2: number;
+    owners: Array<ReleaseGateCheck["owner"]>;
+    releaseRecommendation: "ship" | "ship_after_review" | "hold";
+  };
+  actions: OperationalAction[];
+};
+
+export type OperationalAction = {
+  id: string;
+  title: string;
+  priority: "p0" | "p1" | "p2";
+  owner: ReleaseGateCheck["owner"];
+  status: "open" | "watch";
+  source: "release_gate" | "slo" | "operational_watch";
+  sourceId: string;
+  reason: string;
+  impact: string;
+  actionItems: string[];
+  verification: string[];
+  links: Array<{
+    label: string;
+    href: string;
+  }>;
+};
+
 type CountRow = { total: number | string };
 type QuestionRow = { total: number | string; last24h: number | string };
 type AnswerRow = {
@@ -576,6 +609,210 @@ export class ObservabilityService {
       }
     };
   }
+
+  async actionPlan(): Promise<OperationalActionPlan> {
+    const [gate, slo] = await Promise.all([this.releaseGate(), this.slo()]);
+    const releaseGateActions = gate.checks
+      .filter((check) => check.status !== "pass")
+      .map((check) => actionFromReleaseGateCheck(check, gate.status));
+    const sloActions = slo.objectives
+      .filter((objective) => objective.status !== "ok")
+      .map((objective) => actionFromSloObjective(objective));
+    const actions = [...releaseGateActions, ...sloActions];
+
+    if (actions.length === 0) {
+      actions.push(buildReleaseWatchAction(gate.status));
+    }
+
+    const owners = [...new Set(actions.map((action) => action.owner))].sort();
+
+    return {
+      schemaVersion: "opspilot.operational_action_plan.v1",
+      generatedAt: new Date().toISOString(),
+      status: gate.status,
+      summary: {
+        actionCount: actions.length,
+        p0: actions.filter((action) => action.priority === "p0").length,
+        p1: actions.filter((action) => action.priority === "p1").length,
+        p2: actions.filter((action) => action.priority === "p2").length,
+        owners,
+        releaseRecommendation: gate.status === "pass" ? "ship" : gate.status === "review" ? "ship_after_review" : "hold"
+      },
+      actions: actions.sort(compareActions)
+    };
+  }
+}
+
+function actionFromReleaseGateCheck(check: ReleaseGateCheck, gateStatus: ReleaseGateStatus): OperationalAction {
+  return {
+    id: `release_${check.id}`,
+    title: releaseActionTitle(check.id, check.label),
+    priority: check.status === "fail" || gateStatus === "block" ? "p0" : check.id === "feedback_signal" ? "p2" : "p1",
+    owner: check.owner,
+    status: "open",
+    source: "release_gate",
+    sourceId: check.id,
+    reason: check.evidence,
+    impact: releaseActionImpact(check.id, check.status),
+    actionItems: releaseActionItems(check),
+    verification: releaseVerificationCommands(check.id),
+    links: releaseLinks(check.id)
+  };
+}
+
+function actionFromSloObjective(objective: SloObjective): OperationalAction {
+  return {
+    id: `slo_${objective.id}`,
+    title: sloActionTitle(objective.id, objective.label),
+    priority: objective.status === "breach" ? "p0" : "p1",
+    owner: sloOwner(objective),
+    status: "open",
+    source: "slo",
+    sourceId: objective.id,
+    reason: `${objective.metric}=${objective.actual}, target=${objective.target}, status=${objective.status}.`,
+    impact: sloImpact(objective.id),
+    actionItems: sloActionItems(objective),
+    verification: ["pnpm observability:slo-smoke", "pnpm release-gate:smoke"],
+    links: [{ label: "SLO API", href: "/observability/slo" }]
+  };
+}
+
+function buildReleaseWatchAction(status: ReleaseGateStatus): OperationalAction {
+  return {
+    id: "release_watch",
+    title: "배포 상태 유지 관찰",
+    priority: "p2",
+    owner: "quality",
+    status: "watch",
+    source: "operational_watch",
+    sourceId: "release_gate",
+    reason: `Release gate is ${status}.`,
+    impact: "현재는 차단 액션이 없지만, 문서 변경이나 새 피드백 이후 품질 게이트가 stale해질 수 있습니다.",
+    actionItems: [
+      "배포 전 최신 평가와 웹 스모크를 다시 실행합니다.",
+      "새 문서가 추가되면 검색 강건성 리포트와 문서 영향 분석을 확인합니다.",
+      "민감 작업 승인 대기열이 증가하는지 확인합니다."
+    ],
+    verification: ["pnpm eval", "pnpm release-gate:smoke", "pnpm web:smoke"],
+    links: [{ label: "Release gate", href: "/observability/release-gate" }]
+  };
+}
+
+function releaseActionTitle(id: string, fallback: string): string {
+  const titles: Record<string, string> = {
+    dependencies_ready: "의존성 복구",
+    indexed_knowledge_ready: "지식 베이스 색인 보강",
+    latest_eval_gate: "최신 평가 게이트 복구",
+    knowledge_freshness: "문서 변경 후 재평가",
+    slo_guardrails: "SLO 위반 원인 제거",
+    agent_audit_trail: "에이전트 감사 추적 보강",
+    approval_backlog: "승인 대기열 정리",
+    feedback_signal: "피드백 신호 수집"
+  };
+  return titles[id] ?? fallback;
+}
+
+function releaseActionImpact(id: string, status: ReleaseGateCheckStatus): string {
+  const severity = status === "fail" ? "배포 차단" : "배포 전 검토";
+  const impacts: Record<string, string> = {
+    dependencies_ready: `${severity}: API가 PostgreSQL/Redis/Elasticsearch 상태를 보장하지 못하면 답변 생성과 감사가 불안정합니다.`,
+    indexed_knowledge_ready: `${severity}: 색인된 문서나 청크가 부족하면 RAG 답변이 근거 부족 상태가 됩니다.`,
+    latest_eval_gate: `${severity}: 최신 평가가 없거나 실패하면 회귀 여부를 증명할 수 없습니다.`,
+    knowledge_freshness: `${severity}: 문서가 바뀐 뒤 평가가 오래되면 현재 지식 기준 답변 품질을 보장할 수 없습니다.`,
+    slo_guardrails: `${severity}: SLO가 흔들리면 운영 채널에 자동 답변을 공유하기 어렵습니다.`,
+    agent_audit_trail: `${severity}: tool calling 증거가 부족하면 운영 판단을 사후 재현할 수 없습니다.`,
+    approval_backlog: `${severity}: 민감 작업 승인 대기열이 쌓이면 운영 처리 시간이 늘어납니다.`,
+    feedback_signal: `${severity}: 피드백이 없으면 답변 신뢰 게이트가 실제 사용자 신호를 반영하지 못합니다.`
+  };
+  return impacts[id] ?? `${severity}: ${id} 항목을 확인해야 합니다.`;
+}
+
+function releaseActionItems(check: ReleaseGateCheck): string[] {
+  const items: Record<string, string[]> = {
+    dependencies_ready: ["docker compose 상태를 확인하고 실패한 의존성을 재시작합니다.", "`/health/ready` 응답에서 모든 dependency가 ok인지 확인합니다."],
+    indexed_knowledge_ready: ["`pnpm ingest`로 seed 문서를 다시 색인합니다.", "문서 화면에서 청크 수와 색인 품질 리포트를 확인합니다."],
+    latest_eval_gate: ["`pnpm eval`을 실행해 최신 평가 결과를 생성합니다.", "실패 케이스는 `GET /evaluations/cases`에서 기대 출처와 일치율을 확인합니다."],
+    knowledge_freshness: ["변경된 문서의 영향 분석을 확인합니다.", "`pnpm eval`과 `pnpm freshness:smoke`를 순서대로 실행합니다."],
+    slo_guardrails: ["`GET /observability/slo`에서 warn/breach objective를 확인합니다.", "문서 일치율, 검토 부하, 도구 감사 커버리지 중 실패한 지표를 먼저 복구합니다."],
+    agent_audit_trail: ["질문 실행 시 `search_documents` tool log가 저장되는지 확인합니다.", "민감 작업 질문으로 `request_human_approval` 경계를 검증합니다."],
+    approval_backlog: ["승인 화면에서 pending 요청을 승인 또는 반려합니다.", "민감 작업 정책이 과도하게 넓지 않은지 확인합니다."],
+    feedback_signal: ["대표 질문에 대해 `도움됨/개선 필요` 피드백을 저장합니다.", "답변 신뢰 게이트가 feedback_signal 체크를 반영하는지 확인합니다."]
+  };
+  return items[check.id] ?? [`${check.label} 항목의 evidence를 확인합니다.`, "수정 후 release gate를 다시 실행합니다."];
+}
+
+function releaseVerificationCommands(id: string): string[] {
+  const commands: Record<string, string[]> = {
+    dependencies_ready: ["pnpm readiness:smoke", "pnpm release-gate:smoke"],
+    indexed_knowledge_ready: ["pnpm indexing:smoke", "pnpm index-quality:smoke", "pnpm release-gate:smoke"],
+    latest_eval_gate: ["pnpm eval", "pnpm eval:cases-smoke", "pnpm release-gate:smoke"],
+    knowledge_freshness: ["pnpm freshness:smoke", "pnpm release-gate:smoke"],
+    slo_guardrails: ["pnpm observability:slo-smoke", "pnpm release-gate:smoke"],
+    agent_audit_trail: ["pnpm trace:smoke", "pnpm question-audit:smoke", "pnpm release-gate:smoke"],
+    approval_backlog: ["pnpm review:smoke", "pnpm release-gate:smoke"],
+    feedback_signal: ["pnpm quality-gate:smoke", "pnpm release-gate:smoke"]
+  };
+  return commands[id] ?? ["pnpm release-gate:smoke"];
+}
+
+function releaseLinks(id: string): OperationalAction["links"] {
+  const links: Record<string, OperationalAction["links"]> = {
+    latest_eval_gate: [{ label: "Evaluation cases", href: "/evaluations/cases" }],
+    knowledge_freshness: [{ label: "Release gate", href: "/observability/release-gate" }],
+    slo_guardrails: [{ label: "SLO API", href: "/observability/slo" }],
+    approval_backlog: [{ label: "Approvals", href: "/approvals" }],
+    feedback_signal: [{ label: "Feedback API", href: "/feedback" }]
+  };
+  return links[id] ?? [{ label: "Release gate", href: "/observability/release-gate" }];
+}
+
+function sloActionTitle(id: string, fallback: string): string {
+  const titles: Record<string, string> = {
+    answer_grounding: "답변 근거성 SLO 복구",
+    review_load: "사람 검토 부하 완화",
+    tool_audit_coverage: "도구 감사 커버리지 복구",
+    eval_gate: "평가 게이트 재실행",
+    api_success_rate: "API 성공률 복구"
+  };
+  return titles[id] ?? fallback;
+}
+
+function sloOwner(objective: SloObjective): ReleaseGateCheck["owner"] {
+  const owners: Record<string, ReleaseGateCheck["owner"]> = {
+    answer_grounding: "rag",
+    review_load: "ops",
+    tool_audit_coverage: "ops",
+    eval_gate: "quality",
+    api_success_rate: "platform"
+  };
+  return owners[objective.id] ?? (objective.source === "api_requests" ? "platform" : "quality");
+}
+
+function sloImpact(id: string): string {
+  const impacts: Record<string, string> = {
+    answer_grounding: "답변과 근거 문서의 일치율이 낮으면 운영 채널 자동 공유가 위험합니다.",
+    review_load: "검토 비율이 높으면 운영자가 AI Agent를 처리 큐처럼 써야 해서 자동화 효과가 줄어듭니다.",
+    tool_audit_coverage: "도구 호출 증거가 빠지면 장애 대응과 권한 경계를 재현할 수 없습니다.",
+    eval_gate: "평가 게이트가 실패하면 새 문서/프롬프트 변경의 회귀를 증명할 수 없습니다.",
+    api_success_rate: "최근 API 5xx가 늘면 Slack/Web 사용자가 운영 답변을 안정적으로 받을 수 없습니다."
+  };
+  return impacts[id] ?? "SLO objective가 기준을 벗어나 release gate가 흔들릴 수 있습니다.";
+}
+
+function sloActionItems(objective: SloObjective): string[] {
+  const items: Record<string, string[]> = {
+    answer_grounding: ["근거성이 낮은 답변의 top source와 문서 일치율을 확인합니다.", "관련 문서의 제목, 별칭, 청크 크기를 보강합니다."],
+    review_load: ["low confidence와 sensitive_action review reason 분포를 확인합니다.", "민감 작업은 승인 경계로 유지하되 일반 질문의 검색 품질을 보강합니다."],
+    tool_audit_coverage: ["질문 저장 후 `search_documents` 로그가 누락되는 경로를 확인합니다.", "incident workflow는 질문 단위 audit bundle로 재검증합니다."],
+    eval_gate: ["`pnpm eval`을 실행하고 실패 케이스의 기대 출처를 수정합니다.", "평가 케이스가 현재 문서 변경을 반영하는지 확인합니다."],
+    api_success_rate: ["최근 24시간 endpoint별 5xx와 p95를 확인합니다.", "실패 endpoint의 입력 검증, DB 연결, Redis 연결을 우선 점검합니다."]
+  };
+  return items[objective.id] ?? ["SLO objective의 actual/target 차이를 확인합니다.", "수정 후 SLO smoke를 다시 실행합니다."];
+}
+
+function compareActions(left: OperationalAction, right: OperationalAction): number {
+  const priorityOrder = { p0: 0, p1: 1, p2: 2 };
+  return priorityOrder[left.priority] - priorityOrder[right.priority] || left.owner.localeCompare(right.owner) || left.id.localeCompare(right.id);
 }
 
 function buildReleaseGateChecks(input: {

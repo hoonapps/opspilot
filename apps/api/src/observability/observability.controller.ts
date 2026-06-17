@@ -22,6 +22,11 @@ export class ObservabilityController {
     return this.observabilityService.releaseGate();
   }
 
+  @Get("action-plan")
+  actionPlan() {
+    return this.observabilityService.actionPlan();
+  }
+
   @Get("api-requests")
   apiRequests() {
     return this.observabilityService.apiRequests();

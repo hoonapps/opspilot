@@ -354,6 +354,9 @@ async function main() {
     await page.locator(".releaseGatePanel").getByText("최신 평가 게이트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("평가 최신성", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".releaseGatePanel").getByText("SLO 가드레일", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".actionPlanPanel").getByText("운영 액션 플랜", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".actionPlanPanel").getByText("액션", { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator(".actionPlanVerify").getByText("pnpm", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("사람 검토율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".observabilityPanel").getByText("평균 일치율", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".sloPanel").getByText("SLO 가드레일", { exact: true }).waitFor({ timeout: 10000 });
@@ -381,6 +384,7 @@ async function main() {
       observabilityText.includes("의존성 준비") &&
       observabilityText.includes("최신 평가 게이트") &&
       observabilityText.includes("평가 최신성") &&
+      observabilityText.includes("운영 액션 플랜") &&
       observabilityText.includes("사람 검토율") &&
       observabilityText.includes("평균 일치율") &&
       observabilityText.includes("SLO 가드레일") &&

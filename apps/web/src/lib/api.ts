@@ -1134,6 +1134,37 @@ export type ObservabilityReleaseGate = {
   };
 };
 
+export type OperationalActionPlan = {
+  schemaVersion: "opspilot.operational_action_plan.v1";
+  generatedAt: string;
+  status: ObservabilityReleaseGate["status"];
+  summary: {
+    actionCount: number;
+    p0: number;
+    p1: number;
+    p2: number;
+    owners: Array<"platform" | "rag" | "ops" | "quality">;
+    releaseRecommendation: "ship" | "ship_after_review" | "hold";
+  };
+  actions: Array<{
+    id: string;
+    title: string;
+    priority: "p0" | "p1" | "p2";
+    owner: "platform" | "rag" | "ops" | "quality";
+    status: "open" | "watch";
+    source: "release_gate" | "slo" | "operational_watch";
+    sourceId: string;
+    reason: string;
+    impact: string;
+    actionItems: string[];
+    verification: string[];
+    links: Array<{
+      label: string;
+      href: string;
+    }>;
+  }>;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function askOpsPilot(input: {
@@ -1507,6 +1538,16 @@ export async function getObservabilityReleaseGate(): Promise<ObservabilityReleas
   }
 
   return response.json() as Promise<ObservabilityReleaseGate>;
+}
+
+export async function getOperationalActionPlan(): Promise<OperationalActionPlan> {
+  const response = await fetch(`${API_BASE_URL}/observability/action-plan`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<OperationalActionPlan>;
 }
 
 export async function getAnswerTrace(input: { answerId: string; teamSlugs: string; roles: string }): Promise<AnswerTrace> {

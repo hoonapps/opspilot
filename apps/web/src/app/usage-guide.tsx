@@ -47,7 +47,7 @@ const usageSteps = [
   },
   {
     title: "평가와 배포 게이트 확인",
-    body: "답변 단위 신뢰 게이트와 별도로, 평가, 문서 일치율, SLO, 배포 게이트, API 요청 성공률을 확인해 현재 지식 베이스가 배포 가능한지 판단합니다.",
+    body: "답변 단위 신뢰 게이트와 별도로, 평가, 문서 일치율, SLO, 배포 게이트, 운영 액션 플랜, API 요청 성공률을 확인해 현재 지식 베이스가 배포 가능한지 판단합니다.",
     commands: [
       "pnpm eval",
       "pnpm retrieval-robustness:smoke",
@@ -55,6 +55,7 @@ const usageSteps = [
       "pnpm incident-plan:smoke",
       "pnpm freshness:smoke",
       "pnpm release-gate:smoke",
+      "pnpm action-plan:smoke",
       "pnpm evidence-bundle:smoke",
       "pnpm quality-gate:smoke",
       "품질 화면 > 평가 불러오기 / 운영 지표 불러오기"

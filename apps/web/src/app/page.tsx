@@ -38,6 +38,7 @@ import {
   getObservabilityReleaseGate,
   getObservabilitySlo,
   getObservabilitySummary,
+  getOperationalActionPlan,
   getPermissionBoundaryMatrix,
   getQuestionAuditBundle,
   GithubSyncResponse,
@@ -53,6 +54,7 @@ import {
   ObservabilityReleaseGate,
   ObservabilitySloReport,
   ObservabilitySummary,
+  OperationalActionPlan,
   PermissionBoundaryMatrix,
   QuestionAuditBundle,
   previewRetrieval,
@@ -181,6 +183,7 @@ export default function Home() {
   const [apiRequests, setApiRequests] = useState<ApiRequestObservabilityReport | null>(null);
   const [sloReport, setSloReport] = useState<ObservabilitySloReport | null>(null);
   const [releaseGate, setReleaseGate] = useState<ObservabilityReleaseGate | null>(null);
+  const [actionPlan, setActionPlan] = useState<OperationalActionPlan | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
@@ -613,16 +616,18 @@ export default function Home() {
     setError(null);
     setLoading("observability");
     try {
-      const [summary, apiRequestReport, slo, gate] = await Promise.all([
+      const [summary, apiRequestReport, slo, gate, plan] = await Promise.all([
         getObservabilitySummary(),
         getApiRequestObservability(),
         getObservabilitySlo(),
-        getObservabilityReleaseGate()
+        getObservabilityReleaseGate(),
+        getOperationalActionPlan()
       ]);
       setObservability(summary);
       setApiRequests(apiRequestReport);
       setSloReport(slo);
       setReleaseGate(gate);
+      setActionPlan(plan);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "운영 지표 요청에 실패했습니다.");
     } finally {
@@ -1705,6 +1710,43 @@ export default function Home() {
 	                          </div>
 	                          <code>{formatReleaseGateOwner(check.owner)}</code>
 	                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+                {actionPlan ? (
+                  <section className="actionPlanPanel" aria-label="운영 액션 플랜">
+                    <div className="releaseGateHeader">
+                      <div>
+                        <span>운영 액션 플랜</span>
+                        <strong>{formatActionPlanRecommendation(actionPlan.summary.releaseRecommendation)}</strong>
+                      </div>
+                      <code>
+                        액션 {actionPlan.summary.actionCount}개 · P0 {actionPlan.summary.p0} · P1 {actionPlan.summary.p1} · 담당{" "}
+                        {actionPlan.summary.owners.map(formatReleaseGateOwner).join(", ") || "없음"}
+                      </code>
+                    </div>
+                    <div className="actionPlanList">
+                      {actionPlan.actions.slice(0, 5).map((action) => (
+                        <article className="actionPlanItem" key={action.id}>
+                          <div className="actionPlanHead">
+                            <span className={action.priority === "p0" ? "badge review" : "badge"}>{action.priority.toUpperCase()}</span>
+                            <strong>{action.title}</strong>
+                            <code>{formatReleaseGateOwner(action.owner)}</code>
+                          </div>
+                          <p>{formatOperationalReason(action.reason)}</p>
+                          <small>{action.impact}</small>
+                          <div className="actionPlanSteps">
+                            {action.actionItems.slice(0, 2).map((item) => (
+                              <span key={item}>{item}</span>
+                            ))}
+                          </div>
+                          <div className="actionPlanVerify">
+                            {action.verification.slice(0, 3).map((command) => (
+                              <code key={command}>{command}</code>
+                            ))}
+                          </div>
+                        </article>
                       ))}
                     </div>
                   </section>
@@ -3252,6 +3294,25 @@ function formatReleaseGateEvidence(id: string, fallback: string): string {
     return match ? `피드백 ${match[1]}건이 저장돼 있습니다.` : "아직 저장된 피드백이 없습니다.";
   }
   return fallback;
+}
+
+function formatActionPlanRecommendation(recommendation: string): string {
+  const labels: Record<string, string> = {
+    ship: "배포 가능",
+    ship_after_review: "검토 후 배포",
+    hold: "배포 보류"
+  };
+  return labels[recommendation] ?? recommendation;
+}
+
+function formatOperationalReason(reason: string): string {
+  return reason
+    .replace("Latest seed-ops-wiki evaluation passed.", "최신 seed-ops-wiki 평가가 통과했습니다.")
+    .replace("Latest seed-ops-wiki evaluation is missing or failing.", "최신 seed-ops-wiki 평가가 없거나 실패했습니다.")
+    .replace("No feedback has been captured yet.", "아직 저장된 피드백이 없습니다.")
+    .replace("Release gate is pass.", "릴리즈 게이트가 통과 상태입니다.")
+    .replace("Release gate is review.", "릴리즈 게이트가 검토 상태입니다.")
+    .replace("Release gate is block.", "릴리즈 게이트가 차단 상태입니다.");
 }
 
 function formatSloLabel(id: string, fallback: string): string {

@@ -17,6 +17,7 @@ OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 - 평가 이력 smoke
 - 지식 최신성 smoke
 - 운영 지표/SLO smoke
+- 운영 액션 플랜 smoke
 - API 요청 관측성 smoke
 - 배포 게이트 smoke
 - permission boundary smoke
@@ -44,4 +45,4 @@ OpsPilot은 `main` push와 pull request에서 GitHub Actions를 실행합니다.
 - OpenAPI contract smoke
 - Playwright web smoke
 
-CI는 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. grounded retrieval, citation accuracy, 검색 강건성, 문서 일치율, 문서 변경 영향 분석, 답변 신뢰 게이트, 권한 경계, 사람 승인, 도구 감사, 런북 기반 장애 대응 플랜, API 요청 관측성, BullMQ 색인 큐 관제, `/ask` 멱등성, Slack simulator, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.
+CI는 “코드가 빌드된다” 수준이 아니라 포트폴리오에서 주장하는 운영 품질을 검증합니다. grounded retrieval, citation accuracy, 검색 강건성, 문서 일치율, 문서 변경 영향 분석, 답변 신뢰 게이트, 권한 경계, 사람 승인, 도구 감사, 런북 기반 장애 대응 플랜, API 요청 관측성, 운영 액션 플랜, BullMQ 색인 큐 관제, `/ask` 멱등성, Slack simulator, 평가 최신성, 배포 게이트, 웹 콘솔 흐름이 모두 깨지면 실패하도록 구성했습니다.
