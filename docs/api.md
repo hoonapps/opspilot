@@ -49,6 +49,7 @@ GET /docs-json
 - `GET /observability/release-gate`: 배포 가능성 게이트
 - `GET /observability/portfolio-readiness`: 포트폴리오 데모 준비도, 핵심 증거 pillar, 5분 데모 경로
 - `GET /observability/action-plan`: 배포 게이트/SLO 결과를 담당자별 우선순위, 조치, 검증 명령으로 변환
+- `GET /observability/audit-ledger`: 질문, 답변, 도구 호출, 승인, 피드백 이벤트의 SHA-256 해시 체인
 - `POST /slack/events`: Slack Events API
 - `POST /slack/simulate`: Slack 로컬 시뮬레이션
 

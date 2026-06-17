@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ObservabilityService } from "./observability.service";
 
@@ -35,5 +35,10 @@ export class ObservabilityController {
   @Get("api-requests")
   apiRequests() {
     return this.observabilityService.apiRequests();
+  }
+
+  @Get("audit-ledger")
+  auditLedger(@Query("limit") limit?: string) {
+    return this.observabilityService.auditLedger(limit ? Number(limit) : undefined);
   }
 }

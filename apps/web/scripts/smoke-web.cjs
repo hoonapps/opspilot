@@ -38,6 +38,11 @@ const portfolioReadinessScreenshotPath = process.env.PORTFOLIO_READINESS_SCREENS
     ? process.env.PORTFOLIO_READINESS_SCREENSHOT_PATH
     : join(repoRoot, process.env.PORTFOLIO_READINESS_SCREENSHOT_PATH)
   : join(repoRoot, "docs/assets/opspilot-portfolio-readiness.png");
+const auditLedgerScreenshotPath = process.env.AUDIT_LEDGER_SCREENSHOT_PATH
+  ? isAbsolute(process.env.AUDIT_LEDGER_SCREENSHOT_PATH)
+    ? process.env.AUDIT_LEDGER_SCREENSHOT_PATH
+    : join(repoRoot, process.env.AUDIT_LEDGER_SCREENSHOT_PATH)
+  : join(repoRoot, "docs/assets/opspilot-audit-ledger.png");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -257,7 +262,7 @@ async function main() {
     await page.locator(".incidentAudit").getByText("create_incident_response_plan", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".questionAuditBundle").getByText("질문 단위 실행 증거", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".questionAuditBundle").getByText("create_incident_response_plan", { exact: false }).first().waitFor({ timeout: 10000 });
-    await page.locator(".questionAuditBundle").getByText("정책", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".questionAuditBundle").getByText("정책", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".questionAuditBundle").scrollIntoViewIfNeeded();
     await page.screenshot({ path: incidentPlanScreenshotPath, fullPage: false });
     const incidentPlanVisible =
@@ -371,6 +376,12 @@ async function main() {
     await page.locator(".toolRegistry").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("create_incident_response_plan", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".toolRegistry").getByText("사람 승인 필요", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "원장 검증" }).click();
+    await page.locator(".auditLedgerPanel").getByText("감사 원장 해시 체인", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".auditLedgerPanel").getByText("루트 해시", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".auditLedgerEvents").getByText("도구 호출", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".auditLedgerEvents").getByText("답변", { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator(".auditLedgerPanel").screenshot({ path: auditLedgerScreenshotPath });
     await page.getByRole("button", { name: "Slack 시뮬레이션" }).click();
     await page.locator(".slackProof").getByText("로컬 시뮬레이션", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).waitFor({ timeout: 10000 });
@@ -382,6 +393,11 @@ async function main() {
     const toolRegistryVisible = await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).isVisible();
     const toolRegistryApprovalVisible = await page.locator(".toolRegistry").getByText("사람 승인 필요", { exact: true }).isVisible();
     const toolRegistryIncidentVisible = await page.locator(".toolRegistry").getByText("create_incident_response_plan", { exact: true }).isVisible();
+    const auditLedgerVisible =
+      (await page.locator(".auditLedgerPanel").getByText("감사 원장 해시 체인", { exact: true }).isVisible()) &&
+      (await page.locator(".auditLedgerPanel").getByText("루트 해시", { exact: true }).isVisible()) &&
+      (await page.locator(".auditLedgerEvents").getByText("도구 호출", { exact: true }).first().isVisible()) &&
+      (await page.locator(".auditLedgerEvents").getByText("답변", { exact: true }).first().isVisible());
     const slackProofVisible = await page.locator(".slackProof").getByText("로컬 시뮬레이션", { exact: true }).isVisible();
     const slackTraceVisible =
       (await page.locator(".slackProof").getByText("COPSDEMO", { exact: true }).isVisible()) &&
@@ -519,6 +535,7 @@ async function main() {
         toolRegistryVisible &&
         toolRegistryApprovalVisible &&
         toolRegistryIncidentVisible &&
+        auditLedgerVisible &&
         slackProofVisible &&
         slackTraceVisible &&
         auditVisible &&
@@ -534,6 +551,7 @@ async function main() {
       documentImpactScreenshotPath,
       incidentPlanScreenshotPath,
       portfolioReadinessScreenshotPath,
+      auditLedgerScreenshotPath,
       checks: {
         sensitiveAnswerNeedsReview: answerText.includes("담당자 확인"),
         sourcesVisible: sourceText.length > 0,
@@ -590,6 +608,7 @@ async function main() {
         toolRegistryVisible,
         toolRegistryApprovalVisible,
         toolRegistryIncidentVisible,
+        auditLedgerVisible,
         slackProofVisible,
         slackTraceVisible,
         auditVisible,

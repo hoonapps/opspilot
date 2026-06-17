@@ -261,6 +261,7 @@ pnpm trace:smoke
 - 답변 변경 감지
 - 답변 증거 번들
 - 답변 신뢰 게이트
+- 감사 원장 루트 해시
 - 검토 사유
 - 권한 감사
 - 도구 호출
@@ -276,6 +277,7 @@ pnpm replay:smoke
 pnpm evidence-bundle:smoke
 pnpm quality-gate:smoke
 pnpm question-audit:smoke
+pnpm audit-ledger:smoke
 pnpm action-plan:smoke
 ```
 
@@ -290,6 +292,8 @@ pnpm action-plan:smoke
 같은 화면의 `증거 번들`은 추적, 증명, 재실행 결과를 한 번에 묶은 감사용 결과이며, `opspilot.answer_evidence_bundle.v1` 스키마와 `sha256` 해시를 함께 보여줍니다. 민감 작업 질문을 실행하면 출처 수, 도구 호출 수, 승인 수, 피드백 수, 권한 경계 재검사 결과까지 같이 확인할 수 있습니다.
 
 웹 콘솔 `대응` 화면에서는 장애 대응 플랜 아래 `감사 번들`이 표시됩니다. 이 영역은 저장된 질문 ID를 기준으로 `opspilot.question_audit_bundle.v1`을 조회해 답변 행이 없는 작업 흐름도 감사합니다. `search_documents`, `create_runbook_checklist`, `create_incident_response_plan`의 기대 상태와 실제 상태가 일치하는지, 출처 계보가 어떤 문서로 이어지는지, 현재 호출자 권한으로 출처 접근이 다시 확인됐는지, 번들 해시가 무엇인지 확인할 수 있습니다.
+
+웹 콘솔 `감사` 화면의 `감사 원장 해시 체인`은 최근 질문, 답변, 도구 호출, 승인, 피드백 이벤트를 시간순으로 묶고 `previousHash`, `eventHash`, `chainHash`를 계산합니다. 루트 해시가 바뀌면 같은 이벤트 윈도우의 감사 payload가 달라졌다는 뜻이므로, 면접에서는 “운영 기록을 단순 로그가 아니라 무결성 검증 가능한 원장으로 본다”고 설명하면 됩니다.
 
 ## 11. Slack 봇 로컬 검증
 
@@ -354,6 +358,7 @@ pnpm rate-limit:smoke
 pnpm idempotency:smoke
 pnpm release-gate:smoke
 pnpm portfolio-readiness:smoke
+pnpm audit-ledger:smoke
 pnpm evidence-bundle:smoke
 pnpm quality-gate:smoke
 pnpm web:smoke

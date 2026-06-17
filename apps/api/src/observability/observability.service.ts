@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
 import { HealthService, ReadinessReport } from "../health/health.service";
+import { sha256 } from "../shared/hash";
 
 export type ObservabilitySummary = {
   generatedAt: string;
@@ -214,6 +215,43 @@ export type PortfolioDemoStep = {
   proof: string;
 };
 
+export type AuditLedgerReport = {
+  schemaVersion: "opspilot.audit_ledger.v1";
+  generatedAt: string;
+  algorithm: "sha256";
+  canonicalization: "stable_json_v1";
+  verified: boolean;
+  rootHash: string;
+  window: {
+    limit: number;
+    eventCount: number;
+    firstEventAt: string | null;
+    lastEventAt: string | null;
+  };
+  summary: {
+    byType: Record<AuditLedgerEventType, number>;
+    byStatus: Record<string, number>;
+    questionLinkedEvents: number;
+    tamperEvident: boolean;
+  };
+  events: AuditLedgerEvent[];
+};
+
+export type AuditLedgerEventType = "question" | "answer" | "tool_call" | "approval" | "feedback";
+
+export type AuditLedgerEvent = {
+  sequence: number;
+  id: string;
+  type: AuditLedgerEventType;
+  questionId: string | null;
+  status: string;
+  createdAt: string;
+  payload: Record<string, unknown>;
+  previousHash: string;
+  eventHash: string;
+  chainHash: string;
+};
+
 type CountRow = { total: number | string };
 type QuestionRow = { total: number | string; last24h: number | string };
 type AnswerRow = {
@@ -270,6 +308,14 @@ type ApiRequestRecentRow = {
   team_slugs: string[] | null;
   error_name: string | null;
   created_at: Date | string;
+};
+type AuditLedgerRow = {
+  id: string;
+  event_type: AuditLedgerEventType;
+  question_id: string | null;
+  status: string;
+  created_at: Date | string;
+  payload: Record<string, unknown>;
 };
 
 @Injectable()
@@ -742,7 +788,7 @@ export class ObservabilityService {
           step: 4,
           screen: "대응",
           action: "정산 지연 장애 대응 플랜을 생성합니다.",
-          proof: "런북 기반 단계, 승인 게이트, 질문 단위 감사 번들, SHA-256 해시를 확인합니다."
+          proof: "런북 기반 단계, 승인 게이트, 질문 단위 감사 번들, 감사 원장 SHA-256 해시를 확인합니다."
         },
         {
           step: 5,
@@ -751,6 +797,170 @@ export class ObservabilityService {
           proof: "현재 데모가 면접에서 보여줄 수 있는 수준인지 서버가 계산한 게이트로 설명합니다."
         }
       ]
+    };
+  }
+
+  async auditLedger(limit = 40): Promise<AuditLedgerReport> {
+    const requestedLimit = Number.isFinite(limit) ? Math.trunc(limit) : 40;
+    const normalizedLimit = Math.max(1, Math.min(requestedLimit, 100));
+    const connection = this.orm.em.fork().getConnection();
+    const rows = await connection.execute<AuditLedgerRow[]>(
+      `
+        with recent_events as (
+          select
+            q.id::text as id,
+            'question'::text as event_type,
+            q.id::text as question_id,
+            coalesce(q.channel, 'unknown') as status,
+            q.created_at,
+            jsonb_build_object(
+              'questionId', q.id::text,
+              'channel', coalesce(q.channel, 'unknown'),
+              'actorHash', encode(digest(coalesce(q.actor::text, ''), 'sha256'), 'hex'),
+              'textHash', encode(digest(coalesce(q.text, ''), 'sha256'), 'hex'),
+              'textPreview', left(q.text, 80),
+              'textLength', char_length(q.text)
+            ) as payload
+          from questions q
+
+          union all
+
+          select
+            a.id::text as id,
+            'answer'::text as event_type,
+            a.question_id::text as question_id,
+            case when a.needs_human_review then 'needs_human_review' else 'ready' end as status,
+            a.created_at,
+            jsonb_build_object(
+              'answerId', a.id::text,
+              'questionId', a.question_id::text,
+              'confidence', a.confidence,
+              'needsHumanReview', a.needs_human_review,
+              'documentAgreement', coalesce((a.metadata #>> '{documentAgreement,score}')::float, 0),
+              'answerHash', encode(digest(coalesce(a.text, ''), 'sha256'), 'hex'),
+              'answerPreview', left(a.text, 80),
+              'answerLength', char_length(a.text)
+            ) as payload
+          from answers a
+
+          union all
+
+          select
+            t.id::text as id,
+            'tool_call'::text as event_type,
+            t.question_id::text as question_id,
+            t.status::text as status,
+            t.created_at,
+            jsonb_build_object(
+              'toolCallId', t.id::text,
+              'questionId', t.question_id::text,
+              'toolName', t.tool_name,
+              'status', t.status::text,
+              'inputHash', encode(digest(coalesce(t.input::text, ''), 'sha256'), 'hex'),
+              'outputHash', encode(digest(coalesce(t.output::text, ''), 'sha256'), 'hex')
+            ) as payload
+          from tool_call_logs t
+
+          union all
+
+          select
+            ar.id::text as id,
+            'approval'::text as event_type,
+            ar.question_id::text as question_id,
+            ar.status::text as status,
+            ar.created_at,
+            jsonb_build_object(
+              'approvalId', ar.id::text,
+              'questionId', ar.question_id::text,
+              'action', ar.action,
+              'status', ar.status::text,
+              'reasonHash', encode(digest(coalesce(ar.reason::text, ''), 'sha256'), 'hex')
+            ) as payload
+          from approval_requests ar
+
+          union all
+
+          select
+            f.id::text as id,
+            'feedback'::text as event_type,
+            a.question_id::text as question_id,
+            case when f.rating > 0 then 'helpful' when f.rating < 0 then 'needs_work' else 'neutral' end as status,
+            f.created_at,
+            jsonb_build_object(
+              'feedbackId', f.id::text,
+              'answerId', f.answer_id::text,
+              'questionId', a.question_id::text,
+              'rating', f.rating,
+              'commentHash', encode(digest(coalesce(f.comment, ''), 'sha256'), 'hex'),
+              'commentPreview', left(coalesce(f.comment, ''), 80)
+            ) as payload
+          from feedback f
+          left join answers a on a.id = f.answer_id
+        )
+        select id, event_type, question_id, status, created_at, payload
+        from recent_events
+        order by created_at desc, id desc
+        limit ?;
+      `,
+      [normalizedLimit]
+    );
+    const chronologicalRows = [...rows].reverse();
+    let previousHash = "0".repeat(64);
+    const events = chronologicalRows.map((row, index) => {
+      const payload = normalizeRecord(row.payload);
+      const createdAt = toIsoString(row.created_at);
+      const eventBasis = {
+        id: row.id,
+        type: row.event_type,
+        questionId: row.question_id,
+        status: row.status,
+        createdAt,
+        payload
+      };
+      const eventHash = sha256(stableStringify(eventBasis));
+      const chainHash = sha256(stableStringify({ previousHash, eventHash }));
+      const event: AuditLedgerEvent = {
+        sequence: index + 1,
+        id: row.id,
+        type: row.event_type,
+        questionId: row.question_id,
+        status: row.status,
+        createdAt,
+        payload,
+        previousHash,
+        eventHash,
+        chainHash
+      };
+      previousHash = chainHash;
+      return event;
+    });
+    const byType = toTypedCountMap(events.map((event) => event.type), ["question", "answer", "tool_call", "approval", "feedback"]);
+    const byStatus = events.reduce<Record<string, number>>((acc, event) => {
+      acc[event.status] = (acc[event.status] ?? 0) + 1;
+      return acc;
+    }, {});
+    const verified = verifyLedger(events);
+
+    return {
+      schemaVersion: "opspilot.audit_ledger.v1",
+      generatedAt: new Date().toISOString(),
+      algorithm: "sha256",
+      canonicalization: "stable_json_v1",
+      verified,
+      rootHash: events.at(-1)?.chainHash ?? previousHash,
+      window: {
+        limit: normalizedLimit,
+        eventCount: events.length,
+        firstEventAt: events[0]?.createdAt ?? null,
+        lastEventAt: events.at(-1)?.createdAt ?? null
+      },
+      summary: {
+        byType,
+        byStatus,
+        questionLinkedEvents: events.filter((event) => event.questionId).length,
+        tamperEvident: verified && events.length > 0
+      },
+      events
     };
   }
 }
@@ -809,8 +1019,8 @@ function buildPortfolioPillars(input: {
       score: roundMetric(average([searchCalls > 0 ? 1 : 0, runbookCalls > 0 ? 1 : 0.75, statusScore(checks.agent_audit_trail?.status)])),
       evidence: `search_documents ${searchCalls}회, create_runbook_checklist ${runbookCalls}회, 전체 도구 호출 ${input.summary.toolCalls.total}회.`,
       whyItMatters: "에이전트가 어떤 도구를 왜 호출했는지 사후에 재현할 수 있어야 운영 시스템으로 신뢰할 수 있습니다.",
-      demoScript: "감사 화면과 장애 대응 감사 번들에서 도구 호출 상태, 출처 계보, 정책 통과 여부를 확인합니다.",
-      verification: ["pnpm trace:smoke", "pnpm evidence-bundle:smoke", "pnpm question-audit:smoke"],
+      demoScript: "감사 화면과 장애 대응 감사 번들에서 도구 호출 상태, 출처 계보, 정책 통과 여부, 원장 루트 해시를 확인합니다.",
+      verification: ["pnpm trace:smoke", "pnpm evidence-bundle:smoke", "pnpm question-audit:smoke", "pnpm audit-ledger:smoke"],
       links: [
         { label: "도구 감사", href: "/tools/calls" },
         { label: "질문 감사 번들", href: "/questions/{id}/audit-bundle" }
@@ -877,6 +1087,55 @@ function statusScore(status: ReleaseGateCheckStatus | undefined): number {
 
 function average(values: number[]): number {
   return values.length === 0 ? 0 : values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function normalizeRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function toTypedCountMap<T extends string>(values: T[], keys: T[]): Record<T, number> {
+  const counts = Object.fromEntries(keys.map((key) => [key, 0])) as Record<T, number>;
+  for (const value of values) {
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function verifyLedger(events: AuditLedgerEvent[]): boolean {
+  let previousHash = "0".repeat(64);
+  for (const event of events) {
+    const eventBasis = {
+      id: event.id,
+      type: event.type,
+      questionId: event.questionId,
+      status: event.status,
+      createdAt: event.createdAt,
+      payload: event.payload
+    };
+    const eventHash = sha256(stableStringify(eventBasis));
+    const chainHash = sha256(stableStringify({ previousHash, eventHash }));
+    if (event.previousHash !== previousHash || event.eventHash !== eventHash || event.chainHash !== chainHash) {
+      return false;
+    }
+    previousHash = chainHash;
+  }
+  return true;
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
 }
 
 function portfolioHeadline(score: number, fail: number, warn: number): string {

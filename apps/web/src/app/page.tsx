@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import {
   Approval,
   ApiRequestObservabilityReport,
+  AuditLedgerReport,
   AnswerEvidenceBundle,
   AnswerProof,
   AnswerQualityGate,
@@ -24,6 +25,7 @@ import {
   EvaluationHistory,
   EvaluationReport,
   getApiRequestObservability,
+  getAuditLedger,
   getAnswerProof,
   getAnswerEvidenceBundle,
   getAnswerQualityGate,
@@ -209,6 +211,7 @@ export default function Home() {
   const [actionPlan, setActionPlan] = useState<OperationalActionPlan | null>(null);
   const [portfolioReadiness, setPortfolioReadiness] = useState<PortfolioReadinessReport | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
+  const [auditLedger, setAuditLedger] = useState<AuditLedgerReport | null>(null);
   const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [slackTrace, setSlackTrace] = useState<SlackSimulationTrace | null>(null);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
@@ -260,6 +263,7 @@ export default function Home() {
     | "trace"
     | "question-audit"
     | "tools"
+    | "ledger"
     | "slack"
     | null
   >(null);
@@ -681,6 +685,18 @@ export default function Home() {
       setToolCalls(await listRecentToolCalls());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "도구 호출 감사 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadAuditLedger() {
+    setError(null);
+    setLoading("ledger");
+    try {
+      setAuditLedger(await getAuditLedger(40));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "감사 원장 요청에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -2317,6 +2333,56 @@ export default function Home() {
 	                {loading === "audit" ? "불러오는 중..." : "도구 호출 불러오기"}
               </button>
             </div>
+            <section className="auditLedgerPanel" aria-label="감사 원장">
+              <div className="sectionHeader compact">
+                <div>
+                  <p className="eyebrow">무결성</p>
+                  <h2>감사 원장 해시 체인</h2>
+                </div>
+                {auditLedger ? (
+                  <span className={auditLedger.verified ? "badge" : "badge review"}>{auditLedger.verified ? "검증됨" : "검토 필요"}</span>
+                ) : null}
+                <button className="smallButton" disabled={loading === "ledger"} onClick={loadAuditLedger} type="button">
+                  {loading === "ledger" ? "검증 중..." : "원장 검증"}
+                </button>
+              </div>
+              {auditLedger ? (
+                <>
+                  <div className="auditLedgerSummary">
+                    <Metric label="이벤트" value={`${auditLedger.window.eventCount}/${auditLedger.window.limit}`} />
+                    <Metric label="질문 연결" value={String(auditLedger.summary.questionLinkedEvents)} />
+                    <Metric label="체인" value={auditLedger.summary.tamperEvident ? "정상" : "검토"} />
+                    <Metric label="해시" value={shortId(auditLedger.rootHash)} />
+                  </div>
+                  <div className="auditLedgerRoot">
+                    <span>루트 해시</span>
+                    <code>{auditLedger.rootHash}</code>
+                  </div>
+                  <div className="auditLedgerCounts">
+                    <span>타입</span>
+                    <code>{formatLedgerTypeCounts(auditLedger.summary.byType)}</code>
+                    <span>상태</span>
+                    <code>{formatStatusCountMap(auditLedger.summary.byStatus)}</code>
+                  </div>
+                  <div className="auditLedgerEvents">
+                    {auditLedger.events.slice(-6).reverse().map((event) => (
+                      <article className="auditLedgerEvent" key={`${event.sequence}-${event.id}`}>
+                        <span>{event.sequence}</span>
+                        <div>
+                          <strong>{formatLedgerEventType(event.type)}</strong>
+                          <p>
+                            {formatShortDate(event.createdAt)} · {formatRuntimeStatus(event.status)} · {event.questionId ? shortId(event.questionId) : "질문 없음"}
+                          </p>
+                        </div>
+                        <code>{shortId(event.chainHash)}</code>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="empty">원장을 검증하면 최근 질문, 답변, 도구 호출, 승인, 피드백 이벤트가 SHA-256 해시 체인으로 묶여 표시됩니다.</p>
+              )}
+            </section>
             <section className="toolRegistry">
               <div className="sectionHeader compact">
                 <div>
@@ -3151,6 +3217,25 @@ function formatToolName(name: string): string {
   return labels[name] ? `${labels[name]} (${name})` : name;
 }
 
+function formatLedgerTypeCounts(values: Record<string, number>): string {
+  const entries = Object.entries(values).filter(([, value]) => value > 0);
+  if (entries.length === 0) {
+    return "없음";
+  }
+  return entries.map(([key, value]) => `${formatLedgerEventType(key)}:${value}`).join(" ");
+}
+
+function formatLedgerEventType(type: string): string {
+  const labels: Record<string, string> = {
+    question: "질문",
+    answer: "답변",
+    tool_call: "도구 호출",
+    approval: "승인",
+    feedback: "피드백"
+  };
+  return labels[type] ?? type;
+}
+
 function formatSchemaType(value: string): string {
   const labels: Record<string, string> = {
     string: "문자열",
@@ -3415,6 +3500,7 @@ function formatRuntimeStatus(status: string): string {
   const labels: Record<string, string> = {
     allowed: "허용",
     needs_approval: "승인 필요",
+    needs_human_review: "사람 검토",
     needs_review: "검토 필요",
     created: "생성",
     grounded: "근거 있음",
@@ -3425,6 +3511,11 @@ function formatRuntimeStatus(status: string): string {
     pending: "대기",
     approved: "승인",
     rejected: "반려",
+    ready: "준비",
+    web: "웹",
+    slack: "Slack",
+    incident_plan: "장애 플랜",
+    "audit-ledger-smoke": "원장 검증",
     pass: "통과",
     warn: "주의",
     fail: "실패",

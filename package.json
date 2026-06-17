@@ -46,6 +46,7 @@
     "observability:smoke": "pnpm --filter @opspilot/api observability:smoke",
     "observability:slo-smoke": "pnpm --filter @opspilot/api observability:slo-smoke",
     "action-plan:smoke": "pnpm --filter @opspilot/api action-plan:smoke",
+    "audit-ledger:smoke": "pnpm --filter @opspilot/api audit-ledger:smoke",
     "freshness:smoke": "pnpm --filter @opspilot/api freshness:smoke",
     "release-gate:smoke": "pnpm --filter @opspilot/api release-gate:smoke",
     "openapi:smoke": "pnpm --filter @opspilot/api openapi:smoke",

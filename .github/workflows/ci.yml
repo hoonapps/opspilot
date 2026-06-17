@@ -197,6 +197,9 @@ jobs:
       - name: Operational action plan smoke
         run: pnpm action-plan:smoke
 
+      - name: Audit ledger smoke
+        run: pnpm audit-ledger:smoke
+
       - name: Knowledge freshness smoke
         run: pnpm freshness:smoke
 

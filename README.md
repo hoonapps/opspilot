@@ -18,6 +18,8 @@
 
 ![OpsPilot 포트폴리오 증거 보드](docs/assets/opspilot-portfolio-readiness.png)
 
+![OpsPilot 감사 원장 해시 체인](docs/assets/opspilot-audit-ledger.png)
+
 ![OpsPilot 답변 근거 스니펫](docs/assets/opspilot-answer-grounding.png)
 
 ![OpsPilot 사용법 페이지](docs/assets/opspilot-usage-page.png)
@@ -69,6 +71,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - 평가 게이트, 최신성 게이트, 배포 게이트, SLO 가드레일
 - 운영 액션 플랜: 배포 게이트/SLO 결과를 담당자, 우선순위, 조치, 검증 명령으로 변환
 - 포트폴리오 준비도 API: RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 데모 산출물 집계
+- 감사 원장 해시 체인: 질문, 답변, 도구 호출, 승인, 피드백 이벤트의 SHA-256 루트 해시 검증
 - API 요청 로그, 엔드포인트별 p95 지연, 오류율 관측성
 - 한국어 Next.js 웹 콘솔
 - Docker Compose 로컬/프로덕션 데모
@@ -236,6 +239,7 @@ pnpm replay:smoke
 pnpm evidence-bundle:smoke
 pnpm quality-gate:smoke
 pnpm question-audit:smoke
+pnpm audit-ledger:smoke
 pnpm permission:smoke
 pnpm prompt-injection:smoke
 pnpm rate-limit:smoke

@@ -728,6 +728,39 @@ export type ToolCallAuditItem = {
   createdAt: string;
 };
 
+export type AuditLedgerReport = {
+  schemaVersion: "opspilot.audit_ledger.v1";
+  generatedAt: string;
+  algorithm: "sha256";
+  canonicalization: "stable_json_v1";
+  verified: boolean;
+  rootHash: string;
+  window: {
+    limit: number;
+    eventCount: number;
+    firstEventAt: string | null;
+    lastEventAt: string | null;
+  };
+  summary: {
+    byType: Record<"question" | "answer" | "tool_call" | "approval" | "feedback", number>;
+    byStatus: Record<string, number>;
+    questionLinkedEvents: number;
+    tamperEvident: boolean;
+  };
+  events: Array<{
+    sequence: number;
+    id: string;
+    type: "question" | "answer" | "tool_call" | "approval" | "feedback";
+    questionId: string | null;
+    status: string;
+    createdAt: string;
+    payload: Record<string, unknown>;
+    previousHash: string;
+    eventHash: string;
+    chainHash: string;
+  }>;
+};
+
 export type AgentToolDefinition = {
   name: string;
   category: "retrieval" | "runbook" | "approval" | "incident";
@@ -1669,6 +1702,16 @@ export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {
 
   const data = (await response.json()) as { toolCalls: ToolCallAuditItem[] };
   return data.toolCalls;
+}
+
+export async function getAuditLedger(limit = 40): Promise<AuditLedgerReport> {
+  const response = await fetch(`${API_BASE_URL}/observability/audit-ledger?limit=${limit}`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<AuditLedgerReport>;
 }
 
 export async function listAgentTools(): Promise<AgentToolDefinition[]> {
