@@ -20,7 +20,7 @@ The screenshot above is generated from the working Next.js console by `pnpm web:
 - upsert and update a Markdown document, inspect index inventory, version diff, and chunk previews, then verify the indexed document through retrieval preview plus a grounded answer
 - preview retrieval ranking before answer generation with vector/lexical scores and permission-denied candidate counts
 - ask a sensitive operations question and force human approval
-- show permission audit counts, role/team boundary matrix, review reasons, answer trace, source grounding coverage, tool calls, feedback, and approval queue state
+- show permission audit counts, role/team boundary matrix, review reasons, answer trace, source grounding coverage, tool registry, tool calls, feedback, and approval queue state
 
 Design and demo assets are tracked in [docs/design.md](docs/design.md).
 
@@ -32,6 +32,7 @@ Most RAG demos stop at document upload and answer generation. OpsPilot focuses o
 - Can restricted documents be excluded before prompt construction?
 - Can role/team policy decisions be simulated per document without asking the LLM?
 - Can sensitive operations be separated into human approval?
+- Can tool contracts describe side effects and approval policy before runtime?
 - Can tool calls be audited after the answer is generated?
 - Can new or changed documents be re-indexed, retrieved as top evidence, and evaluated?
 - Can document versions and diffs prove what changed before retrieval behavior changes?
@@ -326,6 +327,7 @@ Without provider keys, OpsPilot uses deterministic local embeddings and a ground
 - Sensitive action detection
 - Structured review reasons for low confidence, missing sources, and sensitive actions
 - Tool call logs and recent audit API
+- Tool registry API for side effects, approval policy, and input/output contracts
 - Permission-checked answer trace API for reconstructing a persisted answer's timeline, sources, source-level grounding coverage, tool calls, approvals, and feedback
 - Operational observability summary API for questions, answers, document agreement, tool calls, approvals, feedback, and indexed knowledge size
 - Runbook checklist tool calling
@@ -369,6 +371,7 @@ Done:
 - Structured `reviewReasons` in `/ask`, answer metadata, Slack replies, and the web console
 - Approval list/update API and feedback create API
 - Tool call logging and recent audit API
+- Tool registry endpoint and web contract panel for approval-aware agent tools
 - `GET /answers/:id/trace` answer trace API with timeline summary, source-level grounding coverage, and document access re-check
 - `create_runbook_checklist` tool call for runbook questions
 - Slack Events API endpoint and local app mention simulator
@@ -384,7 +387,7 @@ Done:
 - Markdown portfolio proof report generated from the live demo assertions
 - Observability smoke test proving operational telemetry aggregation
 - OpenAPI contract smoke test for the public API surface and request schemas
-- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval case explorer, operational telemetry, answer-level document match, source grounding coverage, permission audit, answer trace timeline, tool call audit, GitHub sync, feedback, and approval queue coverage
+- Next.js web console and Playwright smoke test with screen navigation, retrieval preview, score breakdown, denied candidate audit, document management, permission boundary matrix, index inventory, version diff, chunk preview, indexed-document proof, security summary, evaluation metrics, eval case explorer, operational telemetry, answer-level document match, source grounding coverage, permission audit, answer trace timeline, tool registry, tool call audit, GitHub sync, feedback, and approval queue coverage
 - GitHub Actions CI for build, Docker image build, production compose smoke, eval, permission boundary, signed actor token auth, secret redaction, readiness, answer agreement, checklist, GitHub sync, direct indexing, queue indexing, review, answer trace, and browser smoke gates
 - README product preview image
 - Design proof document with Open Design workflow notes, exported assets, and runtime screenshot workflow

@@ -17,7 +17,9 @@ import {
   getPermissionBoundaryMatrix,
   GithubSyncResponse,
   IngestResponse,
+  AgentToolDefinition,
   listDocuments,
+  listAgentTools,
   listRecentToolCalls,
   listApprovals,
   ObservabilitySummary,
@@ -124,6 +126,7 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCallAuditItem[]>([]);
+  const [agentTools, setAgentTools] = useState<AgentToolDefinition[]>([]);
   const [retrievalPreview, setRetrievalPreview] = useState<RetrievalPreviewResponse | null>(null);
   const [retrievalLimit, setRetrievalLimit] = useState(5);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
@@ -150,6 +153,7 @@ export default function Home() {
     | "observability"
     | "feedback"
     | "trace"
+    | "tools"
     | null
   >(null);
   const [error, setError] = useState<string | null>(null);
@@ -386,6 +390,18 @@ export default function Home() {
       setToolCalls(await listRecentToolCalls());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Tool call audit request failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadAgentTools() {
+    setError(null);
+    setLoading("tools");
+    try {
+      setAgentTools(await listAgentTools());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Tool registry request failed");
     } finally {
       setLoading(null);
     }
@@ -911,6 +927,46 @@ export default function Home() {
                 {loading === "audit" ? "Loading..." : "Load tools"}
               </button>
             </div>
+            <section className="toolRegistry">
+              <div className="sectionHeader compact">
+                <div>
+                  <p className="eyebrow">Registry</p>
+                  <h2>Agent tool contract</h2>
+                </div>
+                {agentTools.length > 0 ? <span className="badge">{agentTools.length} tools</span> : null}
+                <button className="smallButton" disabled={loading === "tools"} onClick={loadAgentTools} type="button">
+                  {loading === "tools" ? "Loading..." : "Load registry"}
+                </button>
+              </div>
+              {agentTools.length > 0 ? (
+                <div className="toolRegistryList" aria-label="agent tool registry">
+                  {agentTools.map((tool) => (
+                    <article className="toolRegistryItem" key={tool.name}>
+                      <div>
+                        <strong>{tool.name}</strong>
+                        <p>{tool.description}</p>
+                      </div>
+                      <span className={tool.approvalPolicy === "human_required" ? "badge review" : "badge"}>
+                        {tool.approvalPolicy === "human_required" ? "Human required" : "Auto allowed"}
+                      </span>
+                      <div className="toolRegistryMeta">
+                        <code>{tool.category}</code>
+                        <code>{tool.sideEffect}</code>
+                        <code>{tool.statusWhenCalled}</code>
+                      </div>
+                      <div className="toolSchemaGrid">
+                        <span>Input</span>
+                        <code>{formatSchemaMap(tool.inputSchema)}</code>
+                        <span>Output</span>
+                        <code>{formatSchemaMap(tool.outputSchema)}</code>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty">Load the registry to inspect tool contracts, side effects, and approval policy.</p>
+              )}
+            </section>
             <div className="auditList">
               {toolCalls.length > 0 ? (
                 toolCalls.map((tool) => (
@@ -1331,6 +1387,14 @@ function formatPersonaLabel(matrix: PermissionBoundaryMatrix, personaId: string)
 }
 
 function formatCountMap(values: Record<string, number>): string {
+  const entries = Object.entries(values);
+  if (entries.length === 0) {
+    return "none";
+  }
+  return entries.map(([key, value]) => `${key}:${value}`).join(" ");
+}
+
+function formatSchemaMap(values: Record<string, string>): string {
   const entries = Object.entries(values);
   if (entries.length === 0) {
     return "none";

@@ -138,9 +138,15 @@ async function main() {
     await page.locator(".approvalList").getByRole("button", { name: "Reject" }).first().click();
 
     await page.getByRole("button", { name: /Audit/ }).click();
+    await page.getByRole("button", { name: "Load registry" }).click();
+    await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".toolRegistry").getByText("request_human_approval", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".toolRegistry").getByText("Human required", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "Load tools" }).click();
     await page.locator(".auditList").getByText("request_human_approval", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".auditList").getByText("needs_approval", { exact: false }).first().waitFor({ timeout: 10000 });
+    const toolRegistryVisible = await page.locator(".toolRegistry").getByText("search_documents", { exact: true }).isVisible();
+    const toolRegistryApprovalVisible = await page.locator(".toolRegistry").getByText("Human required", { exact: true }).isVisible();
     const auditVisible = await page.locator(".auditList").getByText("search_documents", { exact: false }).first().isVisible();
 
     await page.getByRole("button", { name: /Quality/ }).click();
@@ -193,6 +199,8 @@ async function main() {
         traceVisible &&
         traceTimelineVisible &&
         groundingVisible &&
+        toolRegistryVisible &&
+        toolRegistryApprovalVisible &&
         auditVisible &&
         observabilityVisible,
       baseUrl,
@@ -229,6 +237,8 @@ async function main() {
         traceVisible,
         traceTimelineVisible,
         groundingVisible,
+        toolRegistryVisible,
+        toolRegistryApprovalVisible,
         auditVisible,
         observabilityVisible
       }

@@ -238,6 +238,18 @@ export type ToolCallAuditItem = {
   createdAt: string;
 };
 
+export type AgentToolDefinition = {
+  name: string;
+  category: "retrieval" | "runbook" | "approval";
+  description: string;
+  sideEffect: "none" | "database_write";
+  approvalPolicy: "auto_allowed" | "human_required";
+  statusWhenCalled: "allowed" | "needs_approval";
+  inputSchema: Record<string, string>;
+  outputSchema: Record<string, string>;
+  auditFields: string[];
+};
+
 export type AnswerTrace = {
   summary: {
     sourceCount: number;
@@ -528,6 +540,17 @@ export async function listRecentToolCalls(): Promise<ToolCallAuditItem[]> {
 
   const data = (await response.json()) as { toolCalls: ToolCallAuditItem[] };
   return data.toolCalls;
+}
+
+export async function listAgentTools(): Promise<AgentToolDefinition[]> {
+  const response = await fetch(`${API_BASE_URL}/tool-calls/registry`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { tools: AgentToolDefinition[] };
+  return data.tools;
 }
 
 export async function getObservabilitySummary(): Promise<ObservabilitySummary> {

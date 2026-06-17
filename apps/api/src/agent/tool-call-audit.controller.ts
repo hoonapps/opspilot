@@ -7,6 +7,11 @@ import { ToolCallAuditService } from "./tool-call-audit.service";
 export class ToolCallAuditController {
   constructor(private readonly toolCallAuditService: ToolCallAuditService) {}
 
+  @Get("registry")
+  registry() {
+    return this.toolCallAuditService.registry();
+  }
+
   @Get("recent")
   recent(@Query("limit") limit?: string) {
     return this.toolCallAuditService.recent(Number(limit ?? 10));

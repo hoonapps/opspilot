@@ -12,9 +12,80 @@ export type ToolCallAuditItem = {
   createdAt: string;
 };
 
+export type AgentToolDefinition = {
+  name: string;
+  category: "retrieval" | "runbook" | "approval";
+  description: string;
+  sideEffect: "none" | "database_write";
+  approvalPolicy: "auto_allowed" | "human_required";
+  statusWhenCalled: "allowed" | "needs_approval";
+  inputSchema: Record<string, string>;
+  outputSchema: Record<string, string>;
+  auditFields: string[];
+};
+
 @Injectable()
 export class ToolCallAuditService {
   constructor(private readonly orm: MikroORM) {}
+
+  registry(): { tools: AgentToolDefinition[] } {
+    return {
+      tools: [
+        {
+          name: "search_documents",
+          category: "retrieval",
+          description: "Retrieve permission-filtered document chunks before answer generation.",
+          sideEffect: "none",
+          approvalPolicy: "auto_allowed",
+          statusWhenCalled: "allowed",
+          inputSchema: {
+            question: "string",
+            limit: "number",
+            actor: "RequestContext"
+          },
+          outputSchema: {
+            sourceCount: "number",
+            paths: "string[]",
+            permissionAudit: "PermissionBoundaryAudit"
+          },
+          auditFields: ["question_id", "tool_name", "input.actor", "output.permissionAudit", "status", "created_at"]
+        },
+        {
+          name: "create_runbook_checklist",
+          category: "runbook",
+          description: "Extract checklist items from retrieved runbook content for incident response questions.",
+          sideEffect: "none",
+          approvalPolicy: "auto_allowed",
+          statusWhenCalled: "allowed",
+          inputSchema: {
+            question: "string",
+            sourcePath: "string"
+          },
+          outputSchema: {
+            title: "string",
+            itemCount: "number",
+            items: "string[]"
+          },
+          auditFields: ["question_id", "tool_name", "input.sourcePath", "output.itemCount", "status", "created_at"]
+        },
+        {
+          name: "request_human_approval",
+          category: "approval",
+          description: "Create a pending approval handoff for production-sensitive operations.",
+          sideEffect: "database_write",
+          approvalPolicy: "human_required",
+          statusWhenCalled: "needs_approval",
+          inputSchema: {
+            action: "sensitive_operation"
+          },
+          outputSchema: {
+            approvalStatus: "pending"
+          },
+          auditFields: ["question_id", "tool_name", "input.action", "output.approvalStatus", "status", "created_at"]
+        }
+      ]
+    };
+  }
 
   async recent(limit = 10): Promise<{ toolCalls: ToolCallAuditItem[] }> {
     const safeLimit = Math.max(1, Math.min(limit, 50));

@@ -7,6 +7,14 @@
 - `save_feedback`: records answer quality feedback
 - `create_runbook_checklist`: extracts numbered action items from retrieved runbooks
 
+The callable agent tools are exposed through:
+
+```txt
+GET /tool-calls/registry
+```
+
+The registry returns each tool's category, side-effect profile, approval policy, expected call status, compact input/output schema, and persisted audit fields. The Audit screen renders this next to recent runtime calls so reviewers can compare the designed tool contract with actual execution evidence.
+
 ## Retrieval Preview
 
 ```txt
@@ -20,6 +28,7 @@ The preview endpoint runs the same `SearchService.searchWithAudit` path used by 
 ```txt
 GET /tool-calls/recent
 GET /tool-calls/recent?limit=20
+GET /tool-calls/registry
 GET /answers/:id/trace
 ```
 
