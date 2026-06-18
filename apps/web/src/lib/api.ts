@@ -203,7 +203,13 @@ export type DocumentInventoryItem = {
   metadata: {
     sourceType?: DocumentSourceType;
     sourceUrl?: string;
+    sourceFinalUrl?: string;
     fileName?: string;
+    sourceParser?: string;
+    sourceContentType?: string;
+    sourceByteLength?: string;
+    sourceExtractedHash?: string;
+    sourceUrlGuard?: "ssrf_private_network_block_v1" | "not_applicable";
     security?: {
       redactionCount?: number;
       redactionPatterns?: string[];

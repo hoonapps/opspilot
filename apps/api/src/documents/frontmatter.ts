@@ -6,6 +6,15 @@ export type ParsedMarkdown = {
     visibility: DocumentVisibility;
     teamSlug?: string;
     tags?: string[];
+    sourceType?: string;
+    sourceUrl?: string;
+    sourceFinalUrl?: string;
+    fileName?: string;
+    sourceParser?: string;
+    sourceContentType?: string;
+    sourceByteLength?: string;
+    sourceExtractedHash?: string;
+    sourceUrlGuard?: string;
   };
   body: string;
 };
@@ -23,7 +32,16 @@ export function parseMarkdownDocument(path: string, raw: string): ParsedMarkdown
       title: frontmatter.title ?? fallbackTitle,
       visibility,
       teamSlug: frontmatter.teamSlug,
-      tags: frontmatter.tags?.split(",").map((tag) => tag.trim()).filter(Boolean)
+      tags: frontmatter.tags?.split(",").map((tag) => tag.trim()).filter(Boolean),
+      sourceType: frontmatter.sourceType,
+      sourceUrl: frontmatter.sourceUrl,
+      sourceFinalUrl: frontmatter.sourceFinalUrl,
+      fileName: frontmatter.fileName,
+      sourceParser: frontmatter.sourceParser,
+      sourceContentType: frontmatter.sourceContentType,
+      sourceByteLength: frontmatter.sourceByteLength,
+      sourceExtractedHash: frontmatter.sourceExtractedHash,
+      sourceUrlGuard: frontmatter.sourceUrlGuard
     },
     body
   };

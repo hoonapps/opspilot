@@ -3777,6 +3777,14 @@ export default function Home() {
                         <span>{formatDocumentSourceOrigin(selectedDocument)}</span>
                         <span>태그: {formatDocumentTags(selectedDocument)}</span>
                       </div>
+                      {hasPersistedSourceProvenance(selectedDocument) ? (
+                        <div className="sourceProvenanceLine sourceProvenanceLine--details">
+                          <span>파서: {formatDocumentSourceParser(selectedDocument)}</span>
+                          <span>타입: {formatDocumentSourceContentType(selectedDocument)}</span>
+                          <span>추출 해시: {formatDocumentSourceExtractedHash(selectedDocument)}</span>
+                          <span>URL 가드: {formatDocumentSourceGuard(selectedDocument)}</span>
+                        </div>
+                      ) : null}
                       {documentVersionHistory?.document.id === selectedDocument.id ? (
                         <section className="versionPanel" aria-label="문서 버전 이력">
                           <div className="versionSummary">
@@ -5426,7 +5434,14 @@ function hasDocumentSourceProvenance(document: DocumentInventoryItem): boolean {
   return Boolean(document.metadata.sourceUrl || document.metadata.fileName);
 }
 
+function hasPersistedSourceProvenance(document: DocumentInventoryItem): boolean {
+  return Boolean(document.metadata.sourceParser || document.metadata.sourceContentType || document.metadata.sourceExtractedHash);
+}
+
 function formatDocumentSourceOrigin(document: DocumentInventoryItem): string {
+  if (document.metadata.sourceFinalUrl) {
+    return document.metadata.sourceFinalUrl;
+  }
   if (document.metadata.sourceUrl) {
     return document.metadata.sourceUrl;
   }
@@ -5434,6 +5449,26 @@ function formatDocumentSourceOrigin(document: DocumentInventoryItem): string {
     return `파일: ${document.metadata.fileName}`;
   }
   return `저장 경로: ${document.path}`;
+}
+
+function formatDocumentSourceParser(document: DocumentInventoryItem): string {
+  return String(document.metadata.sourceParser ?? "frontmatter_markdown_v1");
+}
+
+function formatDocumentSourceContentType(document: DocumentInventoryItem): string {
+  return String(document.metadata.sourceContentType ?? "text/markdown");
+}
+
+function formatDocumentSourceExtractedHash(document: DocumentInventoryItem): string {
+  const hash = document.metadata.sourceExtractedHash;
+  return typeof hash === "string" ? shortHash(hash) : "없음";
+}
+
+function formatDocumentSourceGuard(document: DocumentInventoryItem): string {
+  if (document.metadata.sourceUrlGuard === "ssrf_private_network_block_v1") {
+    return "내부망 차단";
+  }
+  return document.metadata.sourceUrlGuard === "not_applicable" ? "파일/텍스트" : "기본";
 }
 
 function formatDocumentTags(document: DocumentInventoryItem): string {

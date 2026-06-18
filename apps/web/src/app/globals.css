@@ -3731,6 +3731,11 @@ pre {
   white-space: nowrap;
 }
 
+.sourceProvenanceLine--details {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: #f8fafc;
+}
+
 .chunkList {
   display: grid;
   gap: 10px;

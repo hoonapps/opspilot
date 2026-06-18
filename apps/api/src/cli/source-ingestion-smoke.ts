@@ -85,6 +85,18 @@ async function main() {
     } else {
       process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD = previousUnsupportedThreshold;
     }
+    const preResetInventory = await documents.listInventory();
+    const persistedUrlDocument = preResetInventory.documents.find((document) => document.path === "public/uploads/source-url-smoke.md");
+    const persistedPdfDocument = preResetInventory.documents.find((document) => document.path === "public/uploads/source-pdf-smoke.md");
+    const sourceProvenancePersisted =
+      persistedUrlDocument?.metadata.sourceParser === "html_text_v1" &&
+      persistedUrlDocument.metadata.sourceContentType === "text/html; charset=utf-8" &&
+      persistedUrlDocument.metadata.sourceExtractedHash === url.provenance.extraction.extractedHash &&
+      persistedUrlDocument.metadata.sourceFinalUrl === fixtureUrl &&
+      persistedUrlDocument.metadata.sourceUrlGuard === "ssrf_private_network_block_v1" &&
+      persistedPdfDocument?.metadata.sourceParser === "pdf_text_v1" &&
+      persistedPdfDocument.metadata.sourceContentType === "application/pdf" &&
+      persistedPdfDocument.metadata.sourceExtractedHash === pdf.provenance.extraction.extractedHash;
     const reset = await documents.resetDocuments(true);
     const inventory = await documents.listInventory();
 
@@ -98,6 +110,7 @@ async function main() {
       text.provenance.storage.contentHash.length === 64 &&
       text.provenance.storage.path === "public/uploads/source-text-smoke.md" &&
       text.provenance.safety.urlGuard === "not_applicable" &&
+      sourceProvenancePersisted &&
       text.quality.checks.some((check) => check.id === "retrieval_hints" && check.status === "pass") &&
       text.quality.suggestedQuestions.length >= 3 &&
       text.quality.suggestedQuestions.some(
@@ -152,6 +165,7 @@ async function main() {
             unsupportedReview: unsupportedAnswer.needsHumanReview
           },
           privateUrlBlocked,
+          sourceProvenancePersisted,
           reset: {
             deleted: reset.deleted,
             reloadedSeed: reset.reloadedSeed,

@@ -674,12 +674,20 @@ export class DocumentsService {
 
   async ingestSource(input: IngestDocumentSourceDto): Promise<IngestedDocumentSource> {
     const normalized = await normalizeSourceInput(input);
+    const extractedHash = sha256(normalized.markdown);
+    const urlGuard = input.sourceType === "url" ? "ssrf_private_network_block_v1" : "not_applicable";
     const markdown = buildMarkdownDocument({
       title: normalized.title,
       visibility: input.visibility ?? "public",
       teamSlug: input.teamSlug,
       sourceType: input.sourceType,
       sourceUrl: input.url,
+      sourceFinalUrl: normalized.finalUrl,
+      sourceParser: normalized.parser,
+      sourceContentType: normalized.contentType,
+      sourceByteLength: normalized.byteLength,
+      sourceExtractedHash: extractedHash,
+      sourceUrlGuard: urlGuard,
       fileName: input.fileName,
       body: normalized.markdown
     });
@@ -711,7 +719,7 @@ export class DocumentsService {
           title: normalized.title,
           contentType: normalized.contentType,
           byteLength: normalized.byteLength,
-          extractedHash: sha256(normalized.markdown),
+          extractedHash,
           finalUrl: normalized.finalUrl
         },
         storage: {
@@ -724,7 +732,7 @@ export class DocumentsService {
         },
         safety: {
           privateUrlAllowed: process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS === "true",
-          urlGuard: input.sourceType === "url" ? "ssrf_private_network_block_v1" : "not_applicable"
+          urlGuard
         }
       },
       quality
@@ -2272,6 +2280,12 @@ function buildMarkdownDocument(input: {
   teamSlug?: string;
   sourceType: DocumentSourceType;
   sourceUrl?: string;
+  sourceFinalUrl?: string;
+  sourceParser: IngestedDocumentSource["parser"];
+  sourceContentType: string;
+  sourceByteLength: number;
+  sourceExtractedHash: string;
+  sourceUrlGuard: SourceIngestionProvenance["safety"]["urlGuard"];
   fileName?: string;
   body: string;
 }): string {
@@ -2283,6 +2297,12 @@ function buildMarkdownDocument(input: {
     `tags: ingestion,${input.sourceType}`,
     `sourceType: ${input.sourceType}`,
     input.sourceUrl ? `sourceUrl: "${escapeFrontmatterValue(input.sourceUrl)}"` : null,
+    input.sourceFinalUrl ? `sourceFinalUrl: "${escapeFrontmatterValue(input.sourceFinalUrl)}"` : null,
+    `sourceParser: ${input.sourceParser}`,
+    `sourceContentType: "${escapeFrontmatterValue(input.sourceContentType)}"`,
+    `sourceByteLength: ${input.sourceByteLength}`,
+    `sourceExtractedHash: ${input.sourceExtractedHash}`,
+    `sourceUrlGuard: ${input.sourceUrlGuard}`,
     input.fileName ? `fileName: "${escapeFrontmatterValue(input.fileName)}"` : null,
     "---"
   ].filter(Boolean);

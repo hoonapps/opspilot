@@ -220,7 +220,7 @@ pnpm slack:simulate
 
 `POST /documents/source` 응답의 `quality`는 `opspilot.source_ingestion_quality.v1` 스키마입니다. 추출 텍스트가 너무 짧거나, 청크가 지나치게 작거나, 검색 힌트가 부족하거나, 프롬프트 주입 위험이 있으면 `attention`으로 표시하고 개선 권고를 함께 반환합니다. 또한 제목과 검색 힌트 기반 추천 테스트 질문을 만들어 새 문서를 넣은 직후 무엇을 물어볼지 안내합니다. 데모에서는 “PDF/Word/URL을 넣는 것에서 끝나지 않고 검색 가능한 문서인지, 어떤 질문으로 검증할지까지 바로 제안한다”고 설명할 수 있습니다.
 
-같은 응답의 `provenance`는 `opspilot.source_ingestion_provenance.v1` 스키마입니다. 원본 URL/파일명, 최종 URL, content type, 원본 바이트 크기, 추출 텍스트 해시, 저장 content hash, 청크 수, URL 보안 가드 상태를 포함하므로 “어떤 자료가 어떤 파서와 해시로 지식 베이스에 들어갔는지”를 API와 웹 화면에서 설명할 수 있습니다.
+같은 응답의 `provenance`는 `opspilot.source_ingestion_provenance.v1` 스키마입니다. 원본 URL/파일명, 최종 URL, content type, 원본 바이트 크기, 추출 텍스트 해시, 저장 content hash, 청크 수, URL 보안 가드 상태를 포함하므로 “어떤 자료가 어떤 파서와 해시로 지식 베이스에 들어갔는지”를 API와 웹 화면에서 설명할 수 있습니다. parser, content type, 추출 해시, 최종 URL, URL 가드는 문서 metadata에도 저장되어 문서 목록/상세 화면에서 나중에 다시 확인할 수 있습니다.
 
 URL 수집은 SSRF 방지를 위해 기본적으로 localhost/private/link-local/multicast 주소와 내부망 redirect를 차단합니다. 로컬 fixture 테스트처럼 내부 URL이 필요한 경우에만 `SOURCE_INGESTION_ALLOW_PRIVATE_URLS=true`를 명시적으로 설정합니다.
 
