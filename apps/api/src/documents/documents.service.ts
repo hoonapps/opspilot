@@ -108,6 +108,30 @@ export type ResetDocumentsResult = {
   seed?: { documents: IngestedDocument[] };
 };
 
+export type DeleteDocumentResult = {
+  deleted: true;
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    contentHash: string;
+  };
+  removed: {
+    chunks: number;
+    versions: number;
+    answerSources: number;
+    revalidationRuns: number;
+  };
+  impact: {
+    affectedAnswers: number;
+    topSourceAnswers: number;
+    humanReviewAnswers: number;
+  };
+  recommendations: string[];
+};
+
 type DocumentInventoryRow = {
   id: string;
   path: string;
@@ -781,6 +805,88 @@ export class DocumentsService {
       },
       reloadedSeed: reloadSeed,
       seed
+    };
+  }
+
+  async deleteDocument(documentId: string): Promise<DeleteDocumentResult | null> {
+    const connection = this.orm.em.fork().getConnection();
+    const [document] = (await connection.execute<DocumentInventoryRow[]>(
+      `
+        select
+          d.id,
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          d.metadata,
+          d.content_hash as "contentHash",
+          count(distinct c.id)::int as "chunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          d.updated_at as "updatedAt"
+        from documents d
+        left join document_chunks c on c.document_id = d.id
+        left join document_versions v on v.document_id = d.id
+        where d.id = ?::uuid
+        group by d.id;
+      `,
+      [documentId]
+    )) as DocumentInventoryRow[];
+
+    if (!document) {
+      return null;
+    }
+
+    const [counts] = (await connection.execute<
+      Array<{
+        chunks: number | string;
+        versions: number | string;
+        answer_sources: number | string;
+        revalidation_runs: number | string;
+      }>
+    >(
+      `
+        select
+          (select count(*) from document_chunks where document_id = ?::uuid)::int as chunks,
+          (select count(*) from document_versions where document_id = ?::uuid)::int as versions,
+          (select count(*) from answer_sources where document_id = ?::uuid)::int as answer_sources,
+          (select count(*) from document_revalidation_runs where document_id = ?::uuid)::int as revalidation_runs;
+      `,
+      [documentId, documentId, documentId, documentId]
+    )) as Array<{
+      chunks: number | string;
+      versions: number | string;
+      answer_sources: number | string;
+      revalidation_runs: number | string;
+    }>;
+    const impact = await this.getImpactReport(documentId);
+
+    await this.elasticsearch.deleteDocumentChunks(documentId);
+    await connection.execute("delete from documents where id = ?::uuid", [documentId]);
+
+    const impactSummary = {
+      affectedAnswers: impact?.summary.affectedAnswerCount ?? 0,
+      topSourceAnswers: impact?.summary.topSourceAnswerCount ?? 0,
+      humanReviewAnswers: impact?.summary.humanReviewAnswerCount ?? 0
+    };
+
+    return {
+      deleted: true,
+      document: {
+        id: document.id,
+        path: document.path,
+        title: document.title,
+        visibility: document.visibility,
+        teamSlug: document.teamSlug,
+        contentHash: document.contentHash
+      },
+      removed: {
+        chunks: Number(counts?.chunks ?? 0),
+        versions: Number(counts?.versions ?? 0),
+        answerSources: Number(counts?.answer_sources ?? 0),
+        revalidationRuns: Number(counts?.revalidation_runs ?? 0)
+      },
+      impact: impactSummary,
+      recommendations: buildDeleteDocumentRecommendations(impactSummary)
     };
   }
 
@@ -3135,6 +3241,20 @@ function actorSnapshot(context: RequestContext): Record<string, unknown> {
     roles: context.roles.slice().sort(),
     teamSlugs: context.teamSlugs.slice().sort()
   };
+}
+
+function buildDeleteDocumentRecommendations(input: DeleteDocumentResult["impact"]): string[] {
+  const recommendations = ["문서와 연결된 청크, 버전, 답변 출처, 재검증 실행 이력을 함께 삭제했습니다."];
+  if (input.affectedAnswers > 0) {
+    recommendations.push(`이 문서를 근거로 사용한 과거 답변 ${input.affectedAnswers}개는 출처가 제거됐으므로 재질문 또는 재검증이 필요합니다.`);
+  }
+  if (input.topSourceAnswers > 0) {
+    recommendations.push(`삭제 문서가 1순위 근거였던 답변 ${input.topSourceAnswers}개는 운영 채널 공유 전에 다시 생성하세요.`);
+  }
+  if (input.humanReviewAnswers > 0) {
+    recommendations.push(`사람 검토 대상 답변 ${input.humanReviewAnswers}개가 영향을 받았습니다.`);
+  }
+  return recommendations;
 }
 
 function normalizeRecord(value: unknown): Record<string, unknown> {

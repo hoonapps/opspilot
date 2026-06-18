@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, NotFoundException, Param, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { parseRequestContext } from "../shared/request-context";
 import { IngestDocumentSourceDto, ResetDocumentsDto } from "./dto/ingest-document-source.dto";
@@ -97,6 +97,15 @@ export class DocumentsController {
   @Post("reset")
   resetDocuments(@Body() body: ResetDocumentsDto) {
     return this.documentsService.resetDocuments(body.reloadSeed === true);
+  }
+
+  @Delete(":id")
+  async deleteDocument(@Param("id") id: string) {
+    const result = await this.documentsService.deleteDocument(id);
+    if (!result) {
+      throw new NotFoundException(`Document not found: ${id}`);
+    }
+    return result;
   }
 
   @Post("github/sync")

@@ -152,6 +152,30 @@ export type ResetDocumentsResponse = {
   };
 };
 
+export type DeleteDocumentResponse = {
+  deleted: true;
+  document: {
+    id: string;
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug?: string | null;
+    contentHash: string;
+  };
+  removed: {
+    chunks: number;
+    versions: number;
+    answerSources: number;
+    revalidationRuns: number;
+  };
+  impact: {
+    affectedAnswers: number;
+    topSourceAnswers: number;
+    humanReviewAnswers: number;
+  };
+  recommendations: string[];
+};
+
 export type GithubSyncResponse = {
   source: string;
   owner: string;
@@ -2215,6 +2239,18 @@ export async function resetDocuments(input: { reloadSeed?: boolean } = {}): Prom
   }
 
   return response.json() as Promise<ResetDocumentsResponse>;
+}
+
+export async function deleteDocument(documentId: string): Promise<DeleteDocumentResponse> {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<DeleteDocumentResponse>;
 }
 
 export async function syncGithubDocuments(input: {

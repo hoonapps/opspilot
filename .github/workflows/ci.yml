@@ -140,6 +140,9 @@ jobs:
       - name: Document impact smoke
         run: pnpm document-impact:smoke
 
+      - name: Document delete smoke
+        run: pnpm document-delete:smoke
+
       - name: Document revalidation queue smoke
         run: pnpm revalidation-queue:smoke
 

@@ -22,6 +22,7 @@
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",
     "source-ingestion:smoke": "pnpm --filter @opspilot/api source-ingestion:smoke",
+    "document-delete:smoke": "pnpm --filter @opspilot/api document-delete:smoke",
     "elasticsearch:smoke": "pnpm --filter @opspilot/api elasticsearch:smoke",
     "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
     "retrieval-profile:smoke": "pnpm --filter @opspilot/api retrieval-profile:smoke",

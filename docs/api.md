@@ -26,6 +26,7 @@ GET /docs-json
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
 - `POST /documents/source`: URL, txt, Markdown, PDF, Word docx를 수집해 표준 Markdown으로 변환하고 기존 RAG 색인에 연결. 응답의 `quality`는 텍스트 추출 길이, 청크 생성, 청크 크기, 헤딩 신호, 검색 힌트, 보안 스캔을 `ready`/`attention`/`blocked`로 판정하고 추천 테스트 질문을 제공합니다. `provenance`는 원본 URL/파일명, 최종 URL, content type, 원본 바이트 크기, 추출 해시, 저장 content hash, 청크 수, URL 보안 가드 상태를 제공합니다. parser, content type, 추출 해시, 최종 URL, URL 가드는 문서 metadata에도 저장됩니다. URL 수집은 기본적으로 localhost/private/link-local/multicast 주소와 내부망 redirect를 차단합니다.
 - `POST /documents/reset`: 문서, 청크, 버전을 초기화하고 선택적으로 seed 문서를 다시 적재
+- `DELETE /documents/{id}`: 특정 문서와 연결된 청크, 버전, 답변 출처, 재검증 실행 이력, Elasticsearch 미러 청크를 삭제하고 영향받은 과거 답변과 재검증 권고 반환
 - `GET /documents/{id}/versions`: 마스킹된 문서 버전과 변경 차이 확인
 - `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 변경 차이 확인
 - `GET /documents/{id}/impact`: 해당 문서를 출처로 사용한 과거 답변, 오래된 답변 여부, 위험도, 재검증 권고 확인

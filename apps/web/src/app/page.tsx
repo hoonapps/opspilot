@@ -17,6 +17,8 @@ import {
   AskResponse,
   createIncidentPlan,
   createFeedback,
+  deleteDocument,
+  DeleteDocumentResponse,
   DocumentImpactReport,
   DocumentIndexExplainReport,
   DocumentInventoryItem,
@@ -314,6 +316,7 @@ export default function Home() {
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
   const [sourceIngest, setSourceIngest] = useState<SourceIngestResponse | null>(null);
   const [resetResult, setResetResult] = useState<ResetDocumentsResponse | null>(null);
+  const [deleteResult, setDeleteResult] = useState<DeleteDocumentResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
   const [indexQuality, setIndexQuality] = useState<DocumentIndexQualityReport | null>(null);
@@ -341,6 +344,7 @@ export default function Home() {
     | "incident"
     | "ingest"
     | "source-ingest"
+    | "delete-document"
     | "reset-documents"
     | "seed-documents"
     | "verify"
@@ -714,6 +718,7 @@ export default function Home() {
     try {
       const result = await resetDocuments({ reloadSeed });
       setResetResult(result);
+      setDeleteResult(null);
       setIngest(null);
       setSourceIngest(null);
       setIndexProof(null);
@@ -730,6 +735,38 @@ export default function Home() {
       setSelectedDocumentId(nextDocuments[0]?.id ?? null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "문서 초기화에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function removeSelectedDocument() {
+    if (!selectedDocument) {
+      return;
+    }
+    const confirmed = window.confirm(`문서 "${selectedDocument.title}"를 삭제합니다. 청크, 버전, 답변 출처 연결도 함께 제거됩니다. 계속할까요?`);
+    if (!confirmed) {
+      return;
+    }
+    setError(null);
+    setLoading("delete-document");
+    try {
+      const result = await deleteDocument(selectedDocument.id);
+      setDeleteResult(result);
+      setResetResult(null);
+      setDocumentVersionHistory(null);
+      setDocumentIndexExplain(null);
+      setDocumentImpact(null);
+      setDocumentRevalidationQueue(null);
+      setDocumentRevalidationRun(null);
+      setDocumentRevalidationRuns(null);
+      const nextDocuments = await listDocuments();
+      setDocuments(nextDocuments);
+      setSelectedDocumentId(nextDocuments[0]?.id ?? null);
+      setIndexQuality(await getDocumentIndexQuality());
+      setIndexSnapshot(await getDocumentIndexSnapshot());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 삭제에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -3397,6 +3434,20 @@ export default function Home() {
                     }`}
               </div>
             ) : null}
+
+            {deleteResult ? (
+              <div className="deleteResultPanel" aria-label="문서 삭제 결과">
+                <strong>{deleteResult.document.title} 삭제 완료</strong>
+                <span>
+                  청크 {deleteResult.removed.chunks}개 · 버전 {deleteResult.removed.versions}개 · 답변 출처{" "}
+                  {deleteResult.removed.answerSources}개 제거
+                </span>
+                <span>
+                  영향 답변 {deleteResult.impact.affectedAnswers}개 · 1순위 근거 {deleteResult.impact.topSourceAnswers}개
+                </span>
+                <p>{deleteResult.recommendations[0]}</p>
+              </div>
+            ) : null}
           </section>
 
           <section className="knowledgePanel">
@@ -3761,6 +3812,9 @@ export default function Home() {
                           </button>
                           <button className="smallButton" disabled={loading === "impact"} onClick={() => loadDocumentImpact()} type="button">
                             {loading === "impact" ? "분석 중..." : "영향 분석"}
+                          </button>
+                          <button className="smallButton dangerTextButton" disabled={loading === "delete-document"} onClick={removeSelectedDocument} type="button">
+                            {loading === "delete-document" ? "삭제 중..." : "삭제"}
                           </button>
                         </div>
                       </div>

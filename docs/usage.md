@@ -68,10 +68,12 @@ http://localhost:3001/usage
 | 위치 | 용도 |
 | --- | --- |
 | `seed/documents` | 로컬 재현용 기본 운영 문서 |
-| 웹 콘솔 `문서` 화면 | 데모 중 Markdown 문서 추가/수정 |
+| 웹 콘솔 `문서` 화면 | Markdown/URL/txt/PDF/Word 문서 추가, 수정, 삭제 |
 | 웹 콘솔 `GitHub 문서 동기화` | GitHub 저장소의 Markdown 문서 동기화 |
 
 웹에서 문서를 등록하면 OpsPilot은 같은 경로의 기존 문서를 새 버전으로 저장하고, 청크를 다시 만들고, 임베딩을 갱신합니다.
+
+문서 하나를 제거하려면 `문서` 화면에서 해당 문서를 선택한 뒤 상세 영역의 `삭제`를 누릅니다. OpsPilot은 문서 본문만 숨기는 것이 아니라 연결된 청크, 버전, 답변 출처, 재검증 실행 이력, Elasticsearch 미러 청크를 함께 정리하고, 삭제된 문서를 근거로 사용했던 과거 답변 수와 재검증 권고를 보여줍니다.
 
 전체 기능 범위는 [기능 명세](features.md)에 정리되어 있습니다. 면접이나 데모에서는 문서 수집, 청킹/임베딩, 권한 인식 검색, 근거 기반 답변, 도구 호출 감사, 사람 승인, 평가 게이트 순서로 설명하면 됩니다.
 
@@ -138,6 +140,7 @@ pnpm index-explain:smoke
 pnpm index-snapshot:smoke
 pnpm index-quality:smoke
 pnpm source-ingestion:smoke
+pnpm document-delete:smoke
 pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 ```

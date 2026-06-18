@@ -231,6 +231,7 @@ async function main() {
       (await page.locator(".sourceProvenanceLine").getByText("원본: Markdown", { exact: true }).isVisible()) &&
       (await page.locator(".sourceProvenanceLine").getByText("저장 경로: public/status-page-policy.md", { exact: true }).isVisible()) &&
       (await page.locator(".sourceProvenanceLine").getByText("태그:", { exact: false }).isVisible());
+    const documentDeleteVisible = await page.locator(".chunkInspector").getByRole("button", { name: "삭제" }).isVisible();
     const indexProofVisible = await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).isVisible();
     const indexProofSourceHitVisible =
       (await page.locator(".indexProof").getByText("검증 통과", { exact: true }).isVisible()) &&
@@ -654,6 +655,7 @@ async function main() {
         securitySummaryVisible &&
         promptInjectionSummaryVisible &&
         sourceProvenanceVisible &&
+        documentDeleteVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
         indexSnapshotVisible &&
@@ -742,6 +744,7 @@ async function main() {
         securitySummaryVisible,
         promptInjectionSummaryVisible,
         sourceProvenanceVisible,
+        documentDeleteVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
         indexSnapshotVisible,
