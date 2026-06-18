@@ -1,13 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
-import { createEmbeddingProviderFromEnv } from "@opspilot/ai";
+import { createChatProviderFromEnv, createEmbeddingProviderFromEnv, ToolDefinition } from "@opspilot/ai";
 import { AuthzService } from "../authz/authz.service";
 import { ToolCallStatus } from "../database/entities/types";
 import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 import { AnswerGeneratorService } from "./answer-generator.service";
 import { calculateDocumentAgreement, calculateSemanticDocumentAgreement, DocumentAgreement } from "./document-agreement";
-import { RunbookChecklistService } from "./runbook-checklist.service";
+import { RunbookChecklist, RunbookChecklistService } from "./runbook-checklist.service";
 import { PermissionBoundaryAudit, SearchResult, SearchService } from "./search.service";
 
 export type AskResponse = {
@@ -318,6 +318,11 @@ export class AgentService {
       [question, channel ?? null, JSON.stringify(context)]
     );
 
+    const toolUseAnswer = await this.askWithToolUse(questionRow.id, question, context);
+    if (toolUseAnswer) {
+      return toolUseAnswer;
+    }
+
     const { results: sources, permissionAudit } = await this.searchService.searchWithAudit(question, context, 5);
     await connection.execute(
       `
@@ -461,6 +466,215 @@ export class AgentService {
       ],
       permissionAudit
     };
+  }
+
+  private async askWithToolUse(questionId: string, question: string, context: RequestContext): Promise<AskResponse | null> {
+    if (process.env.AGENT_ORCHESTRATION !== "tool_use") {
+      return null;
+    }
+
+    const chatProvider = createChatProviderFromEnv();
+    if (!chatProvider?.completeWithTools) {
+      return null;
+    }
+
+    const connection = this.orm.em.fork().getConnection();
+    const state: AgenticToolState = {
+      sources: [],
+      permissionAudit: emptyPermissionAudit(context),
+      checklist: null,
+      sensitiveAction: false,
+      approvalRequested: false,
+      toolCalls: []
+    };
+
+    const result = await chatProvider.completeWithTools({
+      temperature: 0.1,
+      maxTurns: Number(process.env.AGENT_TOOL_USE_MAX_TURNS ?? 4),
+      system:
+        "당신은 운영 지원 에이전트 OpsPilot입니다. 답변하기 전에 필요한 도구를 직접 선택하세요. 문서 근거가 필요하면 search_documents를 먼저 호출하세요. 장애 대응 순서가 필요하면 검색 후 create_runbook_checklist를 호출하세요. 운영 DB 변경, 권한 부여, 삭제, 강제 환불 같은 민감 작업은 직접 실행하지 말고 request_human_approval을 호출하세요. 최종 답변은 검색된 출처와 도구 결과만 근거로 한국어로 작성하세요.",
+      user: `질문: ${question}\n호출자 역할: ${context.roles.join(",") || "없음"}\n호출자 팀: ${context.teamSlugs.join(",") || "없음"}`,
+      tools: AGENTIC_TOOL_DEFINITIONS,
+      executeTool: async (tool) => {
+        if (tool.name === "search_documents") {
+          const query = readString(tool.input.query) || question;
+          const limit = readNumber(tool.input.limit, 5);
+          const { results, permissionAudit } = await this.searchService.searchWithAudit(query, context, limit);
+          state.sources = results;
+          state.permissionAudit = permissionAudit;
+          const output = { sourceCount: results.length, paths: results.map((source) => source.path), permissionAudit };
+          await logToolCall(connection, questionId, "search_documents", { ...tool.input, query, limit, modelToolUseId: tool.id, actor: context }, output, ToolCallStatus.Allowed);
+          state.toolCalls.push({ toolName: "search_documents", status: ToolCallStatus.Allowed });
+          return { output };
+        }
+
+        if (tool.name === "create_runbook_checklist") {
+          if (state.sources.length === 0) {
+            const output = { error: "search_documents must be called before create_runbook_checklist" };
+            await logToolCall(connection, questionId, "create_runbook_checklist", { ...tool.input, modelToolUseId: tool.id }, output, ToolCallStatus.Failed);
+            state.toolCalls.push({ toolName: "create_runbook_checklist", status: ToolCallStatus.Failed });
+            return { output, isError: true };
+          }
+
+          const checklist = this.runbookChecklist.create(readString(tool.input.question) || question, state.sources);
+          state.checklist = checklist;
+          const output = checklist
+            ? { matched: true, title: checklist.title, path: checklist.path, itemCount: checklist.items.length, items: checklist.items }
+            : { matched: false, itemCount: 0, items: [] };
+          await logToolCall(connection, questionId, "create_runbook_checklist", { ...tool.input, question, modelToolUseId: tool.id }, output, ToolCallStatus.Allowed);
+          state.toolCalls.push({ toolName: "create_runbook_checklist", status: ToolCallStatus.Allowed });
+          return { output };
+        }
+
+        if (tool.name === "request_human_approval") {
+          state.sensitiveAction = true;
+          state.approvalRequested = true;
+          const output = await this.createApprovalRequest(connection, questionId, question, { modelToolUseId: tool.id, ...tool.input });
+          state.toolCalls.push({ toolName: "request_human_approval", status: ToolCallStatus.NeedsApproval });
+          return { output };
+        }
+
+        const output = { error: `Unknown tool: ${tool.name}` };
+        await logToolCall(connection, questionId, tool.name, { ...tool.input, modelToolUseId: tool.id }, output, ToolCallStatus.Failed);
+        state.toolCalls.push({ toolName: tool.name, status: ToolCallStatus.Failed });
+        return { output, isError: true };
+      }
+    });
+
+    const policySensitiveAction = this.authz.isSensitiveAction(question);
+    if (policySensitiveAction && !state.approvalRequested) {
+      const output = await this.createApprovalRequest(connection, questionId, question, { policyEnforced: true });
+      state.toolCalls.push({ toolName: "request_human_approval", status: ToolCallStatus.NeedsApproval });
+      state.sensitiveAction = true;
+      state.approvalRequested = true;
+      result.toolCalls.push({
+        id: "policy_enforced_approval",
+        name: "request_human_approval",
+        input: { policyEnforced: true },
+        output,
+        isError: false
+      });
+    }
+
+    const confidence = calculateConfidence(state.sources);
+    const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
+    const unsupportedConfidenceThreshold = Number(process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD ?? 0.05);
+    const reviewReasons = buildReviewReasons({
+      sourceCount: state.sources.length,
+      confidence,
+      confidenceThreshold,
+      sensitiveAction: state.sensitiveAction || policySensitiveAction
+    });
+    const needsHumanReview = reviewReasons.length > 0;
+    const answer =
+      result.text ||
+      (await this.answerGenerator.generate({
+        question,
+        sources: state.sources,
+        confidence,
+        unsupportedConfidenceThreshold,
+        needsHumanReview,
+        sensitiveAction: state.sensitiveAction || policySensitiveAction,
+        checklist: state.checklist
+      }));
+    const documentAgreement = await calculateAnswerDocumentAgreement(
+      answer,
+      state.sources.map((source) => source.content)
+    );
+    const contextPackage = buildContextPackage(state.sources);
+
+    const [answerRow] = await connection.execute<{ id: string }[]>(
+      `
+        insert into answers (question_id, text, confidence, needs_human_review, metadata)
+        values (?::uuid, ?, ?, ?, ?::jsonb)
+        returning id;
+      `,
+      [
+        questionId,
+        answer,
+        confidence,
+        needsHumanReview,
+        JSON.stringify({
+          sensitiveAction: state.sensitiveAction || policySensitiveAction,
+          sourceCount: state.sources.length,
+          sources: state.sources.map((source, index) => ({
+            documentId: source.documentId,
+            chunkId: source.chunkId,
+            path: source.path,
+            title: source.title,
+            score: source.score,
+            rank: index + 1
+          })),
+          documentAgreement,
+          contextPackage,
+          reviewReasons,
+          checklist: state.checklist ? { path: state.checklist.path, itemCount: state.checklist.items.length } : null,
+          orchestration: {
+            mode: "anthropic_tool_use",
+            turns: result.turns,
+            stopReason: result.stopReason,
+            modelToolCalls: result.toolCalls.map((tool) => ({
+              id: tool.id,
+              name: tool.name,
+              input: tool.input,
+              output: tool.output,
+              isError: tool.isError
+            }))
+          }
+        })
+      ]
+    );
+
+    for (const [index, source] of state.sources.entries()) {
+      await connection.execute(
+        `
+          insert into answer_sources (answer_id, document_id, chunk_id, score, rank)
+          values (?::uuid, ?::uuid, ?::uuid, ?, ?);
+        `,
+        [answerRow.id, source.documentId, source.chunkId, source.score, index + 1]
+      );
+    }
+
+    return {
+      questionId,
+      answerId: answerRow.id,
+      answer,
+      confidence,
+      documentAgreement,
+      needsHumanReview,
+      reviewReasons,
+      sources: state.sources.map((source) => ({
+        documentId: source.documentId,
+        chunkId: source.chunkId,
+        title: source.title,
+        path: source.path,
+        score: source.score
+      })),
+      toolCalls: state.toolCalls,
+      permissionAudit: state.permissionAudit
+    };
+  }
+
+  private async createApprovalRequest(
+    connection: { execute<T = unknown>(query: string, params?: unknown[]): Promise<T> },
+    questionId: string,
+    question: string,
+    input: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    await connection.execute(
+      `
+        insert into approval_requests (question_id, action, reason, status)
+        values (?::uuid, ?, ?::jsonb, 'pending');
+      `,
+      [
+        questionId,
+        "sensitive_operation",
+        JSON.stringify({ question, policy: "민감 작업은 실행 전에 사람 승인이 필요합니다.", ...input })
+      ]
+    );
+    const output = { approvalStatus: "pending" };
+    await logToolCall(connection, questionId, "request_human_approval", { action: "sensitive_operation", ...input }, output, ToolCallStatus.NeedsApproval);
+    return output;
   }
 
   async previewRetrieval(question: string, context: RequestContext, limit = 5): Promise<RetrievalPreviewResponse> {
@@ -1646,6 +1860,92 @@ async function calculateAnswerDocumentAgreement(answer: string, sourceContents: 
   }
 
   return calculateDocumentAgreement(answer, sourceContents);
+}
+
+type AgenticToolState = {
+  sources: SearchResult[];
+  permissionAudit: PermissionBoundaryAudit;
+  checklist: RunbookChecklist | null;
+  sensitiveAction: boolean;
+  approvalRequested: boolean;
+  toolCalls: Array<{ toolName: string; status: ToolCallStatus }>;
+};
+
+const AGENTIC_TOOL_DEFINITIONS: ToolDefinition[] = [
+  {
+    name: "search_documents",
+    description: "Search permission-filtered operation documents before answering.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query derived from the user question." },
+        limit: { type: "number", description: "Maximum number of source chunks to return." }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "create_runbook_checklist",
+    description: "Create an incident response checklist from already searched runbook sources.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "Incident or runbook question to turn into checklist items." }
+      },
+      required: ["question"]
+    }
+  },
+  {
+    name: "request_human_approval",
+    description: "Route sensitive production actions to a human approval queue instead of executing them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", description: "Sensitive action name." },
+        reason: { type: "string", description: "Why human approval is required." }
+      },
+      required: ["action"]
+    }
+  }
+];
+
+async function logToolCall(
+  connection: { execute<T = unknown>(query: string, params?: unknown[]): Promise<T> },
+  questionId: string,
+  toolName: string,
+  input: Record<string, unknown>,
+  output: Record<string, unknown>,
+  status: ToolCallStatus
+): Promise<void> {
+  await connection.execute(
+    `
+      insert into tool_call_logs (question_id, tool_name, input, output, status)
+      values (?::uuid, ?, ?::jsonb, ?::jsonb, ?);
+    `,
+    [questionId, toolName, JSON.stringify(input), JSON.stringify(output), status]
+  );
+}
+
+function emptyPermissionAudit(context: RequestContext): PermissionBoundaryAudit {
+  return {
+    enforcement: "pre_ranking_sql_filter",
+    candidateWindow: 0,
+    allowedCandidateCount: 0,
+    deniedCandidateCount: 0,
+    deniedByVisibility: {},
+    actor: {
+      roles: context.roles,
+      teamSlugs: context.teamSlugs
+    }
+  };
+}
+
+function readString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(1, Math.min(Math.floor(value), 10)) : fallback;
 }
 
 function estimateTokens(value: string): number {

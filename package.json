@@ -50,6 +50,7 @@
     "idempotency:smoke": "pnpm --filter @opspilot/api idempotency:smoke",
     "readiness:smoke": "pnpm --filter @opspilot/api readiness:smoke",
     "agreement:smoke": "pnpm --filter @opspilot/api agreement:smoke",
+    "agentic-tool-use:smoke": "pnpm --filter @opspilot/api agentic-tool-use:smoke",
     "queue:smoke": "pnpm --filter @opspilot/api queue:smoke",
     "review:smoke": "pnpm --filter @opspilot/api review:smoke",
     "trace:smoke": "pnpm --filter @opspilot/api trace:smoke",

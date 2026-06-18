@@ -64,6 +64,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - 문서 재검증 실행 이력: 큐 항목을 replay, 품질 게이트, 계보 그래프로 즉시 재검사하고 종료/재검토/차단 판정, 실행 해시, 최근 이력 제공
 - GitHub Markdown 문서 동기화
 - `/ask` API와 출처 포함 답변
+- 선택적 Agentic orchestration: `AGENT_ORCHESTRATION=tool_use`에서 Anthropic `tool_use`가 `search_documents`, `create_runbook_checklist`, `request_human_approval`을 선택하고, 실행 결과는 기존 감사/승인/trace에 저장
 - 환각 방지 답변 정책: 접근 가능한 출처가 없거나 검색 신뢰도가 최소 근거 기준보다 낮으면 내용을 꾸며내지 않고 “문서에서 확인할 수 없습니다”로 응답
 - 검색 품질 진단, 실행 계획, 점수 격차, 출처 다양성, 컨텍스트 예산 미리보기
 - 검색 운영 프로파일: 단계별 latency budget, 권한 감사, 컨텍스트 예산, 프로파일 해시, 병목 액션
@@ -287,6 +288,7 @@ pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 pnpm incident-plan:smoke
 pnpm agreement:smoke
+pnpm agentic-tool-use:smoke
 pnpm trace:smoke
 pnpm claim-support:smoke
 pnpm replay:smoke

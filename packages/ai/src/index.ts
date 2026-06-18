@@ -7,8 +7,41 @@ export type ChatCompletionInput = {
   temperature?: number;
 };
 
+export type ToolDefinition = {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+};
+
+export type ToolExecutionResult = {
+  output: Record<string, unknown>;
+  isError?: boolean;
+};
+
+export type ToolUseCompletionInput = ChatCompletionInput & {
+  tools: ToolDefinition[];
+  maxTurns?: number;
+  executeTool(input: { id: string; name: string; input: Record<string, unknown> }): Promise<ToolExecutionResult>;
+};
+
+export type ToolUseTraceItem = {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  isError: boolean;
+};
+
+export type ToolUseCompletionResult = {
+  text: string | null;
+  toolCalls: ToolUseTraceItem[];
+  turns: number;
+  stopReason?: string;
+};
+
 export type ChatProvider = {
   complete(input: ChatCompletionInput): Promise<string | null>;
+  completeWithTools?(input: ToolUseCompletionInput): Promise<ToolUseCompletionResult>;
 };
 
 export type EmbeddingProvider = {
@@ -189,7 +222,158 @@ export class AnthropicChatProvider implements ChatProvider {
 
     return json.content?.find((item) => item.type === "text" && item.text)?.text?.trim() || null;
   }
+
+  async completeWithTools(input: ToolUseCompletionInput): Promise<ToolUseCompletionResult> {
+    const messages: AnthropicMessage[] = [{ role: "user", content: input.user }];
+    const toolCalls: ToolUseTraceItem[] = [];
+    const maxTurns = Math.max(1, Math.min(input.maxTurns ?? 4, 8));
+    let lastText: string | null = null;
+    let stopReason: string | undefined;
+
+    for (let turn = 1; turn <= maxTurns; turn += 1) {
+      const response = await this.createMessage({
+        system: input.system,
+        temperature: input.temperature,
+        messages,
+        tools: input.tools
+      });
+
+      if (!response) {
+        return { text: lastText, toolCalls, turns: turn, stopReason: "request_failed" };
+      }
+
+      stopReason = response.stop_reason;
+      const content = response.content ?? [];
+      const text = content
+        .filter((item): item is AnthropicTextBlock => item.type === "text" && typeof item.text === "string")
+        .map((item) => item.text.trim())
+        .filter(Boolean)
+        .join("\n\n");
+      if (text) {
+        lastText = text;
+      }
+
+      const toolUses = content.filter((item): item is AnthropicToolUseBlock => item.type === "tool_use");
+      if (toolUses.length === 0) {
+        return { text: lastText, toolCalls, turns: turn, stopReason };
+      }
+
+      messages.push({ role: "assistant", content });
+      const toolResults: AnthropicToolResultBlock[] = [];
+
+      for (const toolUse of toolUses) {
+        try {
+          const result = await input.executeTool({
+            id: toolUse.id,
+            name: toolUse.name,
+            input: asRecord(toolUse.input)
+          });
+          toolCalls.push({
+            id: toolUse.id,
+            name: toolUse.name,
+            input: asRecord(toolUse.input),
+            output: result.output,
+            isError: result.isError === true
+          });
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(result.output),
+            is_error: result.isError === true
+          });
+        } catch (error) {
+          const output = { error: error instanceof Error ? error.message : "Tool execution failed" };
+          toolCalls.push({
+            id: toolUse.id,
+            name: toolUse.name,
+            input: asRecord(toolUse.input),
+            output,
+            isError: true
+          });
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(output),
+            is_error: true
+          });
+        }
+      }
+
+      messages.push({ role: "user", content: toolResults });
+    }
+
+    return { text: lastText, toolCalls, turns: maxTurns, stopReason: stopReason ?? "max_turns" };
+  }
+
+  private async createMessage(input: {
+    system: string;
+    temperature?: number;
+    messages: AnthropicMessage[];
+    tools?: ToolDefinition[];
+  }): Promise<AnthropicMessageResponse | null> {
+    const response = await this.fetchImpl("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": this.config.apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        model: this.config.chatModel ?? "claude-3-5-haiku-latest",
+        max_tokens: 900,
+        temperature: input.temperature ?? 0.1,
+        system: input.system,
+        messages: input.messages,
+        ...(input.tools?.length
+          ? {
+              tools: input.tools.map((tool) => ({
+                name: tool.name,
+                description: tool.description,
+                input_schema: tool.inputSchema
+              }))
+            }
+          : {})
+      })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json() as Promise<AnthropicMessageResponse>;
+  }
 }
+
+type AnthropicTextBlock = {
+  type: "text";
+  text: string;
+};
+
+type AnthropicToolUseBlock = {
+  type: "tool_use";
+  id: string;
+  name: string;
+  input?: unknown;
+};
+
+type AnthropicToolResultBlock = {
+  type: "tool_result";
+  tool_use_id: string;
+  content: string;
+  is_error?: boolean;
+};
+
+type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock;
+
+type AnthropicMessage = {
+  role: "user" | "assistant";
+  content: string | AnthropicContentBlock[] | AnthropicToolResultBlock[];
+};
+
+type AnthropicMessageResponse = {
+  content?: AnthropicContentBlock[];
+  stop_reason?: string;
+};
 
 export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   private readonly fetchImpl: typeof fetch;
@@ -454,6 +638,13 @@ function overlapRatio(needles: string[], haystack: string[]): number {
 
 function average(values: number[]): number {
   return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 function stripKoreanParticle(token: string): string {

@@ -165,6 +165,75 @@ test("anthropic provider sends messages request and parses text response", async
   assert.equal(body.messages[0].content, "Question and sources");
 });
 
+test("anthropic provider runs tool use loop and returns final answer", async () => {
+  const requestBodies: unknown[] = [];
+  const provider = new AnthropicChatProvider({
+    apiKey: "anthropic-key",
+    chatModel: "claude-test",
+    fetchImpl: async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      requestBodies.push(body);
+      if (requestBodies.length === 1) {
+        return new Response(
+          JSON.stringify({
+            stop_reason: "tool_use",
+            content: [
+              { type: "text", text: "문서를 먼저 검색합니다." },
+              { type: "tool_use", id: "toolu_1", name: "search_documents", input: { query: "결제 장애", limit: 3 } }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          stop_reason: "end_turn",
+          content: [{ type: "text", text: "검색된 런북에 따르면 15분 안에 공지합니다." }]
+        }),
+        { status: 200 }
+      );
+    }
+  });
+
+  const result = await provider.completeWithTools({
+    system: "Use tools before answering.",
+    user: "결제 장애 대응 알려줘",
+    tools: [
+      {
+        name: "search_documents",
+        description: "Search documents",
+        inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }
+      }
+    ],
+    async executeTool(tool) {
+      return {
+        output: {
+          sourceCount: 1,
+          paths: ["public/payment-runbook.md"],
+          query: tool.input.query
+        }
+      };
+    }
+  });
+
+  assert.equal(result.text, "검색된 런북에 따르면 15분 안에 공지합니다.");
+  assert.equal(result.turns, 2);
+  assert.equal(result.toolCalls.length, 1);
+  assert.equal(result.toolCalls[0].name, "search_documents");
+  assert.equal(result.toolCalls[0].output.sourceCount, 1);
+
+  const firstBody = requestBodies[0] as { tools?: Array<{ name: string; input_schema: unknown }> };
+  assert.equal(firstBody.tools?.[0]?.name, "search_documents");
+  assert.ok(firstBody.tools?.[0]?.input_schema);
+
+  const secondBody = requestBodies[1] as { messages: Array<{ role: string; content: unknown }> };
+  const toolResultMessage = secondBody.messages[2];
+  assert.equal(toolResultMessage.role, "user");
+  assert.match(JSON.stringify(toolResultMessage.content), /tool_result/);
+  assert.match(JSON.stringify(toolResultMessage.content), /public\/payment-runbook.md/);
+});
+
 test("openai chat provider returns null on non-ok response", async () => {
   const provider = new OpenAIChatProvider({
     apiKey: "openai-key",

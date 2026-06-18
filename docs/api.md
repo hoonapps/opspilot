@@ -114,6 +114,7 @@ pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
 pnpm transformers-indexing:smoke
 pnpm semantic-agreement:smoke
+pnpm agentic-tool-use:smoke
 EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 ```

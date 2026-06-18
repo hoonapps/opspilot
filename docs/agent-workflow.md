@@ -26,7 +26,7 @@ GET /tool-calls/registry
 4. `x-idempotency-key`가 있으면 호출자 범위와 요청 해시를 확인합니다.
 5. 같은 키와 같은 본문의 완료된 요청이면 저장된 `/ask` 응답을 재사용합니다.
 6. 신규 요청이면 Redis 호출 제한을 확인합니다.
-7. `search_documents`를 호출합니다.
+7. 기본 모드는 `search_documents`를 호출합니다. `AGENT_ORCHESTRATION=tool_use` 모드에서는 Anthropic `tool_use` 루프가 `search_documents`, `create_runbook_checklist`, `request_human_approval` 중 필요한 도구를 선택합니다.
 8. vector 모드에서는 pgvector와 PostgreSQL lexical score를 사용합니다.
 9. 하이브리드 모드에서는 pgvector 결과와 Elasticsearch BM25 결과를 결합합니다.
 10. Elasticsearch 결과도 PostgreSQL에서 다시 로드하며 권한 필터를 적용합니다.
@@ -40,6 +40,12 @@ GET /tool-calls/registry
 18. 피드백은 답변 ID에 연결해 저장합니다.
 19. 답변 조회 시 추적/증명/재실행/증거 번들을 복원하고, 신뢰 게이트는 이 증거를 묶어 공유 가능/검토 필요/차단을 판정합니다.
 20. Slack 요청이면 같은 결과를 스레드 답변 페이로드로 포맷합니다.
+
+## Agentic Tool-Use 모드
+
+`AGENT_ORCHESTRATION=tool_use`와 `AI_PROVIDER=anthropic`을 설정하면 `/ask`는 하드코딩된 도구 순서 대신 Anthropic tool-use 루프를 사용합니다. 모델이 `search_documents`를 호출하면 서버는 호출자 권한으로 사전 필터링된 검색만 실행하고, 모델이 `create_runbook_checklist`를 호출하면 검색된 런북 청크에서 체크리스트를 생성합니다. 모델이 `request_human_approval`을 호출하거나 서버 정책이 민감 작업을 감지하면 승인 요청을 만들고 자동 실행을 중단합니다.
+
+각 tool_use와 tool_result는 `answers.metadata.orchestration.modelToolCalls`, `tool_call_logs`, 답변 trace, lineage에 남습니다. `pnpm agentic-tool-use:smoke`는 mock Anthropic 응답으로 검색 → 체크리스트 생성 → 사람 승인 요청 → 최종 답변의 3턴 루프가 실제로 저장되는지 검증합니다.
 
 ## 검색 미리보기
 

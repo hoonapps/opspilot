@@ -337,6 +337,7 @@ pnpm semantic-agreement:smoke
 pnpm retrieval-robustness:smoke
 pnpm eval:coverage-smoke
 pnpm agreement:smoke
+pnpm agentic-tool-use:smoke
 pnpm trace:smoke
 pnpm claim-support:smoke
 pnpm replay:smoke

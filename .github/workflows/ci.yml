@@ -197,6 +197,9 @@ jobs:
       - name: Answer document agreement smoke
         run: pnpm agreement:smoke
 
+      - name: Agentic tool-use smoke
+        run: pnpm agentic-tool-use:smoke
+
       - name: Queue indexing worker smoke
         run: pnpm queue:smoke
 
