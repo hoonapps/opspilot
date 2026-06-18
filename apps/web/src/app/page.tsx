@@ -789,7 +789,7 @@ export default function Home() {
       const sourceHit = topSource?.path === targetIngest.path || topCandidate?.path === targetIngest.path;
       const documentAgreement = verificationAnswer.documentAgreement.score;
       const confidence = verificationAnswer.confidence;
-      const verdict = sourceHit && documentAgreement >= 0.6 && confidence >= 0.5 ? "pass" : "review";
+      const verdict = sourceHit && documentAgreement >= 0.6 && confidence >= 0.3 ? "pass" : "review";
       setRetrievalPreview(preview);
       setIndexProof({
         path: targetIngest.path,
