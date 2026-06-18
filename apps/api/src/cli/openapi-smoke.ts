@@ -52,6 +52,8 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/evaluations/cases", method: "get" },
   { path: "/evaluations/regression", method: "get" },
   { path: "/evaluations/coverage", method: "get" },
+  { path: "/evaluations/retrieval", method: "get" },
+  { path: "/evaluations/embedding-comparison", method: "get" },
   { path: "/observability/summary", method: "get" },
   { path: "/observability/api-requests", method: "get" },
   { path: "/observability/slo", method: "get" },

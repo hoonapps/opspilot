@@ -45,6 +45,8 @@ pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 pnpm queue:smoke
 pnpm github:smoke
+pnpm embedding-eval:smoke
+pnpm embedding-hard:smoke
 pnpm --filter @opspilot/rag test
 ```
 
@@ -63,6 +65,10 @@ pnpm --filter @opspilot/rag test
 `pnpm revalidation-run:smoke`는 큐 항목 하나를 실제로 실행해 replay 변경 감지, 품질 게이트 판정, 계보 그래프 SHA-256 해시, 출처 권한 재검사, 실행 이력 저장이 한 흐름으로 묶이는지 검증합니다.
 
 `pnpm queue:smoke`는 BullMQ 작업 생성, 워커 처리, 완료 작업 조회, 큐 관제 API의 완료 카운트와 최근 작업 목록까지 검증합니다.
+
+`pnpm embedding-eval:smoke`는 현재 seed 문서 청크를 대상으로 로컬 해시 임베딩 baseline과 OpenAI embedding candidate를 비교할 수 있는 리포트가 생성되는지 검증합니다. 로컬/CI처럼 `OPENAI_API_KEY`가 없는 환경에서는 candidate를 `skipped`로 남기고, key가 있는 데모 환경에서는 같은 문서와 질문으로 실제 OpenAI embedding 순위까지 계산합니다.
+
+`pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 테스트 문서를 임시 색인합니다. 질문과 문서가 같은 단어를 많이 공유하지 않도록 만든 세트라서, 단순 토큰 겹침이나 로컬 해시 임베딩이 약한 상황을 보여줍니다. 이 명령은 실행 후 기본 seed 문서를 다시 복구합니다.
 
 웹 콘솔 `문서` 화면에서는 문서 목록, 청크 수, 마스킹 메타데이터, 프롬프트 주입 격리 상태, 색인 스냅샷, 색인 품질 리포트, 문서 색인 설명, 버전 변경 차이, 문서 변경 영향 분석, 문서 재검증 큐, 재검증 실행 리포트와 최근 실행 이력, 청크 미리보기, 신규 문서 검색 검증 결과, BullMQ 큐 관제 패널을 볼 수 있습니다.
 
@@ -114,4 +120,4 @@ pnpm --filter @opspilot/rag test
 
 실제 청크 미리보기는 `GET /documents` 응답과 웹 콘솔 `문서` 화면에서 확인합니다. 검색 전 랭킹은 `POST /retrieval/preview`와 웹 콘솔 `검색` 화면에서 확인합니다. 이 응답은 후보별 랭킹 설명과 검색 실행 계획을 함께 반환해 매칭 검색어, 점수 기여도, 권한 통과 사유, 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 리랭킹, 컨텍스트 패키징, 검토 판단 단계를 확인할 수 있습니다.
 
-검색 파이프라인은 먼저 pgvector/lexical fusion으로 권한을 통과한 후보군을 만들고, 그 후보군에 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 리랭커는 BM25 계열 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 검색 점수를 결합합니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 리랭킹 전 기준선과 리랭킹 후 결과를 함께 비교합니다.
+검색 파이프라인은 먼저 pgvector/lexical fusion으로 권한을 통과한 후보군을 만들고, 그 후보군에 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 리랭커는 BM25 계열 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 검색 점수를 결합합니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 리랭킹 전 기준선과 리랭킹 후 결과를 함께 비교합니다. 임베딩 모델 자체의 차이는 `GET /evaluations/embedding-comparison`과 `pnpm embedding-hard:smoke`에서 별도로 확인합니다.

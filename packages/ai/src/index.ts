@@ -36,6 +36,7 @@ export type OpenAIConfig = {
   chatModel?: string;
   embeddingModel?: string;
   embeddingDimensions: number;
+  fallbackToLocal?: boolean;
   fetchImpl?: typeof fetch;
 };
 
@@ -158,11 +159,11 @@ export class AnthropicChatProvider implements ChatProvider {
 
 export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   private readonly fetchImpl: typeof fetch;
-  private readonly fallback: LocalEmbeddingProvider;
+  private readonly fallback?: LocalEmbeddingProvider;
 
   constructor(private readonly config: OpenAIConfig) {
     this.fetchImpl = config.fetchImpl ?? fetch;
-    this.fallback = new LocalEmbeddingProvider({ dimensions: config.embeddingDimensions });
+    this.fallback = config.fallbackToLocal === false ? undefined : new LocalEmbeddingProvider({ dimensions: config.embeddingDimensions });
   }
 
   async embed(text: string): Promise<number[]> {
@@ -180,17 +181,25 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     });
 
     if (!response.ok) {
-      return this.fallback.embed(text);
+      return this.fallbackOrThrow(text, `OpenAI embedding request failed with status ${response.status}`);
     }
 
     const json = (await response.json()) as { data?: Array<{ embedding?: number[] }> };
     const embedding = json.data?.[0]?.embedding;
 
     if (!embedding || embedding.length !== this.config.embeddingDimensions) {
-      return this.fallback.embed(text);
+      return this.fallbackOrThrow(text, `OpenAI embedding response did not contain a ${this.config.embeddingDimensions}d vector`);
     }
 
     return normalize(embedding);
+  }
+
+  private fallbackOrThrow(text: string, message: string): Promise<number[]> {
+    if (!this.fallback) {
+      throw new Error(message);
+    }
+
+    return this.fallback.embed(text);
   }
 }
 

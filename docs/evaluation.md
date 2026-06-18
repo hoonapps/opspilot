@@ -37,6 +37,8 @@ pnpm eval:cases-smoke
 pnpm eval:regression-smoke
 pnpm eval:coverage-smoke
 pnpm retrieval-eval:smoke
+pnpm embedding-eval:smoke
+pnpm embedding-hard:smoke
 pnpm freshness:smoke
 ```
 
@@ -90,6 +92,30 @@ GET /evaluations/retrieval
 - `rows[].permissionEnforcement`: 권한 경계가 검색 전 SQL 필터인지, Elasticsearch 후 PostgreSQL 재검사인지
 
 `pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 리포트는 같은 질문셋에 대해 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환하므로, 검색 튜닝이 top-k 품질을 실제로 개선했는지 숫자로 비교할 수 있습니다. OpenAI 임베딩을 사용할 때는 같은 명령을 `AI_PROVIDER=openai OPENAI_API_KEY=...` 환경으로 재실행해 local hash embedding 대비 성능 차이를 남깁니다.
+
+## 임베딩 비교 리포트
+
+```txt
+GET /evaluations/embedding-comparison
+```
+
+이 리포트는 검색기 전체가 아니라 “임베딩 모델만 바꿨을 때” 질문과 청크의 의미 검색 순위가 어떻게 달라지는지 비교합니다.
+
+- `baseline`: 기본 로컬 `local_hash_embedding_64d`로 계산한 `recall@1/3/5`, `MRR`, `nDCG@5`
+- `candidate`: `OPENAI_API_KEY`가 있을 때 OpenAI embedding으로 다시 계산한 같은 지표
+- `delta`: candidate가 baseline 대비 얼마나 좋아지거나 나빠졌는지
+- `rows[].localRankedSources`: 로컬 임베딩 기준 질문별 문서 순위
+- `rows[].candidateRankedSources`: OpenAI 임베딩 기준 질문별 문서 순위
+- `integrity.reportHash`: 평가셋, 문서 청크, 모델 이름, 지표를 묶은 SHA-256 해시
+- `actionItems`: API key가 없거나 candidate가 baseline보다 낮을 때 재검증 명령과 조치
+
+로컬/CI에서는 외부 API key 없이도 `pnpm embedding-eval:smoke`가 실행됩니다. 이때 리포트 상태는 `skipped`이고 candidate는 `unavailable`로 남습니다. 실제 포트폴리오 데모에서는 아래처럼 실행해 OpenAI embedding과 로컬 기준선의 차이를 같은 리포트에 남깁니다.
+
+```bash
+AI_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke
+```
+
+`pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 어려운 패러프레이즈 문서 세트를 임시로 색인합니다. 이 세트는 단어가 그대로 겹치지 않는 질문을 넣어 로컬 해시 임베딩의 한계를 드러내기 위한 테스트입니다. API key가 없을 때도 로컬 기준선 순위와 지표를 남기고, API key가 있으면 같은 문서와 질문으로 OpenAI embedding 후보 지표까지 계산합니다.
 
 ## 케이스 상세 리포트
 

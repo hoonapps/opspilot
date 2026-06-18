@@ -36,4 +36,9 @@ export class EvaluationController {
   retrieval(@Query("suiteName") suiteName?: string) {
     return this.evaluationService.retrieval(suiteName ?? "seed-ops-wiki");
   }
+
+  @Get("embedding-comparison")
+  embeddingComparison(@Query("suiteName") suiteName?: string) {
+    return this.evaluationService.embeddingComparison(suiteName ?? "seed-ops-wiki");
+  }
 }

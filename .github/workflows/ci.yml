@@ -116,6 +116,12 @@ jobs:
       - name: Retrieval evaluation smoke
         run: pnpm retrieval-eval:smoke
 
+      - name: Embedding comparison smoke
+        run: pnpm embedding-eval:smoke
+
+      - name: Hard semantic embedding smoke
+        run: pnpm embedding-hard:smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

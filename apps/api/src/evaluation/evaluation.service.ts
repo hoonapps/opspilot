@@ -1,11 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { EmbeddingProvider, OpenAIEmbeddingProvider } from "@opspilot/ai";
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
 import { AgentService } from "../agent/agent.service";
 import { calculateDocumentAgreement } from "../agent/document-agreement";
+import { EmbeddingService } from "../agent/embedding.service";
 import { SearchService } from "../agent/search.service";
+import { AuthzService } from "../authz/authz.service";
 import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 
@@ -331,6 +334,69 @@ export type RetrievalEvaluationReport = {
   };
 };
 
+export type EmbeddingComparisonReport = {
+  schemaVersion: "opspilot.embedding_comparison.v1";
+  suiteName: string;
+  generatedAt: string;
+  status: "pass" | "warn" | "fail" | "skipped";
+  total: number;
+  dimensions: number;
+  baseline: {
+    provider: "local_hash_embedding";
+    model: "fnv_token_bucket_64d";
+    metrics: RetrievalMetricSummary;
+  };
+  candidate: {
+    provider: "openai";
+    model: string;
+    available: boolean;
+    skippedReason?: string;
+    metrics: RetrievalMetricSummary | null;
+    deltas: {
+      recallAt1: number | null;
+      recallAt3: number | null;
+      mrr: number | null;
+      ndcgAt5: number | null;
+    };
+  };
+  rows: Array<{
+    id: string;
+    question: string;
+    expectedSources: string[];
+    localRankedSources: string[];
+    localFirstRelevantRank: number | null;
+    localRecallAt3: boolean;
+    localNdcgAt5: number;
+    candidateRankedSources: string[];
+    candidateFirstRelevantRank: number | null;
+    candidateRecallAt3: boolean | null;
+    candidateNdcgAt5: number | null;
+    rankDelta: number | null;
+  }>;
+  actionItems: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2";
+    owner: "embedding" | "evaluation";
+    title: string;
+    evidence: string;
+    command: string;
+  }>;
+  integrity: {
+    reportHash: string;
+    hashAlgorithm: "sha256";
+    includedFields: string[];
+  };
+};
+
+type RetrievalMetricSummary = {
+  recallAt1: number;
+  recallAt3: number;
+  recallAt5: number;
+  mrr: number;
+  ndcgAt5: number;
+  averageFirstRelevantRank: number | null;
+};
+
 export type EvaluationMetrics = {
   sourceHitRate: number;
   topSourceAccuracy: number;
@@ -364,6 +430,28 @@ type EvaluationDocumentRow = {
   updated_at: Date | string;
 };
 
+type EmbeddingComparisonChunkRow = {
+  chunkId: string;
+  path: string;
+  title: string;
+  visibility: string;
+  teamSlug?: string | null;
+  content: string;
+};
+
+type EmbeddingComparisonRankRow = {
+  id: string;
+  question: string;
+  expectedSources: string[];
+  rankedSources: string[];
+  firstRelevantRank: number | null;
+  reciprocalRank: number;
+  recallAt1: boolean;
+  recallAt3: boolean;
+  recallAt5: boolean;
+  ndcgAt5: number;
+};
+
 const METRIC_NAMES = {
   source_hit_rate: "sourceHitRate",
   top_source_accuracy: "topSourceAccuracy",
@@ -379,7 +467,9 @@ export class EvaluationService {
   constructor(
     private readonly orm: MikroORM,
     private readonly agent: AgentService,
-    private readonly search: SearchService
+    private readonly search: SearchService,
+    private readonly embeddings: EmbeddingService,
+    private readonly authz: AuthzService
   ) {}
 
   async run(suiteName: string, questions: EvalQuestion[]): Promise<EvalReport> {
@@ -888,6 +978,135 @@ export class EvaluationService {
     };
   }
 
+  async embeddingComparison(suiteName: string, questions?: EvalQuestion[]): Promise<{ report: EmbeddingComparisonReport }> {
+    const evalQuestions = questions ?? (await loadEvalQuestionsFromEnv());
+    const chunks = await this.loadEmbeddingComparisonChunks();
+    const dimensions = this.embeddings.dimensions();
+    const openAiModel = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
+    const localRows = await this.rankEmbeddingQuestions(evalQuestions, chunks, {
+      provider: {
+        embed: async (text: string) => this.embeddings.embedLocal(text)
+      },
+      providerLabel: "local_hash_embedding"
+    });
+    const localMetrics = embeddingComparisonMetrics(localRows);
+    const openAiKey = process.env.OPENAI_API_KEY;
+    let candidateRows: EmbeddingComparisonRankRow[] = [];
+    let skippedReason: string | undefined;
+
+    if (openAiKey) {
+      try {
+        candidateRows = await this.rankEmbeddingQuestions(evalQuestions, chunks, {
+          provider: new OpenAIEmbeddingProvider({
+            apiKey: openAiKey,
+            embeddingModel: openAiModel,
+            embeddingDimensions: dimensions,
+            fallbackToLocal: false
+          }),
+          providerLabel: "openai"
+        });
+      } catch (error) {
+        skippedReason = error instanceof Error ? error.message : "OpenAI embedding comparison failed";
+      }
+    } else {
+      skippedReason = "OPENAI_API_KEY is not set";
+    }
+
+    const candidateAvailable = candidateRows.length === localRows.length && candidateRows.length > 0;
+    const candidateMetrics = candidateAvailable ? embeddingComparisonMetrics(candidateRows) : null;
+    const rows = localRows.map((localRow) => {
+      const candidateRow = candidateRows.find((row) => row.id === localRow.id);
+      return {
+        id: localRow.id,
+        question: localRow.question,
+        expectedSources: localRow.expectedSources,
+        localRankedSources: localRow.rankedSources,
+        localFirstRelevantRank: localRow.firstRelevantRank,
+        localRecallAt3: localRow.recallAt3,
+        localNdcgAt5: localRow.ndcgAt5,
+        candidateRankedSources: candidateRow?.rankedSources ?? [],
+        candidateFirstRelevantRank: candidateRow?.firstRelevantRank ?? null,
+        candidateRecallAt3: candidateRow?.recallAt3 ?? null,
+        candidateNdcgAt5: candidateRow?.ndcgAt5 ?? null,
+        rankDelta:
+          typeof localRow.firstRelevantRank === "number" && typeof candidateRow?.firstRelevantRank === "number"
+            ? localRow.firstRelevantRank - candidateRow.firstRelevantRank
+            : null
+      };
+    });
+    const deltas = {
+      recallAt1: candidateMetrics ? delta(candidateMetrics.recallAt1, localMetrics.recallAt1) : null,
+      recallAt3: candidateMetrics ? delta(candidateMetrics.recallAt3, localMetrics.recallAt3) : null,
+      mrr: candidateMetrics ? delta(candidateMetrics.mrr, localMetrics.mrr) : null,
+      ndcgAt5: candidateMetrics ? delta(candidateMetrics.ndcgAt5, localMetrics.ndcgAt5) : null
+    };
+    const status: EmbeddingComparisonReport["status"] = !candidateAvailable
+      ? "skipped"
+      : (deltas.recallAt3 ?? 0) < 0 || (deltas.mrr ?? 0) < -0.05
+        ? "fail"
+        : (deltas.recallAt3 ?? 0) > 0 || (deltas.mrr ?? 0) > 0 || (deltas.ndcgAt5 ?? 0) > 0
+          ? "pass"
+          : "warn";
+    const actionItems = buildEmbeddingComparisonActionItems({
+      status,
+      skippedReason,
+      localMetrics,
+      candidateMetrics,
+      deltas
+    });
+    const hashBasis = {
+      suiteName,
+      status,
+      dimensions,
+      baseline: localMetrics,
+      candidate: {
+        model: openAiModel,
+        available: candidateAvailable,
+        metrics: candidateMetrics,
+        deltas
+      },
+      rows: rows.map((row) => ({
+        id: row.id,
+        expectedSources: row.expectedSources,
+        localRankedSources: row.localRankedSources,
+        candidateRankedSources: row.candidateRankedSources,
+        rankDelta: row.rankDelta
+      })),
+      actionItems
+    };
+
+    return {
+      report: {
+        schemaVersion: "opspilot.embedding_comparison.v1",
+        suiteName,
+        generatedAt: new Date().toISOString(),
+        status,
+        total: rows.length,
+        dimensions,
+        baseline: {
+          provider: "local_hash_embedding",
+          model: "fnv_token_bucket_64d",
+          metrics: localMetrics
+        },
+        candidate: {
+          provider: "openai",
+          model: openAiModel,
+          available: candidateAvailable,
+          skippedReason,
+          metrics: candidateMetrics,
+          deltas
+        },
+        rows,
+        actionItems,
+        integrity: {
+          reportHash: sha256(stableStringify(hashBasis)),
+          hashAlgorithm: "sha256",
+          includedFields: ["suiteName", "status", "dimensions", "baseline", "candidate", "rows", "actionItems"]
+        }
+      }
+    };
+  }
+
   private async loadSourceContents(chunkIds: string[]): Promise<string[]> {
     if (chunkIds.length === 0) {
       return [];
@@ -928,6 +1147,70 @@ export class EvaluationService {
         order by visibility desc, path asc;
       `
     )) as EvaluationDocumentRow[];
+  }
+
+  private async loadEmbeddingComparisonChunks(): Promise<EmbeddingComparisonChunkRow[]> {
+    return this.orm.em.fork().getConnection().execute<EmbeddingComparisonChunkRow[]>(
+      `
+        select
+          c.id as "chunkId",
+          d.path,
+          d.title,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          c.content
+        from document_chunks c
+        join documents d on d.id = c.document_id
+        where not coalesce((c.metadata #>> '{security,promptInjectionRisk}')::boolean, false)
+        order by d.path asc, c.chunk_index asc;
+      `
+    );
+  }
+
+  private async rankEmbeddingQuestions(
+    questions: EvalQuestion[],
+    chunks: EmbeddingComparisonChunkRow[],
+    input: { provider: EmbeddingProvider; providerLabel: string }
+  ): Promise<EmbeddingComparisonRankRow[]> {
+    const embeddingCache = new Map<string, number[]>();
+    const rows: EmbeddingComparisonRankRow[] = [];
+
+    for (const question of questions) {
+      const allowedChunks = chunks.filter((chunk) => this.authz.canAccessDocument(question.actor, chunk.visibility, chunk.teamSlug));
+      const questionVector = await cachedEmbedding(embeddingCache, input.provider, `question:${input.providerLabel}:${question.question}`, question.question);
+      const rankedChunks = [];
+
+      for (const chunk of allowedChunks) {
+        const chunkVector = await cachedEmbedding(
+          embeddingCache,
+          input.provider,
+          `chunk:${input.providerLabel}:${chunk.chunkId}`,
+          `${chunk.title}\n${chunk.content}`
+        );
+        rankedChunks.push({
+          path: chunk.path,
+          score: cosineSimilarity(questionVector, chunkVector)
+        });
+      }
+
+      rankedChunks.sort((left, right) => right.score - left.score);
+      const rankedSources = uniqueRankedSources(rankedChunks.map((chunk) => chunk.path)).slice(0, 10);
+      const firstRelevantRank = firstRelevantSourceRank(question.expectedSources, rankedSources);
+      rows.push({
+        id: question.id,
+        question: question.question,
+        expectedSources: question.expectedSources,
+        rankedSources,
+        firstRelevantRank,
+        reciprocalRank: firstRelevantRank ? Number((1 / firstRelevantRank).toFixed(3)) : 0,
+        recallAt1: rankWithin(firstRelevantRank, 1),
+        recallAt3: rankWithin(firstRelevantRank, 3),
+        recallAt5: rankWithin(firstRelevantRank, 5),
+        ndcgAt5: ndcgAtK(question.expectedSources, rankedSources, 5)
+      });
+    }
+
+    return rows;
   }
 }
 
@@ -1015,6 +1298,50 @@ function retrievalMetrics(
   };
 }
 
+function embeddingComparisonMetrics(rows: EmbeddingComparisonRankRow[]): RetrievalMetricSummary {
+  return {
+    recallAt1: ratio(rows.filter((row) => row.recallAt1).length, rows.length),
+    recallAt3: ratio(rows.filter((row) => row.recallAt3).length, rows.length),
+    recallAt5: ratio(rows.filter((row) => row.recallAt5).length, rows.length),
+    mrr: average(rows.map((row) => row.reciprocalRank)),
+    ndcgAt5: average(rows.map((row) => row.ndcgAt5)),
+    averageFirstRelevantRank: averageNullable(rows.map((row) => row.firstRelevantRank))
+  };
+}
+
+async function cachedEmbedding(cache: Map<string, number[]>, provider: EmbeddingProvider, key: string, text: string): Promise<number[]> {
+  const cached = cache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const embedding = await provider.embed(text);
+  cache.set(key, embedding);
+  return embedding;
+}
+
+function cosineSimilarity(left: number[], right: number[]): number {
+  const dimensions = Math.min(left.length, right.length);
+  if (dimensions === 0) {
+    return 0;
+  }
+
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+  for (let index = 0; index < dimensions; index += 1) {
+    dot += left[index] * right[index];
+    leftNorm += left[index] * left[index];
+    rightNorm += right[index] * right[index];
+  }
+
+  if (leftNorm === 0 || rightNorm === 0) {
+    return 0;
+  }
+
+  return Number((dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm))).toFixed(6));
+}
+
 async function loadEvalQuestionsFromEnv(): Promise<EvalQuestion[]> {
   const evalPath = resolveEvalPath(process.env.EVAL_SET_PATH ?? "../../seed/eval/questions.json");
   return JSON.parse(await readFile(evalPath, "utf8")) as EvalQuestion[];
@@ -1099,6 +1426,64 @@ function buildRetrievalActionItems(input: {
   }
 
   return items;
+}
+
+function buildEmbeddingComparisonActionItems(input: {
+  status: EmbeddingComparisonReport["status"];
+  skippedReason?: string;
+  localMetrics: RetrievalMetricSummary;
+  candidateMetrics: RetrievalMetricSummary | null;
+  deltas: EmbeddingComparisonReport["candidate"]["deltas"];
+}): EmbeddingComparisonReport["actionItems"] {
+  if (input.status === "skipped") {
+    return [
+      {
+        id: "run-real-embedding-comparison",
+        priority: "P1",
+        owner: "embedding",
+        title: "실제 임베딩 비교가 아직 실행되지 않았습니다.",
+        evidence: input.skippedReason ?? "OpenAI embedding provider was unavailable.",
+        command: "AI_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+      }
+    ];
+  }
+
+  if (input.status === "fail") {
+    return [
+      {
+        id: "embedding-regression",
+        priority: "P0",
+        owner: "embedding",
+        title: "실제 임베딩 모델이 local baseline보다 낮은 검색 품질을 보였습니다.",
+        evidence: `local MRR ${input.localMetrics.mrr}, OpenAI MRR ${input.candidateMetrics?.mrr ?? 0}, delta ${input.deltas.mrr ?? 0}`,
+        command: "OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+      }
+    ];
+  }
+
+  if (input.status === "warn") {
+    return [
+      {
+        id: "add-hard-semantic-eval-set",
+        priority: "P1",
+        owner: "evaluation",
+        title: "현재 평가셋에서는 실제 임베딩 개선폭이 뚜렷하지 않습니다.",
+        evidence: `recall@3 delta ${input.deltas.recallAt3 ?? 0}, MRR delta ${input.deltas.mrr ?? 0}, nDCG@5 delta ${input.deltas.ndcgAt5 ?? 0}`,
+        command: "EVAL_SET_PATH=../../seed/eval/embedding-hard.json OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+      }
+    ];
+  }
+
+  return [
+    {
+      id: "real-embedding-outperforms-local",
+      priority: "P2",
+      owner: "embedding",
+      title: "실제 임베딩 모델 비교가 통과했습니다.",
+      evidence: `recall@3 delta ${input.deltas.recallAt3 ?? 0}, MRR delta ${input.deltas.mrr ?? 0}, nDCG@5 delta ${input.deltas.ndcgAt5 ?? 0}`,
+      command: "curl http://localhost:3000/evaluations/embedding-comparison"
+    }
+  ];
 }
 
 function answerCitesReturnedSource(answer: string, sources: Array<{ title: string; path: string }>): boolean {

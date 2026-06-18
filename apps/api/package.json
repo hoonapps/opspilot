@@ -19,6 +19,8 @@
     "eval:regression-smoke": "ts-node src/cli/evaluation-regression-smoke.ts",
     "eval:coverage-smoke": "ts-node src/cli/evaluation-coverage-smoke.ts",
     "retrieval-eval:smoke": "ts-node src/cli/retrieval-evaluation-smoke.ts",
+    "embedding-eval:smoke": "ts-node src/cli/embedding-comparison-smoke.ts",
+    "embedding-hard:smoke": "ts-node src/cli/embedding-hard-smoke.ts",
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
     "incident-plan:smoke": "ts-node src/cli/incident-plan-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
