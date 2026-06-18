@@ -54,6 +54,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - Markdown 문서 업로드, 버전 이력, 변경 차이, 청크 미리보기
 - URL, txt, PDF, Word docx 입력을 표준 Markdown으로 변환해 저장/청킹/임베딩/검색 연결
 - 수집 품질 진단: 새 문서의 텍스트 추출 길이, 청크 생성, 헤딩 신호, 검색 힌트, 보안 스캔, 추천 테스트 질문을 즉시 판정
+- 수집 추적 정보: 원본 URL/파일명, content type, 파서, 추출 해시, 저장 content hash, 청크 수, URL 보안 가드 상태를 응답과 웹 화면에 표시
 - 문서 초기화와 seed 문서 재적재: 새 문서를 넣고 직접 테스트하기 위한 데모 리셋 흐름
 - 색인 스냅샷: 전체 문서/청크/버전/임베딩/보안 메타데이터를 SHA-256 매니페스트로 증명
 - 색인 품질 리포트: 문서 수, 청크 커버리지, 버전 커버리지, 헤딩 보존, 보안 격리 게이트
@@ -218,6 +219,8 @@ pnpm slack:simulate
 문서를 완전히 비우고 새 테스트만 하고 싶으면 웹 콘솔의 `문서 초기화`를 누르거나 API `POST /documents/reset`을 호출합니다. 다시 샘플 지식을 복구하려면 `Seed 다시 넣기` 또는 `POST /documents/reset`에 `{ "reloadSeed": true }`를 전달합니다.
 
 `POST /documents/source` 응답의 `quality`는 `opspilot.source_ingestion_quality.v1` 스키마입니다. 추출 텍스트가 너무 짧거나, 청크가 지나치게 작거나, 검색 힌트가 부족하거나, 프롬프트 주입 위험이 있으면 `attention`으로 표시하고 개선 권고를 함께 반환합니다. 또한 제목과 검색 힌트 기반 추천 테스트 질문을 만들어 새 문서를 넣은 직후 무엇을 물어볼지 안내합니다. 데모에서는 “PDF/Word/URL을 넣는 것에서 끝나지 않고 검색 가능한 문서인지, 어떤 질문으로 검증할지까지 바로 제안한다”고 설명할 수 있습니다.
+
+같은 응답의 `provenance`는 `opspilot.source_ingestion_provenance.v1` 스키마입니다. 원본 URL/파일명, 최종 URL, content type, 원본 바이트 크기, 추출 텍스트 해시, 저장 content hash, 청크 수, URL 보안 가드 상태를 포함하므로 “어떤 자료가 어떤 파서와 해시로 지식 베이스에 들어갔는지”를 API와 웹 화면에서 설명할 수 있습니다.
 
 URL 수집은 SSRF 방지를 위해 기본적으로 localhost/private/link-local/multicast 주소와 내부망 redirect를 차단합니다. 로컬 fixture 테스트처럼 내부 URL이 필요한 경우에만 `SOURCE_INGESTION_ALLOW_PRIVATE_URLS=true`를 명시적으로 설정합니다.
 

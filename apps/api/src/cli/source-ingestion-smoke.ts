@@ -93,6 +93,11 @@ async function main() {
       text.chunks > 0 &&
       text.quality.schemaVersion === "opspilot.source_ingestion_quality.v1" &&
       text.quality.status === "ready" &&
+      text.provenance.schemaVersion === "opspilot.source_ingestion_provenance.v1" &&
+      text.provenance.extraction.parser === "plain_text_v1" &&
+      text.provenance.storage.contentHash.length === 64 &&
+      text.provenance.storage.path === "public/uploads/source-text-smoke.md" &&
+      text.provenance.safety.urlGuard === "not_applicable" &&
       text.quality.checks.some((check) => check.id === "retrieval_hints" && check.status === "pass") &&
       text.quality.suggestedQuestions.length >= 3 &&
       text.quality.suggestedQuestions.some(
@@ -101,17 +106,24 @@ async function main() {
       privateUrlBlocked &&
       url.parser === "html_text_v1" &&
       url.chunks > 0 &&
+      url.provenance.extraction.finalUrl === fixtureUrl &&
+      url.provenance.extraction.contentType.includes("text/html") &&
+      url.provenance.safety.urlGuard === "ssrf_private_network_block_v1" &&
       url.quality.status === "ready" &&
       url.quality.suggestedQuestions.some((suggestion) => suggestion.question.includes("URL 수집 Smoke 문서")) &&
       pdf.parser === "pdf_text_v1" &&
       pdf.chunks > 0 &&
       pdf.extractedCharacters > 80 &&
       pdf.quality.status === "ready" &&
+      pdf.provenance.extraction.contentType === "application/pdf" &&
+      pdf.provenance.received.fileName === "source-pdf-smoke.pdf" &&
       pdf.quality.suggestedQuestions.some((suggestion) => suggestion.question.includes("PDF 수집 Smoke 문서")) &&
       docx.parser === "docx_text_v1" &&
       docx.chunks > 0 &&
       docx.extractedCharacters > 80 &&
       docx.quality.status === "ready" &&
+      docx.provenance.extraction.contentType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" &&
+      docx.provenance.received.fileName === "source-docx-smoke.docx" &&
       docx.quality.suggestedQuestions.some((suggestion) => suggestion.question.includes("Word 수집 Smoke 문서")) &&
       weak.quality.status === "attention" &&
       weak.quality.checks.some((check) => check.id === "text_extraction" && check.status === "fail") &&

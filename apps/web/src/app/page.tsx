@@ -3315,6 +3315,38 @@ export default function Home() {
                   <Metric label={locale === "ko" ? "청크" : "Chunks"} value={`${sourceIngest.chunks}`} />
                   <Metric label={locale === "ko" ? "추출 문자" : "Extracted"} value={`${sourceIngest.extractedCharacters}`} />
                 </div>
+                <div className="sourceProvenanceCard" aria-label={locale === "ko" ? "문서 수집 추적 정보" : "Source ingestion provenance"}>
+                  <div>
+                    <span>{locale === "ko" ? "원본" : "Source"}</span>
+                    <strong>{formatSourceReceived(sourceIngest)}</strong>
+                    <p>{sourceIngest.provenance.extraction.contentType}</p>
+                  </div>
+                  <div>
+                    <span>{locale === "ko" ? "저장" : "Storage"}</span>
+                    <strong>{sourceIngest.provenance.storage.path}</strong>
+                    <p>
+                      {locale === "ko"
+                        ? `${sourceIngest.provenance.storage.chunkCount}개 청크 · ${sourceIngest.provenance.storage.changed ? "새 버전" : "변경 없음"}`
+                        : `${sourceIngest.provenance.storage.chunkCount} chunks · ${
+                            sourceIngest.provenance.storage.changed ? "new version" : "unchanged"
+                          }`}
+                    </p>
+                  </div>
+                  <div>
+                    <span>{locale === "ko" ? "해시" : "Hash"}</span>
+                    <strong>{shortHash(sourceIngest.provenance.storage.contentHash)}</strong>
+                    <p>
+                      {locale === "ko"
+                        ? `추출 ${shortHash(sourceIngest.provenance.extraction.extractedHash)}`
+                        : `extracted ${shortHash(sourceIngest.provenance.extraction.extractedHash)}`}
+                    </p>
+                  </div>
+                  <div>
+                    <span>{locale === "ko" ? "보안" : "Safety"}</span>
+                    <strong>{formatSourceUrlGuard(sourceIngest)}</strong>
+                    <p>{sourceIngest.provenance.extraction.finalUrl ?? sourceIngest.provenance.received.url ?? sourceIngest.provenance.received.fileName ?? "-"}</p>
+                  </div>
+                </div>
                 <div className={`sourceQuality sourceQuality--${sourceIngest.quality.status}`}>
                   <div>
                     <span>{locale === "ko" ? "수집 품질" : "Ingestion quality"}</span>
@@ -5338,6 +5370,23 @@ function formatReviewReasonCode(code: AskResponse["reviewReasons"][number]["code
     sensitive_action: "민감 작업"
   };
   return labels[code];
+}
+
+function formatSourceReceived(source: SourceIngestResponse): string {
+  if (source.provenance.received.url) {
+    return source.provenance.received.url;
+  }
+  if (source.provenance.received.fileName) {
+    return `파일: ${source.provenance.received.fileName}`;
+  }
+  return source.sourceType === "markdown" ? "Markdown 입력" : "텍스트 입력";
+}
+
+function formatSourceUrlGuard(source: SourceIngestResponse): string {
+  if (source.provenance.safety.urlGuard === "not_applicable") {
+    return "파일/텍스트";
+  }
+  return source.provenance.safety.privateUrlAllowed ? "내부 URL 허용" : "내부망 차단";
 }
 
 function getRedactionCount(document: DocumentInventoryItem): number {

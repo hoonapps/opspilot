@@ -77,6 +77,34 @@ export type SourceIngestResponse = IngestResponse & {
   sourceType: DocumentSourceType;
   extractedCharacters: number;
   parser: "markdown_passthrough_v1" | "plain_text_v1" | "html_text_v1" | "pdf_text_v1" | "docx_text_v1";
+  provenance: {
+    schemaVersion: "opspilot.source_ingestion_provenance.v1";
+    received: {
+      sourceType: DocumentSourceType;
+      url?: string;
+      fileName?: string;
+    };
+    extraction: {
+      parser: SourceIngestResponse["parser"];
+      title: string;
+      contentType: string;
+      byteLength: number;
+      extractedHash: string;
+      finalUrl?: string;
+    };
+    storage: {
+      path: string;
+      contentHash: string;
+      chunkCount: number;
+      changed: boolean;
+      visibility: "public" | "team" | "restricted";
+      teamSlug?: string;
+    };
+    safety: {
+      privateUrlAllowed: boolean;
+      urlGuard: "ssrf_private_network_block_v1" | "not_applicable";
+    };
+  };
   quality: {
     schemaVersion: "opspilot.source_ingestion_quality.v1";
     status: "ready" | "attention" | "blocked";

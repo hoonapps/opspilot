@@ -20,6 +20,7 @@ type IngestedDocument = {
   title: string;
   chunks: number;
   changed: boolean;
+  contentHash: string;
 };
 
 export type IngestedDocumentSource = {
@@ -30,7 +31,37 @@ export type IngestedDocumentSource = {
   changed: boolean;
   extractedCharacters: number;
   parser: "markdown_passthrough_v1" | "plain_text_v1" | "html_text_v1" | "pdf_text_v1" | "docx_text_v1";
+  provenance: SourceIngestionProvenance;
   quality: SourceIngestionQualityReport;
+};
+
+export type SourceIngestionProvenance = {
+  schemaVersion: "opspilot.source_ingestion_provenance.v1";
+  received: {
+    sourceType: DocumentSourceType;
+    url?: string;
+    fileName?: string;
+  };
+  extraction: {
+    parser: IngestedDocumentSource["parser"];
+    title: string;
+    contentType: string;
+    byteLength: number;
+    extractedHash: string;
+    finalUrl?: string;
+  };
+  storage: {
+    path: string;
+    contentHash: string;
+    chunkCount: number;
+    changed: boolean;
+    visibility: "public" | "team" | "restricted";
+    teamSlug?: string;
+  };
+  safety: {
+    privateUrlAllowed: boolean;
+    urlGuard: "ssrf_private_network_block_v1" | "not_applicable";
+  };
 };
 
 export type SourceIngestionQualityReport = {
@@ -668,6 +699,34 @@ export class DocumentsService {
       changed: ingested.changed,
       extractedCharacters: normalized.markdown.length,
       parser: normalized.parser,
+      provenance: {
+        schemaVersion: "opspilot.source_ingestion_provenance.v1",
+        received: {
+          sourceType: input.sourceType,
+          url: input.url,
+          fileName: input.fileName
+        },
+        extraction: {
+          parser: normalized.parser,
+          title: normalized.title,
+          contentType: normalized.contentType,
+          byteLength: normalized.byteLength,
+          extractedHash: sha256(normalized.markdown),
+          finalUrl: normalized.finalUrl
+        },
+        storage: {
+          path: ingested.path,
+          contentHash: ingested.contentHash,
+          chunkCount: ingested.chunks,
+          changed: ingested.changed,
+          visibility: input.visibility ?? "public",
+          teamSlug: input.teamSlug
+        },
+        safety: {
+          privateUrlAllowed: process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS === "true",
+          urlGuard: input.sourceType === "url" ? "ssrf_private_network_block_v1" : "not_applicable"
+        }
+      },
       quality
     };
   }
@@ -1918,7 +1977,8 @@ export class DocumentsService {
       path,
       title: parsed.metadata.title,
       chunks: chunks.length,
-      changed
+      changed,
+      contentHash
     };
   }
 
@@ -1975,6 +2035,9 @@ async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
   title: string;
   markdown: string;
   parser: IngestedDocumentSource["parser"];
+  contentType: string;
+  byteLength: number;
+  finalUrl?: string;
 }> {
   if (input.sourceType === "url") {
     if (!input.url) {
@@ -1990,7 +2053,10 @@ async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
     return normalizeExtractedText({
       title: input.title ?? extractHtmlTitle(raw) ?? urlToTitle(input.url),
       text,
-      parser: contentType.includes("html") ? "html_text_v1" : "plain_text_v1"
+      parser: contentType.includes("html") ? "html_text_v1" : "plain_text_v1",
+      contentType: contentType || "application/octet-stream",
+      byteLength: Buffer.byteLength(raw, "utf8"),
+      finalUrl: response.url || input.url
     });
   }
 
@@ -2003,7 +2069,9 @@ async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
     return normalizeExtractedText({
       title: input.title ?? fileNameToTitle(input.fileName) ?? "PDF 문서",
       text: parsed.text,
-      parser: "pdf_text_v1"
+      parser: "pdf_text_v1",
+      contentType: "application/pdf",
+      byteLength: buffer.length
     });
   }
 
@@ -2014,7 +2082,9 @@ async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
     return normalizeExtractedText({
       title: input.title ?? fileNameToTitle(input.fileName) ?? "Word 문서",
       text: parsed.value,
-      parser: "docx_text_v1"
+      parser: "docx_text_v1",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      byteLength: buffer.length
     });
   }
 
@@ -2027,14 +2097,18 @@ async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
     return normalizeExtractedText({
       title: input.title ?? stripped.title ?? firstMarkdownHeading(stripped.body) ?? fileNameToTitle(input.fileName) ?? "Markdown 문서",
       text: stripped.body,
-      parser: "markdown_passthrough_v1"
+      parser: "markdown_passthrough_v1",
+      contentType: "text/markdown",
+      byteLength: Buffer.byteLength(input.content, "utf8")
     });
   }
 
   return normalizeExtractedText({
     title: input.title ?? fileNameToTitle(input.fileName) ?? "텍스트 문서",
     text: input.content,
-    parser: "plain_text_v1"
+    parser: "plain_text_v1",
+    contentType: "text/plain",
+    byteLength: Buffer.byteLength(input.content, "utf8")
   });
 }
 
@@ -2162,10 +2236,16 @@ function normalizeExtractedText(input: {
   title: string;
   text: string;
   parser: IngestedDocumentSource["parser"];
+  contentType: string;
+  byteLength: number;
+  finalUrl?: string;
 }): {
   title: string;
   markdown: string;
   parser: IngestedDocumentSource["parser"];
+  contentType: string;
+  byteLength: number;
+  finalUrl?: string;
 } {
   const markdown = input.text
     .replace(/\r\n/g, "\n")
@@ -2179,7 +2259,10 @@ function normalizeExtractedText(input: {
   return {
     title: input.title.trim() || "문서",
     markdown,
-    parser: input.parser
+    parser: input.parser,
+    contentType: input.contentType,
+    byteLength: input.byteLength,
+    finalUrl: input.finalUrl
   };
 }
 
