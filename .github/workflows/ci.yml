@@ -131,6 +131,9 @@ jobs:
       - name: Transformers embedding optional smoke
         run: pnpm transformers-embedding:smoke
 
+      - name: Transformers indexing optional smoke
+        run: pnpm transformers-indexing:smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

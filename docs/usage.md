@@ -332,6 +332,7 @@ pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
+pnpm transformers-indexing:smoke
 pnpm retrieval-robustness:smoke
 pnpm eval:coverage-smoke
 pnpm agreement:smoke
@@ -353,6 +354,7 @@ pnpm action-plan:smoke
 EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke
+RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke
 ```
 
 `pnpm eval`은 출처 적중, 1순위 출처 정확도, 사람 검토 정확도, 문서 일치율, 인용 정확도를 기준값과 비교합니다.

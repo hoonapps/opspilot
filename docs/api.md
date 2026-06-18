@@ -112,6 +112,7 @@ pnpm embedding-eval:smoke
 pnpm openai-embedding-path:smoke
 pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
+pnpm transformers-indexing:smoke
 EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 ```

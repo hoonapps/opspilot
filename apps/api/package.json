@@ -23,6 +23,7 @@
     "embedding-eval:smoke": "ts-node src/cli/embedding-comparison-smoke.ts",
     "embedding-hard:smoke": "ts-node src/cli/embedding-hard-smoke.ts",
     "transformers-embedding:smoke": "ts-node src/cli/transformers-embedding-smoke.ts",
+    "transformers-indexing:smoke": "ts-node src/cli/transformers-indexing-smoke.ts",
     "openai-embedding-path:smoke": "ts-node src/cli/openai-embedding-path-smoke.ts",
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
     "incident-plan:smoke": "ts-node src/cli/incident-plan-smoke.ts",

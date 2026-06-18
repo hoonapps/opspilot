@@ -42,6 +42,7 @@ pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
+pnpm transformers-indexing:smoke
 pnpm freshness:smoke
 ```
 
