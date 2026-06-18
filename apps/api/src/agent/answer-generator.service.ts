@@ -8,6 +8,8 @@ export class AnswerGeneratorService {
   async generate(input: {
     question: string;
     sources: SearchResult[];
+    confidence: number;
+    unsupportedConfidenceThreshold: number;
     needsHumanReview: boolean;
     sensitiveAction: boolean;
     checklist?: RunbookChecklist | null;
@@ -23,11 +25,13 @@ export class AnswerGeneratorService {
   private async generateWithProvider(input: {
     question: string;
     sources: SearchResult[];
+    confidence: number;
+    unsupportedConfidenceThreshold: number;
     needsHumanReview: boolean;
     sensitiveAction: boolean;
     checklist?: RunbookChecklist | null;
   }, chatProvider: ChatProvider): Promise<string> {
-    if (input.sources.length === 0) {
+    if (shouldRefuseUnsupportedAnswer(input)) {
       return this.generateLocal(input);
     }
     const context = input.sources
@@ -40,7 +44,7 @@ export class AnswerGeneratorService {
     const answer = await chatProvider.complete({
       temperature: 0.1,
       system:
-        "당신은 운영 지원 에이전트 OpsPilot입니다. 반드시 제공된 출처만 근거로 한국어로 답변하세요. 구조화된 런북 체크리스트가 있으면 번호 목록을 유지하세요. 출처가 부족하면 담당자 확인이 필요하다고 말하세요. 마지막에는 출처 제목을 포함한 짧은 근거 줄을 반드시 포함하세요.",
+        "당신은 운영 지원 에이전트 OpsPilot입니다. 반드시 제공된 출처만 근거로 한국어로 답변하세요. 출처에 없는 내용은 추론하거나 보완하지 말고 '문서에서 확인할 수 없습니다'라고 말하세요. 구조화된 런북 체크리스트가 있으면 번호 목록을 유지하세요. 출처가 부족하거나 신뢰도가 낮으면 담당자 확인이 필요하다고 말하세요. 마지막에는 출처 제목을 포함한 짧은 근거 줄을 반드시 포함하세요.",
       user: `질문: ${input.question}\n\n출처:\n${context}\n\n런북 체크리스트:\n${formatChecklist(input.checklist)}\n\n민감 작업 여부: ${input.sensitiveAction}\n사람 검토 필요 여부: ${input.needsHumanReview}`
     });
 
@@ -50,12 +54,18 @@ export class AnswerGeneratorService {
   private generateLocal(input: {
     question: string;
     sources: SearchResult[];
+    confidence: number;
+    unsupportedConfidenceThreshold: number;
     needsHumanReview: boolean;
     sensitiveAction: boolean;
     checklist?: RunbookChecklist | null;
   }): string {
     if (input.sources.length === 0) {
-      return "관련 운영 문서를 찾지 못했습니다. 담당자 확인이 필요합니다.";
+      return "문서에서 확인할 수 없습니다. 현재 접근 가능한 문서 안에서 관련 근거를 찾지 못했습니다. 담당자 확인이 필요합니다.";
+    }
+
+    if (input.confidence < input.unsupportedConfidenceThreshold) {
+      return `문서에서 확인할 수 없습니다. 검색 신뢰도 ${input.confidence.toFixed(3)}가 최소 근거 기준 ${input.unsupportedConfidenceThreshold.toFixed(3)}보다 낮아 답변을 생성하지 않습니다.\n\n담당자 확인이 필요합니다.`;
     }
 
     const top = input.sources[0];
@@ -71,6 +81,14 @@ export class AnswerGeneratorService {
 
     return `${evidence || summarizeForAnswer(top.content)}${input.checklist ? "" : `\n\n근거: ${top.title} (${top.path})`}${reviewLine}${approvalLine}`;
   }
+}
+
+function shouldRefuseUnsupportedAnswer(input: {
+  sources: SearchResult[];
+  confidence: number;
+  unsupportedConfidenceThreshold: number;
+}): boolean {
+  return input.sources.length === 0 || input.confidence < input.unsupportedConfidenceThreshold;
 }
 
 function formatChecklist(checklist?: RunbookChecklist | null): string {

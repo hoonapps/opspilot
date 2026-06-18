@@ -619,6 +619,7 @@ label {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -628,7 +629,8 @@ textarea {
   outline: none;
 }
 
-input {
+input,
+select {
   height: 42px;
   padding: 0 12px;
 }
@@ -641,6 +643,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
@@ -661,6 +664,7 @@ textarea:focus {
 .chip,
 .primaryButton,
 .secondaryButton,
+.dangerButton,
 .smallButton,
 .tracePanel button,
 .feedbackBar button,
@@ -698,7 +702,8 @@ textarea:focus {
 }
 
 .primaryButton,
-.secondaryButton {
+.secondaryButton,
+.dangerButton {
   border: 0;
   padding: 0 16px;
 }
@@ -714,6 +719,17 @@ textarea:focus {
   color: white;
 }
 
+.dangerButton {
+  min-height: 34px;
+  border: 1px solid rgba(190, 18, 60, 0.22);
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.dangerButton:hover {
+  background: #ffe4e6;
+}
+
 .smallButton {
   min-height: 34px;
   border: 1px solid var(--line);
@@ -721,6 +737,30 @@ textarea:focus {
   color: var(--ink);
   padding: 0 12px;
   font-size: 13px;
+}
+
+.languageToggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.languageToggle button {
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.languageToggle button.active {
+  background: #0f766e;
+  color: white;
 }
 
 .answerPanel {
@@ -2176,6 +2216,127 @@ pre {
   gap: 14px;
   padding: 16px;
   box-shadow: none;
+}
+
+.docStartPanel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #cfe4df;
+  border-top: 4px solid var(--accent);
+  border-radius: 8px;
+  background: #f7fcfa;
+  box-shadow: none;
+}
+
+.docStartHeader,
+.sourceFormFooter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.docStartHeader h2 {
+  margin: 0;
+}
+
+.docStartHeader p,
+.docFlow p,
+.sourceFormFooter span,
+.sourceHint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.docStartActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.docFlow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.docFlow article {
+  display: grid;
+  gap: 4px;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.docFlow span {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: #dff5ef;
+  color: #0b5f59;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.sourceIngestForm {
+  display: grid;
+  gap: 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fileDrop {
+  padding: 12px;
+  border: 1px dashed #b8c8d7;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.fileDrop input {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.fileDrop small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sourceResult {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sourceResult .metric {
+  min-height: 72px;
+  box-shadow: none;
+}
+
+.resetResult {
+  padding: 12px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #eefbf6;
+  color: #0b5f59;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .permissionMatrixPanel {
@@ -5830,7 +5991,10 @@ pre {
   .metrics,
   .workspace,
   .fieldGrid,
+  .formGrid,
   .quickGrid,
+  .docFlow,
+  .sourceResult,
   .inventoryStats,
   .incidentSummary,
   .incidentPlanGrid,
@@ -5958,6 +6122,16 @@ pre {
   .timelineItem,
   .feedbackBar {
     grid-template-columns: 1fr;
+  }
+
+  .docStartHeader,
+  .sourceFormFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .docStartActions {
+    justify-content: flex-start;
   }
 
   .queryPlanHeader code,

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import {
   Approval,
   ApiRequestObservabilityReport,
@@ -22,6 +22,7 @@ import {
   DocumentInventoryItem,
   DocumentIndexQualityReport,
   DocumentIndexSnapshotReport,
+  DocumentSourceType,
   DocumentRevalidationQueueReport,
   DocumentRevalidationRunHistoryReport,
   DocumentRevalidationRunReport,
@@ -64,6 +65,7 @@ import {
   getPermissionBoundaryMatrix,
   getQuestionAuditBundle,
   GithubSyncResponse,
+  ingestDocumentSource,
   IngestResponse,
   IndexingJobStatus,
   IndexingQueueHealth,
@@ -83,6 +85,8 @@ import {
   QuestionAuditBundle,
   profileRetrieval,
   previewRetrieval,
+  resetDocuments,
+  ResetDocumentsResponse,
   RetrievalProfileReport,
   RetrievalPreviewResponse,
   RetrievalPermissionDiffReport,
@@ -90,6 +94,7 @@ import {
   runDocumentRevalidation,
   simulateSlackMention,
   SlackSimulationTrace,
+  SourceIngestResponse,
   syncGithubDocuments,
   ToolCallAuditItem,
   updateApproval,
@@ -120,6 +125,94 @@ const quickQuestions = [
 ];
 
 type ConsoleScreen = "ask" | "retrieval" | "incident" | "documents" | "quality" | "review" | "audit" | "help";
+type Locale = "ko" | "en";
+
+const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: string; description: string }>> = {
+  ko: {
+    ask: {
+      label: "질문",
+      title: "운영 문서에 질문하기",
+      description: "권한이 허용한 문서만 근거로 답변하고, 문서에 없거나 신뢰도가 낮으면 모른다고 답합니다."
+    },
+    retrieval: {
+      label: "검색",
+      title: "RAG 검색 실험실",
+      description: "질문이 어떤 청크를 찾는지, 권한에 따라 어떤 문서가 차단되는지 확인합니다."
+    },
+    incident: {
+      label: "대응",
+      title: "장애 대응 플랜",
+      description: "운영 문서와 런북을 근거로 단계별 조치와 승인 경계를 생성합니다."
+    },
+    documents: {
+      label: "문서",
+      title: "지식 베이스 관리",
+      description: "URL, Markdown, txt, PDF, Word 문서를 넣고 색인한 뒤 바로 질문으로 검증합니다."
+    },
+    quality: {
+      label: "품질",
+      title: "품질 게이트와 운영 지표",
+      description: "평가, 문서 일치율, 커버리지, 배포 게이트를 확인합니다."
+    },
+    review: {
+      label: "승인",
+      title: "사람 승인과 피드백",
+      description: "민감 작업 승인, 답변 피드백, 도구 호출 상태를 확인합니다."
+    },
+    audit: {
+      label: "감사",
+      title: "감사 로그와 도구 레지스트리",
+      description: "질문, 도구 호출, 승인, 재검증 실행 이력을 추적합니다."
+    },
+    help: {
+      label: "사용법",
+      title: "OpsPilot 사용법",
+      description: "로컬 실행부터 문서 색인, RAG 검색, 답변 검증까지 따라 합니다."
+    }
+  },
+  en: {
+    ask: {
+      label: "Ask",
+      title: "Ask Your Knowledge Base",
+      description: "Answers use only authorized documents. If evidence is missing or weak, OpsPilot says it does not know."
+    },
+    retrieval: {
+      label: "Search",
+      title: "RAG Search Lab",
+      description: "Inspect retrieved chunks, ranking signals, and permission boundaries before answering."
+    },
+    incident: {
+      label: "Incident",
+      title: "Incident Response Plan",
+      description: "Generate response steps and approval boundaries from runbooks and operating docs."
+    },
+    documents: {
+      label: "Docs",
+      title: "Knowledge Base Manager",
+      description: "Add URL, Markdown, txt, PDF, and Word documents, index them, then test with a question."
+    },
+    quality: {
+      label: "Quality",
+      title: "Quality Gates and Ops Metrics",
+      description: "Review evaluations, document agreement, coverage, and release gates."
+    },
+    review: {
+      label: "Review",
+      title: "Human Review and Feedback",
+      description: "Handle sensitive approvals, answer feedback, and tool-call status."
+    },
+    audit: {
+      label: "Audit",
+      title: "Audit Log and Tool Registry",
+      description: "Trace questions, tool calls, approvals, and revalidation runs."
+    },
+    help: {
+      label: "Guide",
+      title: "How To Use OpsPilot",
+      description: "Follow local setup, document indexing, RAG search, and answer validation."
+    }
+  }
+};
 
 type IndexProof = {
   path: string;
@@ -151,64 +244,29 @@ type RetrievalVerification = {
   toolCalls: string[];
 };
 
-const screens: Array<{ id: ConsoleScreen; label: string; title: string; description: string }> = [
-  {
-    id: "ask",
-    label: "질문",
-    title: "운영 문서에 질문하기",
-    description: "근거 기반 답변, 출처, 실행 추적, 검토 사유, 피드백을 한 화면에서 확인합니다."
-  },
-  {
-    id: "retrieval",
-    label: "검색",
-    title: "RAG 검색 실험실",
-    description: "답변 생성 전에 후보 청크, 점수 분해, 권한 필터링 결과를 미리 확인합니다."
-  },
-  {
-    id: "incident",
-    label: "대응",
-    title: "장애 대응 플랜",
-    description: "운영 문서와 런북을 근거로 심각도, 단계별 조치, 승인 경계, 커뮤니케이션, 복구 검증을 생성합니다."
-  },
-  {
-    id: "documents",
-    label: "문서",
-    title: "지식 베이스 관리",
-    description: "Markdown 문서 등록, GitHub 문서 동기화, 신규 문서의 RAG 색인 반영을 검증합니다."
-  },
-  {
-    id: "quality",
-    label: "품질",
-    title: "품질 게이트와 운영 지표",
-    description: "평가 게이트, 문서 일치율, 색인 규모, 도구 호출, 승인, 피드백을 점검합니다."
-  },
-  {
-    id: "review",
-    label: "승인",
-    title: "사람 승인 대기열",
-    description: "에이전트가 자동 실행하지 않고 분리한 민감 작업을 승인 또는 반려합니다."
-  },
-  {
-    id: "audit",
-    label: "감사",
-    title: "도구 호출 감사",
-    description: "저장된 에이전트 도구 호출, 권한 감사 요약, 승인 위임 흐름을 확인합니다."
-  },
-  {
-    id: "help",
-    label: "사용법",
-    title: "OpsPilot 사용법",
-    description: "로컬 실행부터 문서 색인, RAG 검색, 답변 검증, 품질 게이트 확인까지 따라 합니다."
-  }
-];
+const screenOrder: ConsoleScreen[] = ["ask", "retrieval", "incident", "documents", "quality", "review", "audit", "help"];
 
 export default function Home() {
   const [activeScreen, setActiveScreen] = useState<ConsoleScreen>("ask");
+  const [locale, setLocale] = useState<Locale>("ko");
   const [question, setQuestion] = useState(quickQuestions[0]);
   const [teamSlugs, setTeamSlugs] = useState("payments");
   const [roles, setRoles] = useState("ops_admin");
   const [path, setPath] = useState("public/status-page-policy.md");
   const [markdown, setMarkdown] = useState(sampleMarkdown);
+  const [sourceType, setSourceType] = useState<DocumentSourceType>("text");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceTitle, setSourceTitle] = useState("내 테스트 문서");
+  const [sourcePath, setSourcePath] = useState("public/uploads/my-test-doc.md");
+  const [sourceText, setSourceText] = useState(
+    "MYDOC-42 테스트 문서는 사용자가 새 문서를 넣고 바로 질문했을 때 OpsPilot이 해당 문서를 근거로 답해야 함을 검증합니다."
+  );
+  const [sourceFileName, setSourceFileName] = useState("");
+  const [sourceFileBase64, setSourceFileBase64] = useState("");
+  const [sourceFileText, setSourceFileText] = useState("");
+  const [sourceVisibility, setSourceVisibility] = useState<"public" | "team" | "restricted">("public");
+  const [sourceTeamSlug, setSourceTeamSlug] = useState("payments");
+  const [sourceQuestion, setSourceQuestion] = useState("MYDOC-42 테스트 문서는 무엇을 검증해?");
   const [githubOwner, setGithubOwner] = useState("hoonapps");
   const [githubRepo, setGithubRepo] = useState("opspilot");
   const [githubBranch, setGithubBranch] = useState("main");
@@ -251,6 +309,8 @@ export default function Home() {
   const [incidentPlan, setIncidentPlan] = useState<IncidentResponsePlan | null>(null);
   const [questionAuditBundle, setQuestionAuditBundle] = useState<QuestionAuditBundle | null>(null);
   const [ingest, setIngest] = useState<IngestResponse | null>(null);
+  const [sourceIngest, setSourceIngest] = useState<SourceIngestResponse | null>(null);
+  const [resetResult, setResetResult] = useState<ResetDocumentsResponse | null>(null);
   const [githubSync, setGithubSync] = useState<GithubSyncResponse | null>(null);
   const [indexProof, setIndexProof] = useState<IndexProof | null>(null);
   const [indexQuality, setIndexQuality] = useState<DocumentIndexQualityReport | null>(null);
@@ -277,6 +337,9 @@ export default function Home() {
     | "retrieval-permission-diff"
     | "incident"
     | "ingest"
+    | "source-ingest"
+    | "reset-documents"
+    | "seed-documents"
     | "verify"
     | "quality-report"
     | "github"
@@ -307,7 +370,11 @@ export default function Home() {
   const confidencePercent = useMemo(() => Math.round((answer?.confidence ?? 0) * 100), [answer]);
   const documentAgreementPercent = useMemo(() => Math.round((answer?.documentAgreement.score ?? 0) * 100), [answer]);
   const visibleApprovals = useMemo(() => approvals.slice(0, 3), [approvals]);
-  const currentScreen = screens.find((screen) => screen.id === activeScreen) ?? screens[0];
+  const localizedScreens = useMemo(
+    () => screenOrder.map((id) => ({ id, ...screenCopy[locale][id] })),
+    [locale]
+  );
+  const currentScreen = localizedScreens.find((screen) => screen.id === activeScreen) ?? localizedScreens[0];
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
     [documents, selectedDocumentId]
@@ -559,6 +626,107 @@ export default function Home() {
       await verifyIndexedDocument(nextIngest, verificationQuery);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "색인 요청에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function submitDocumentSource(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading("source-ingest");
+    try {
+      const payload = buildSourcePayload();
+      const result = await ingestDocumentSource(payload);
+      setSourceIngest(result);
+      setIngest(result);
+      setQuestion(sourceQuestion);
+      const nextDocuments = await listDocuments();
+      setDocuments(nextDocuments);
+      setIndexQuality(await getDocumentIndexQuality());
+      setIndexSnapshot(await getDocumentIndexSnapshot());
+      const indexedDocument = nextDocuments.find((document) => document.path === result.path) ?? nextDocuments[0] ?? null;
+      setSelectedDocumentId(indexedDocument?.id ?? null);
+      if (indexedDocument) {
+        await Promise.all([loadDocumentVersions(indexedDocument.id), loadDocumentIndexExplain(indexedDocument.id)]);
+      }
+      await verifyIndexedDocument(result, sourceQuestion);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 소스 등록에 실패했습니다.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function buildSourcePayload() {
+    const base = {
+      sourceType,
+      path: sourcePath || undefined,
+      title: sourceTitle || undefined,
+      visibility: sourceVisibility,
+      teamSlug: sourceVisibility === "team" ? sourceTeamSlug || undefined : undefined,
+      fileName: sourceFileName || undefined
+    };
+
+    if (sourceType === "url") {
+      return { ...base, url: sourceUrl };
+    }
+    if (sourceType === "pdf" || sourceType === "docx") {
+      return { ...base, base64: sourceFileBase64 };
+    }
+    if (sourceType === "markdown") {
+      return { ...base, content: sourceFileText || markdown };
+    }
+    return { ...base, content: sourceFileText || sourceText };
+  }
+
+  async function handleSourceFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    setSourceFileName(file.name);
+    const nextType = inferSourceType(file.name);
+    setSourceType(nextType);
+    setSourcePath(`public/uploads/${safeUploadStem(file.name)}.md`);
+    setSourceTitle(file.name.replace(/\.[a-z0-9]+$/i, ""));
+
+    if (nextType === "markdown" || nextType === "text") {
+      const text = await file.text();
+      setSourceFileText(text);
+      setSourceFileBase64("");
+    } else {
+      setSourceFileText("");
+      setSourceFileBase64(await fileToBase64(file));
+    }
+  }
+
+  async function clearDocuments(reloadSeed: boolean) {
+    const confirmed = reloadSeed || window.confirm("현재 문서, 청크, 문서 버전을 초기화합니다. 계속할까요?");
+    if (!confirmed) {
+      return;
+    }
+    setError(null);
+    setLoading(reloadSeed ? "seed-documents" : "reset-documents");
+    try {
+      const result = await resetDocuments({ reloadSeed });
+      setResetResult(result);
+      setIngest(null);
+      setSourceIngest(null);
+      setIndexProof(null);
+      setDocumentVersionHistory(null);
+      setDocumentIndexExplain(null);
+      setDocumentImpact(null);
+      setDocumentRevalidationQueue(null);
+      setDocumentRevalidationRun(null);
+      setDocumentRevalidationRuns(null);
+      const nextDocuments = await listDocuments();
+      setDocuments(nextDocuments);
+      setIndexQuality(await getDocumentIndexQuality());
+      setIndexSnapshot(await getDocumentIndexSnapshot());
+      setSelectedDocumentId(nextDocuments[0]?.id ?? null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "문서 초기화에 실패했습니다.");
     } finally {
       setLoading(null);
     }
@@ -962,7 +1130,7 @@ export default function Home() {
           </div>
         </div>
 	        <nav className="railNav" aria-label="콘솔 화면">
-          {screens.map((screen) => (
+          {localizedScreens.map((screen) => (
             <button
               className={activeScreen === screen.id ? "active" : ""}
               key={screen.id}
@@ -975,9 +1143,13 @@ export default function Home() {
           ))}
         </nav>
 	        <div className="railCard">
-	          <span>권한 경계</span>
-	          <strong>검색 전 필터링</strong>
-	          <p>제한 문서 청크는 프롬프트 컨텍스트가 만들어지기 전에 제거됩니다.</p>
+	          <span>{locale === "ko" ? "권한 경계" : "Permission Boundary"}</span>
+	          <strong>{locale === "ko" ? "검색 전 필터링" : "Filtered Before Prompt"}</strong>
+	          <p>
+              {locale === "ko"
+                ? "제한 문서 청크는 프롬프트 컨텍스트가 만들어지기 전에 제거됩니다."
+                : "Restricted chunks are removed before prompt context is built."}
+            </p>
 	        </div>
       </aside>
 
@@ -989,21 +1161,29 @@ export default function Home() {
           <p className="headerLead">{currentScreen.description}</p>
         </div>
 	        <div className="topbarActions">
+            <div className="languageToggle" aria-label="Language">
+              <button className={locale === "ko" ? "active" : ""} onClick={() => setLocale("ko")} type="button">
+                한국어
+              </button>
+              <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")} type="button">
+                English
+              </button>
+            </div>
 	          <a className="topbarLink" href="/usage">
-	            전체 사용법
+	            {locale === "ko" ? "전체 사용법" : "Full Guide"}
 	          </a>
 	          <div className="statusGroup" aria-label="시스템 상태">
 	            <span className="statusDot" />
-	            <span>API 연결: localhost:3000</span>
+	            <span>{locale === "ko" ? "API 연결: localhost:3000" : "API: localhost:3000"}</span>
 	          </div>
 	        </div>
 	      </header>
 
 	      <section className="metrics" aria-label="검색 핵심 지표">
-	        <Metric label="검색" value="pgvector + 하이브리드" />
-	        <Metric label="권한" value="문서 접근 필터" />
-	        <Metric label="검토" value="사람 승인" />
-	        <Metric label="근거" value="출처 인용" />
+	        <Metric label={locale === "ko" ? "검색" : "Search"} value="pgvector + hybrid" />
+	        <Metric label={locale === "ko" ? "권한" : "Authz"} value={locale === "ko" ? "문서 접근 필터" : "document filter"} />
+	        <Metric label={locale === "ko" ? "검토" : "Review"} value={locale === "ko" ? "사람 승인" : "human approval"} />
+	        <Metric label={locale === "ko" ? "근거" : "Evidence"} value={locale === "ko" ? "출처 인용" : "source citation"} />
 	      </section>
 
       {error ? <div className="errorPanel">{error}</div> : null}
@@ -2981,6 +3161,161 @@ export default function Home() {
 
           {activeScreen === "documents" ? (
           <>
+          <section className="docStartPanel" aria-label={locale === "ko" ? "문서 빠른 시작" : "Document quick start"}>
+            <div className="docStartHeader">
+              <div>
+                <p className="eyebrow">{locale === "ko" ? "빠른 시작" : "Quick Start"}</p>
+                <h2>{locale === "ko" ? "문서 넣고 바로 질문하기" : "Add a document, then ask it"}</h2>
+                <p>
+                  {locale === "ko"
+                    ? "URL, md, txt, PDF, Word를 넣으면 텍스트를 추출해 저장하고 기존 RAG 색인으로 연결합니다."
+                    : "Add a URL, md, txt, PDF, or Word file. OpsPilot extracts text, stores it, indexes it, and answers from it."}
+                </p>
+              </div>
+              <div className="docStartActions">
+                <button className="smallButton" disabled={loading === "seed-documents"} onClick={() => clearDocuments(true)} type="button">
+                  {loading === "seed-documents" ? (locale === "ko" ? "복구 중..." : "Loading...") : locale === "ko" ? "Seed 다시 넣기" : "Reload Seed"}
+                </button>
+                <button className="dangerButton" disabled={loading === "reset-documents"} onClick={() => clearDocuments(false)} type="button">
+                  {loading === "reset-documents" ? (locale === "ko" ? "초기화 중..." : "Resetting...") : locale === "ko" ? "문서 초기화" : "Reset Docs"}
+                </button>
+              </div>
+            </div>
+
+            <div className="docFlow">
+              <article>
+                <span>1</span>
+                <strong>{locale === "ko" ? "문서 소스 선택" : "Choose source"}</strong>
+                <p>{locale === "ko" ? "직접 입력하거나 파일을 선택하세요." : "Paste content or choose a file."}</p>
+              </article>
+              <article>
+                <span>2</span>
+                <strong>{locale === "ko" ? "저장 + 색인" : "Store + index"}</strong>
+                <p>{locale === "ko" ? "청킹, 임베딩, 출처 저장을 실행합니다." : "Runs chunking, embeddings, and source storage."}</p>
+              </article>
+              <article>
+                <span>3</span>
+                <strong>{locale === "ko" ? "질문으로 검증" : "Verify by asking"}</strong>
+                <p>{locale === "ko" ? "문서에 없으면 모른다고 답합니다." : "If evidence is missing, it says it does not know."}</p>
+              </article>
+            </div>
+
+            <form className="sourceIngestForm" onSubmit={submitDocumentSource}>
+              <div className="formGrid">
+                <label>
+                  {locale === "ko" ? "소스 타입" : "Source type"}
+                  <select value={sourceType} onChange={(event) => setSourceType(event.target.value as DocumentSourceType)}>
+                    <option value="text">txt / paste</option>
+                    <option value="markdown">Markdown</option>
+                    <option value="url">URL</option>
+                    <option value="pdf">PDF</option>
+                    <option value="docx">Word docx</option>
+                  </select>
+                </label>
+                <label>
+                  {locale === "ko" ? "문서 제목" : "Title"}
+                  <input value={sourceTitle} onChange={(event) => setSourceTitle(event.target.value)} />
+                </label>
+                <label>
+                  {locale === "ko" ? "저장 경로" : "Storage path"}
+                  <input value={sourcePath} onChange={(event) => setSourcePath(event.target.value)} placeholder="public/uploads/my-doc.md" />
+                </label>
+                <label>
+                  {locale === "ko" ? "권한" : "Visibility"}
+                  <select value={sourceVisibility} onChange={(event) => setSourceVisibility(event.target.value as "public" | "team" | "restricted")}>
+                    <option value="public">{locale === "ko" ? "공개" : "Public"}</option>
+                    <option value="team">{locale === "ko" ? "팀" : "Team"}</option>
+                    <option value="restricted">{locale === "ko" ? "제한" : "Restricted"}</option>
+                  </select>
+                </label>
+                {sourceVisibility === "team" ? (
+                  <label>
+                    {locale === "ko" ? "팀 슬러그" : "Team slug"}
+                    <input value={sourceTeamSlug} onChange={(event) => setSourceTeamSlug(event.target.value)} />
+                  </label>
+                ) : null}
+              </div>
+
+              <label className="fileDrop">
+                <span>{locale === "ko" ? "파일 선택" : "Choose file"}</span>
+                <input accept=".md,.markdown,.txt,.pdf,.docx" onChange={handleSourceFileChange} type="file" />
+                <small>
+                  {sourceFileName
+                    ? `${sourceFileName} · ${sourceType}`
+                    : locale === "ko"
+                      ? "파일을 선택하면 타입과 경로를 자동으로 맞춥니다."
+                      : "Choosing a file auto-fills type and path."}
+                </small>
+              </label>
+
+              {sourceType === "url" ? (
+                <label>
+                  URL
+                  <input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://example.com/docs/runbook" />
+                </label>
+              ) : sourceType === "pdf" || sourceType === "docx" ? (
+                <p className="sourceHint">
+                  {locale === "ko"
+                    ? "PDF/Word는 파일 선택 후 등록하세요. 서버에서 텍스트를 추출한 뒤 색인합니다."
+                    : "Choose a PDF/Word file first. The API extracts text and indexes it."}
+                </p>
+              ) : (
+                <label>
+                  {locale === "ko" ? "문서 내용" : "Document content"}
+                  <textarea
+                    value={sourceFileText || (sourceType === "markdown" ? markdown : sourceText)}
+                    onChange={(event) => {
+                      setSourceFileText("");
+                      if (sourceType === "markdown") {
+                        setMarkdown(event.target.value);
+                      } else {
+                        setSourceText(event.target.value);
+                      }
+                    }}
+                    rows={6}
+                  />
+                </label>
+              )}
+
+              <label>
+                {locale === "ko" ? "테스트 질문" : "Test question"}
+                <input value={sourceQuestion} onChange={(event) => setSourceQuestion(event.target.value)} />
+              </label>
+
+              <div className="sourceFormFooter">
+                <button className="primaryButton" disabled={loading === "source-ingest"} type="submit">
+                  {loading === "source-ingest" ? (locale === "ko" ? "등록/검증 중..." : "Indexing...") : locale === "ko" ? "문서 등록하고 질문 테스트" : "Index and Test"}
+                </button>
+                <span>
+                  {locale === "ko"
+                    ? "답변은 저장된 문서 근거가 있을 때만 생성합니다."
+                    : "Answers are generated only when stored evidence supports them."}
+                </span>
+              </div>
+            </form>
+
+            {sourceIngest ? (
+              <div className="sourceResult">
+                <Metric label={locale === "ko" ? "등록 문서" : "Document"} value={sourceIngest.title} />
+                <Metric label={locale === "ko" ? "파서" : "Parser"} value={sourceIngest.parser} />
+                <Metric label={locale === "ko" ? "청크" : "Chunks"} value={`${sourceIngest.chunks}`} />
+                <Metric label={locale === "ko" ? "추출 문자" : "Extracted"} value={`${sourceIngest.extractedCharacters}`} />
+              </div>
+            ) : null}
+
+            {resetResult ? (
+              <div className="resetResult">
+                {locale === "ko"
+                  ? `초기화 완료: 문서 ${resetResult.deleted.documents}개, 청크 ${resetResult.deleted.chunks}개 삭제${
+                      resetResult.reloadedSeed ? `, seed ${resetResult.seed?.documents.length ?? 0}개 복구` : ""
+                    }`
+                  : `Reset complete: deleted ${resetResult.deleted.documents} docs and ${resetResult.deleted.chunks} chunks${
+                      resetResult.reloadedSeed ? `, reloaded ${resetResult.seed?.documents.length ?? 0} seed docs` : ""
+                    }`}
+              </div>
+            ) : null}
+          </section>
+
           <section className="knowledgePanel">
             <div className="sectionHeader compact">
               <div>
@@ -4940,4 +5275,42 @@ function formatPromptInjectionRisk(document: DocumentInventoryItem): string {
   }
   const count = document.metadata.security?.promptInjectionPatternCount ?? document.metadata.security?.promptInjectionPatterns?.length ?? 0;
   return `격리 ${count}개`;
+}
+
+function inferSourceType(fileName: string): DocumentSourceType {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
+    return "markdown";
+  }
+  if (lower.endsWith(".pdf")) {
+    return "pdf";
+  }
+  if (lower.endsWith(".docx")) {
+    return "docx";
+  }
+  return "text";
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result ?? "");
+      resolve(value.includes(",") ? value.split(",")[1] : value);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("파일을 읽지 못했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function safeUploadStem(fileName: string): string {
+  const stem = fileName.replace(/\.[a-z0-9]+$/i, "");
+  return (
+    stem
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9가-힣]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 56) || `document-${Date.now()}`
+  );
 }

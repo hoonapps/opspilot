@@ -28,6 +28,8 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/documents/{id}/impact", method: "get", operationId: "DocumentsController_getDocumentImpact" },
   { path: "/documents/{id}/index-explain", method: "get", operationId: "DocumentsController_getDocumentIndexExplain" },
   { path: "/documents/markdown", method: "post", operationId: "DocumentsController_upsertMarkdownDocument" },
+  { path: "/documents/source", method: "post", operationId: "DocumentsController_ingestDocumentSource" },
+  { path: "/documents/reset", method: "post", operationId: "DocumentsController_resetDocuments" },
   { path: "/documents/github/sync", method: "post", operationId: "DocumentsController_syncGithubDocuments" },
   { path: "/documents/indexing-jobs", method: "get" },
   { path: "/documents/indexing-jobs/markdown", method: "post" },
@@ -69,6 +71,8 @@ const REQUIRED_SCHEMAS = [
   "RetrievalPermissionPersonaDto",
   "IncidentPlanDto",
   "RunDocumentRevalidationDto",
+  "IngestDocumentSourceDto",
+  "ResetDocumentsDto",
   "UpsertMarkdownDocumentDto",
   "SyncGithubDocumentsDto",
   "UpdateApprovalDto",
@@ -97,6 +101,8 @@ async function main() {
     const retrievalPermissionDiffSchema = getRequestSchemaRef(document, "/retrieval/permission-diff", "post");
     const incidentPlanSchema = getRequestSchemaRef(document, "/incidents/plan", "post");
     const markdownRequestSchema = getRequestSchemaRef(document, "/documents/markdown", "post");
+    const sourceRequestSchema = getRequestSchemaRef(document, "/documents/source", "post");
+    const resetRequestSchema = getRequestSchemaRef(document, "/documents/reset", "post");
     const updateApprovalSchema = getRequestSchemaRef(document, "/approvals/{id}", "patch");
 
     const ok =
@@ -110,6 +116,8 @@ async function main() {
       retrievalPermissionDiffSchema === "#/components/schemas/RetrievalPermissionDiffDto" &&
       incidentPlanSchema === "#/components/schemas/IncidentPlanDto" &&
       markdownRequestSchema === "#/components/schemas/UpsertMarkdownDocumentDto" &&
+      sourceRequestSchema === "#/components/schemas/IngestDocumentSourceDto" &&
+      resetRequestSchema === "#/components/schemas/ResetDocumentsDto" &&
       updateApprovalSchema === "#/components/schemas/UpdateApprovalDto";
 
     const report = {
@@ -128,6 +136,8 @@ async function main() {
         retrievalPermissionDiff: retrievalPermissionDiffSchema,
         incidentPlan: incidentPlanSchema,
         markdown: markdownRequestSchema,
+        source: sourceRequestSchema,
+        reset: resetRequestSchema,
         updateApproval: updateApprovalSchema
       },
       headers: {

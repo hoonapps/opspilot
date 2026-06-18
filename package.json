@@ -21,6 +21,7 @@
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",
+    "source-ingestion:smoke": "pnpm --filter @opspilot/api source-ingestion:smoke",
     "indexing:smoke": "pnpm --filter @opspilot/api indexing:smoke",
     "retrieval-profile:smoke": "pnpm --filter @opspilot/api retrieval-profile:smoke",
     "retrieval-robustness:smoke": "pnpm --filter @opspilot/api retrieval-robustness:smoke",

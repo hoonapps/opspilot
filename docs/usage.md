@@ -126,9 +126,19 @@ CLI로 같은 검증을 하려면:
 pnpm index-explain:smoke
 pnpm index-snapshot:smoke
 pnpm index-quality:smoke
+pnpm source-ingestion:smoke
 pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 ```
+
+URL, txt, PDF, Word 문서를 직접 테스트하려면 `문서` 화면 상단의 `문서 넣고 바로 질문하기` 영역을 사용합니다.
+
+1. 소스 타입을 고릅니다.
+2. URL을 입력하거나 `.md`, `.txt`, `.pdf`, `.docx` 파일을 선택합니다.
+3. 테스트 질문을 입력합니다.
+4. `문서 등록하고 질문 테스트`를 누릅니다.
+
+OpsPilot은 입력을 표준 Markdown으로 변환한 뒤 기존 청킹/임베딩/RAG 파이프라인에 연결합니다. 접근 가능한 문서가 없거나 검색 신뢰도가 최소 근거 기준보다 낮으면 `문서에서 확인할 수 없습니다`라고 답하고 사람 검토 대상으로 남깁니다.
 
 ## 6. 청킹과 검색 결과 확인
 
@@ -387,6 +397,7 @@ pnpm test
 pnpm eval
 pnpm eval:regression-smoke
 pnpm indexing:smoke
+pnpm source-ingestion:smoke
 pnpm queue:smoke
 pnpm github:smoke
 pnpm index-snapshot:smoke

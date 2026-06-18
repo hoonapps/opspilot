@@ -70,6 +70,26 @@ export class ElasticsearchService {
     }
   }
 
+  async clearAllChunks(): Promise<void> {
+    if (!this.isEnabled()) {
+      return;
+    }
+
+    try {
+      const client = await this.getClient();
+      await client.deleteByQuery({
+        index: this.indexName,
+        refresh: true,
+        conflicts: "proceed",
+        query: {
+          match_all: {}
+        }
+      });
+    } catch (error) {
+      this.logger.warn(`Skipping Elasticsearch clear: ${formatError(error)}`);
+    }
+  }
+
   async search(question: string, context: RequestContext, limit: number): Promise<LexicalHit[]> {
     if (!this.isEnabled()) {
       return [];

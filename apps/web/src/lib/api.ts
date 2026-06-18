@@ -71,6 +71,28 @@ export type IngestResponse = {
   changed: boolean;
 };
 
+export type DocumentSourceType = "markdown" | "text" | "url" | "pdf" | "docx";
+
+export type SourceIngestResponse = IngestResponse & {
+  sourceType: DocumentSourceType;
+  extractedCharacters: number;
+  parser: "markdown_passthrough_v1" | "plain_text_v1" | "html_text_v1" | "pdf_text_v1" | "docx_text_v1";
+};
+
+export type ResetDocumentsResponse = {
+  deleted: {
+    documents: number;
+    chunks: number;
+    versions: number;
+    answerSources: number;
+    revalidationRuns: number;
+  };
+  reloadedSeed: boolean;
+  seed?: {
+    documents: IngestResponse[];
+  };
+};
+
 export type GithubSyncResponse = {
   source: string;
   owner: string;
@@ -2087,6 +2109,44 @@ export async function upsertMarkdown(input: { path: string; markdown: string }):
   }
 
   return response.json() as Promise<IngestResponse>;
+}
+
+export async function ingestDocumentSource(input: {
+  sourceType: DocumentSourceType;
+  path?: string;
+  title?: string;
+  visibility?: "public" | "team" | "restricted";
+  teamSlug?: string;
+  url?: string;
+  fileName?: string;
+  content?: string;
+  base64?: string;
+}): Promise<SourceIngestResponse> {
+  const response = await fetch(`${API_BASE_URL}/documents/source`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<SourceIngestResponse>;
+}
+
+export async function resetDocuments(input: { reloadSeed?: boolean } = {}): Promise<ResetDocumentsResponse> {
+  const response = await fetch(`${API_BASE_URL}/documents/reset`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<ResetDocumentsResponse>;
 }
 
 export async function syncGithubDocuments(input: {

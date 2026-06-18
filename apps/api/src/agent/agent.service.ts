@@ -349,6 +349,7 @@ export class AgentService {
     }
     const confidence = calculateConfidence(sources);
     const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
+    const unsupportedConfidenceThreshold = Number(process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD ?? 0.05);
     const reviewReasons = buildReviewReasons({
       sourceCount: sources.length,
       confidence,
@@ -356,7 +357,15 @@ export class AgentService {
       sensitiveAction
     });
     const needsHumanReview = reviewReasons.length > 0;
-    const answer = await this.answerGenerator.generate({ question, sources, needsHumanReview, sensitiveAction, checklist });
+    const answer = await this.answerGenerator.generate({
+      question,
+      sources,
+      confidence,
+      unsupportedConfidenceThreshold,
+      needsHumanReview,
+      sensitiveAction,
+      checklist
+    });
     const documentAgreement = calculateDocumentAgreement(
       answer,
       sources.map((source) => source.content)

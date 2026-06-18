@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
@@ -8,6 +8,7 @@ import { EmbeddingService } from "../agent/embedding.service";
 import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 import { ChunkerService } from "./chunker.service";
+import { DocumentSourceType, IngestDocumentSourceDto } from "./dto/ingest-document-source.dto";
 import { RunDocumentRevalidationDto } from "./dto/run-document-revalidation.dto";
 import { parseMarkdownDocument } from "./frontmatter";
 import { RedactionService } from "./redaction.service";
@@ -17,6 +18,28 @@ type IngestedDocument = {
   title: string;
   chunks: number;
   changed: boolean;
+};
+
+export type IngestedDocumentSource = {
+  sourceType: DocumentSourceType;
+  path: string;
+  title: string;
+  chunks: number;
+  changed: boolean;
+  extractedCharacters: number;
+  parser: "markdown_passthrough_v1" | "plain_text_v1" | "html_text_v1" | "pdf_text_v1" | "docx_text_v1";
+};
+
+export type ResetDocumentsResult = {
+  deleted: {
+    documents: number;
+    chunks: number;
+    versions: number;
+    answerSources: number;
+    revalidationRuns: number;
+  };
+  reloadedSeed: boolean;
+  seed?: { documents: IngestedDocument[] };
 };
 
 type DocumentInventoryRow = {
@@ -581,6 +604,76 @@ export class DocumentsService {
     }
 
     return { documents };
+  }
+
+  async ingestSource(input: IngestDocumentSourceDto): Promise<IngestedDocumentSource> {
+    const normalized = await normalizeSourceInput(input);
+    const markdown = buildMarkdownDocument({
+      title: normalized.title,
+      visibility: input.visibility ?? "public",
+      teamSlug: input.teamSlug,
+      sourceType: input.sourceType,
+      sourceUrl: input.url,
+      fileName: input.fileName,
+      body: normalized.markdown
+    });
+    const path = input.path ?? buildSourcePath(input.sourceType, normalized.title, input.fileName, input.url);
+    const ingested = await this.ingestMarkdown(path, markdown);
+
+    return {
+      sourceType: input.sourceType,
+      path: ingested.path,
+      title: ingested.title,
+      chunks: ingested.chunks,
+      changed: ingested.changed,
+      extractedCharacters: normalized.markdown.length,
+      parser: normalized.parser
+    };
+  }
+
+  async resetDocuments(reloadSeed = false): Promise<ResetDocumentsResult> {
+    const connection = this.orm.em.fork().getConnection();
+    const [counts] = (await connection.execute<
+      Array<{
+        documents: number | string;
+        chunks: number | string;
+        versions: number | string;
+        answer_sources: number | string;
+        revalidation_runs: number | string;
+      }>
+    >(
+      `
+        select
+          (select count(*) from documents)::int as documents,
+          (select count(*) from document_chunks)::int as chunks,
+          (select count(*) from document_versions)::int as versions,
+          (select count(*) from answer_sources)::int as answer_sources,
+          (select count(*) from document_revalidation_runs)::int as revalidation_runs;
+      `
+    )) as Array<{
+      documents: number | string;
+      chunks: number | string;
+      versions: number | string;
+      answer_sources: number | string;
+      revalidation_runs: number | string;
+    }>;
+
+    await connection.execute("delete from documents;");
+    await this.elasticsearch.clearAllChunks();
+
+    const seed = reloadSeed ? await this.ingestSeedDocuments() : undefined;
+
+    return {
+      deleted: {
+        documents: Number(counts?.documents ?? 0),
+        chunks: Number(counts?.chunks ?? 0),
+        versions: Number(counts?.versions ?? 0),
+        answerSources: Number(counts?.answer_sources ?? 0),
+        revalidationRuns: Number(counts?.revalidation_runs ?? 0)
+      },
+      reloadedSeed: reloadSeed,
+      seed
+    };
   }
 
   async listInventory(limit = 50): Promise<{ documents: DocumentInventoryItem[] }> {
@@ -1787,6 +1880,213 @@ export class DocumentsService {
       changed
     };
   }
+}
+
+async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
+  title: string;
+  markdown: string;
+  parser: IngestedDocumentSource["parser"];
+}> {
+  if (input.sourceType === "url") {
+    if (!input.url) {
+      throw new BadRequestException("url source requires url");
+    }
+    const response = await fetch(input.url, { redirect: "follow" });
+    if (!response.ok) {
+      throw new BadRequestException(`URL fetch failed: ${response.status}`);
+    }
+    const raw = await readBoundedResponse(response, 2_000_000);
+    const contentType = response.headers.get("content-type") ?? "";
+    const text = contentType.includes("html") ? htmlToText(raw) : raw;
+    return normalizeExtractedText({
+      title: input.title ?? extractHtmlTitle(raw) ?? urlToTitle(input.url),
+      text,
+      parser: contentType.includes("html") ? "html_text_v1" : "plain_text_v1"
+    });
+  }
+
+  if (input.sourceType === "pdf") {
+    const buffer = decodeBase64File(input.base64, "pdf");
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
+    const parsed = await parser.getText();
+    await parser.destroy();
+    return normalizeExtractedText({
+      title: input.title ?? fileNameToTitle(input.fileName) ?? "PDF 문서",
+      text: parsed.text,
+      parser: "pdf_text_v1"
+    });
+  }
+
+  if (input.sourceType === "docx") {
+    const buffer = decodeBase64File(input.base64, "docx");
+    const mammoth = await import("mammoth");
+    const parsed = await mammoth.extractRawText({ buffer });
+    return normalizeExtractedText({
+      title: input.title ?? fileNameToTitle(input.fileName) ?? "Word 문서",
+      text: parsed.value,
+      parser: "docx_text_v1"
+    });
+  }
+
+  if (!input.content) {
+    throw new BadRequestException(`${input.sourceType} source requires content`);
+  }
+
+  if (input.sourceType === "markdown") {
+    const stripped = stripFrontmatter(input.content);
+    return normalizeExtractedText({
+      title: input.title ?? stripped.title ?? firstMarkdownHeading(stripped.body) ?? fileNameToTitle(input.fileName) ?? "Markdown 문서",
+      text: stripped.body,
+      parser: "markdown_passthrough_v1"
+    });
+  }
+
+  return normalizeExtractedText({
+    title: input.title ?? fileNameToTitle(input.fileName) ?? "텍스트 문서",
+    text: input.content,
+    parser: "plain_text_v1"
+  });
+}
+
+async function readBoundedResponse(response: Response, maxBytes: number): Promise<string> {
+  const text = await response.text();
+  if (Buffer.byteLength(text, "utf8") > maxBytes) {
+    throw new BadRequestException(`URL content is too large. Max ${maxBytes} bytes.`);
+  }
+  return text;
+}
+
+function normalizeExtractedText(input: {
+  title: string;
+  text: string;
+  parser: IngestedDocumentSource["parser"];
+}): {
+  title: string;
+  markdown: string;
+  parser: IngestedDocumentSource["parser"];
+} {
+  const markdown = input.text
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (markdown.length < 10) {
+    throw new BadRequestException("문서에서 색인할 수 있는 텍스트를 충분히 추출하지 못했습니다.");
+  }
+
+  return {
+    title: input.title.trim() || "문서",
+    markdown,
+    parser: input.parser
+  };
+}
+
+function buildMarkdownDocument(input: {
+  title: string;
+  visibility: "public" | "team" | "restricted";
+  teamSlug?: string;
+  sourceType: DocumentSourceType;
+  sourceUrl?: string;
+  fileName?: string;
+  body: string;
+}): string {
+  const frontmatter = [
+    "---",
+    `title: "${escapeFrontmatterValue(input.title)}"`,
+    `visibility: ${input.visibility}`,
+    input.teamSlug ? `teamSlug: ${input.teamSlug}` : null,
+    `tags: ingestion,${input.sourceType}`,
+    `sourceType: ${input.sourceType}`,
+    input.sourceUrl ? `sourceUrl: "${escapeFrontmatterValue(input.sourceUrl)}"` : null,
+    input.fileName ? `fileName: "${escapeFrontmatterValue(input.fileName)}"` : null,
+    "---"
+  ].filter(Boolean);
+
+  const body = input.body.startsWith("#") ? input.body : `# ${input.title}\n\n${input.body}`;
+  return `${frontmatter.join("\n")}\n\n${body}`;
+}
+
+function decodeBase64File(base64: string | undefined, sourceType: "pdf" | "docx"): Buffer {
+  if (!base64) {
+    throw new BadRequestException(`${sourceType} source requires base64`);
+  }
+  const normalized = base64.replace(/^data:[^;]+;base64,/, "");
+  const buffer = Buffer.from(normalized, "base64");
+  if (buffer.length === 0) {
+    throw new BadRequestException(`${sourceType} file is empty`);
+  }
+  if (buffer.length > 10_000_000) {
+    throw new BadRequestException(`${sourceType} file is too large. Max 10MB.`);
+  }
+  return buffer;
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<\/(h[1-6]|p|li|div|section|article|br)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function extractHtmlTitle(html: string): string | null {
+  return html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim() || null;
+}
+
+function stripFrontmatter(markdown: string): { title?: string; body: string } {
+  const match = markdown.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) {
+    return { body: markdown.trim() };
+  }
+  const title = match[1].match(/^title:\s*["']?(.+?)["']?\s*$/m)?.[1];
+  return { title, body: match[2].trim() };
+}
+
+function firstMarkdownHeading(markdown: string): string | null {
+  return markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() || null;
+}
+
+function buildSourcePath(sourceType: DocumentSourceType, title: string, fileName?: string, url?: string): string {
+  const baseName = fileNameToTitle(fileName) ?? (url ? urlToTitle(url) : title);
+  return `public/uploads/${slugify(baseName)}-${sourceType}.md`;
+}
+
+function fileNameToTitle(fileName?: string): string | null {
+  if (!fileName) {
+    return null;
+  }
+  const stem = fileName.split(/[\\/]/).pop()?.replace(/\.[a-z0-9]+$/i, "").trim();
+  return stem || null;
+}
+
+function urlToTitle(url: string): string {
+  const parsed = new URL(url);
+  const lastPath = parsed.pathname.split("/").filter(Boolean).pop();
+  return lastPath?.replace(/[-_]+/g, " ") || parsed.hostname;
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9가-힣]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug || `document-${Date.now()}`;
+}
+
+function escapeFrontmatterValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
 }
 
 function buildDocumentCheck(

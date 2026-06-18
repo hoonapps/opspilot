@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, NotFoundException, Param, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { parseRequestContext } from "../shared/request-context";
+import { IngestDocumentSourceDto, ResetDocumentsDto } from "./dto/ingest-document-source.dto";
 import { RunDocumentRevalidationDto } from "./dto/run-document-revalidation.dto";
 import { SyncGithubDocumentsDto } from "./dto/sync-github-documents.dto";
 import { UpsertMarkdownDocumentDto } from "./dto/upsert-markdown-document.dto";
@@ -86,6 +87,16 @@ export class DocumentsController {
   @Post("markdown")
   upsertMarkdownDocument(@Body() body: UpsertMarkdownDocumentDto) {
     return this.documentsService.ingestMarkdown(body.path, body.markdown);
+  }
+
+  @Post("source")
+  ingestDocumentSource(@Body() body: IngestDocumentSourceDto) {
+    return this.documentsService.ingestSource(body);
+  }
+
+  @Post("reset")
+  resetDocuments(@Body() body: ResetDocumentsDto) {
+    return this.documentsService.resetDocuments(body.reloadSeed === true);
   }
 
   @Post("github/sync")

@@ -116,6 +116,9 @@ jobs:
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
+      - name: Source ingestion smoke
+        run: pnpm source-ingestion:smoke
+
       - name: Retrieval profile smoke
         run: pnpm retrieval-profile:smoke
 

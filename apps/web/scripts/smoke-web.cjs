@@ -59,6 +59,12 @@ async function main() {
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "English" }).click();
+    await page.getByRole("heading", { name: "Ask Your Knowledge Base" }).waitFor({ timeout: 10000 });
+    await page.getByText("If evidence is missing or weak", { exact: false }).waitFor({ timeout: 10000 });
+    const languageToggleVisible = await page.getByRole("button", { name: "한국어" }).isVisible();
+    await page.getByRole("button", { name: "한국어" }).click();
+    await page.getByRole("heading", { name: "운영 문서에 질문하기" }).waitFor({ timeout: 10000 });
 
     await page.locator(".railNav").getByRole("button", { name: /^사용법 / }).click();
     await page.getByRole("heading", { name: "OpsPilot 사용법" }).waitFor({ timeout: 10000 });
@@ -126,6 +132,14 @@ async function main() {
 
     await page.locator(".railNav").getByRole("button", { name: /^문서 / }).click();
     await page.getByRole("heading", { name: "지식 베이스 관리" }).waitFor({ timeout: 10000 });
+    await page.locator(".docStartPanel").getByText("문서 넣고 바로 질문하기", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".docStartPanel").getByText("URL, md, txt, PDF, Word", { exact: false }).waitFor({ timeout: 10000 });
+    await page.locator(".docStartPanel").getByRole("button", { name: "문서 등록하고 질문 테스트" }).waitFor({ timeout: 10000 });
+    await page.locator(".docStartPanel").getByRole("button", { name: "문서 초기화" }).waitFor({ timeout: 10000 });
+    const docStartVisible =
+      (await page.locator(".docStartPanel").getByText("문서 넣고 바로 질문하기", { exact: true }).isVisible()) &&
+      (await page.locator(".docStartPanel").getByRole("button", { name: "문서 등록하고 질문 테스트" }).isVisible()) &&
+      (await page.locator(".docStartPanel").getByRole("button", { name: "문서 초기화" }).isVisible());
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).waitFor({ timeout: 10000 });
     const githubSyncFormVisible = await page.getByRole("button", { name: "GitHub 문서 동기화" }).isVisible();
     const indexInventoryVisible = await page.getByText("색인 현황과 청크", { exact: true }).isVisible();
@@ -166,8 +180,9 @@ async function main() {
     await page.screenshot({ path: indexQualityScreenshotPath, fullPage: false });
     await page.locator(".proofDetails").getByText("public/status-page-policy.md", { exact: false }).first().waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("버전 이력", { exact: true }).waitFor({ timeout: 10000 });
-    const currentMarkdown = await page.getByLabel("Markdown").inputValue();
-    await page.getByLabel("Markdown").fill(`${currentMarkdown}\n\nWEB-DIFF-42: 문서 버전 변경 차이 검증용 라인입니다.`);
+    const markdownEditor = page.getByRole("textbox", { name: "Markdown" });
+    const currentMarkdown = await markdownEditor.inputValue();
+    await markdownEditor.fill(`${currentMarkdown}\n\nWEB-DIFF-42: 문서 버전 변경 차이 검증용 라인입니다.`);
     await page.getByRole("button", { name: "등록하고 RAG 검증" }).click();
     await page.locator(".versionPanel").getByText("line_set_diff_v1", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".versionPanel").getByText("WEB-DIFF-42", { exact: false }).first().waitFor({ timeout: 10000 });
@@ -686,6 +701,8 @@ async function main() {
         portfolioReadinessVisible &&
         errorBudgetVisible &&
         observabilityVisible &&
+        languageToggleVisible &&
+        docStartVisible &&
         usageVisible &&
         usagePageVisible,
       baseUrl,
@@ -771,6 +788,8 @@ async function main() {
         portfolioReadinessVisible,
         errorBudgetVisible,
         observabilityVisible,
+        languageToggleVisible,
+        docStartVisible,
         usageVisible,
         usagePageVisible
       }

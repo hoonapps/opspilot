@@ -26,7 +26,7 @@ pnpm authn:smoke
 
 ## 시크릿 마스킹
 
-Markdown 수집은 저장과 색인 전에 시크릿 패턴을 마스킹합니다. AWS 키, GitHub 토큰, Slack 토큰, bearer 토큰, `api_key`, `password`, `client_secret`류 키-값 시크릿을 대상으로 합니다.
+Markdown, URL, txt, PDF, Word docx 수집은 저장과 색인 전에 표준 Markdown으로 정규화되고 시크릿 패턴을 마스킹합니다. AWS 키, GitHub 토큰, Slack 토큰, bearer 토큰, `api_key`, `password`, `client_secret`류 키-값 시크릿을 대상으로 합니다.
 
 ```bash
 pnpm redaction:smoke
@@ -82,6 +82,10 @@ pnpm idempotency:smoke
 Elasticsearch는 재현율 보강 장치일 뿐 권한 기준이 아닙니다. 하이브리드 모드에서도 Elasticsearch가 반환한 청크 ID를 PostgreSQL에서 다시 로드하고 호출자 권한 필터를 통과한 청크만 답변 컨텍스트에 들어갑니다.
 
 `POST /retrieval/permission-diff`는 같은 질문을 여러 호출자 페르소나로 실행해 권한 경계를 비교합니다. 공개/support 페르소나에 제한 후보가 노출되지 않는지, payments 팀 권한이 있을 때 팀 문서가 새로 보이는지, ops_admin에서 제한 문서가 검색 가능한지 한 응답에서 확인합니다. 이 리포트는 권한 우회용 API가 아니라, 실제 검색 필터가 페르소나별로 어떤 결과 차이를 만드는지 검증하는 감사용 API입니다.
+
+## 환각 방지
+
+`POST /ask`는 접근 가능한 출처가 없거나 검색 신뢰도가 `UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD`보다 낮으면 답변 생성을 거부합니다. `CONFIDENCE_THRESHOLD`는 답변 차단 기준이 아니라 사람 검토 기준입니다. 모름 처리의 경우 답변에는 `문서에서 확인할 수 없습니다`가 포함되고, `needsHumanReview=true`와 `no_sources` 또는 `low_confidence` 검토 사유가 저장됩니다. LLM provider를 사용하는 경우에도 시스템 프롬프트는 제공된 출처 밖의 사실을 추론하거나 보완하지 말라고 지시합니다.
 
 ## 추적 보안
 
