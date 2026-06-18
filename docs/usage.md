@@ -140,6 +140,8 @@ pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 ```
 
+`pnpm source-ingestion:smoke`는 URL, txt, PDF, Word docx를 모두 실제 fixture로 넣고 파서, 청크, 품질 리포트, 1순위 답변 출처를 확인합니다.
+
 URL, txt, PDF, Word 문서를 직접 테스트하려면 `문서` 화면 상단의 `문서 넣고 바로 질문하기` 영역을 사용합니다.
 
 1. 소스 타입을 고릅니다.

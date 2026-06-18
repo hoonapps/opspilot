@@ -284,7 +284,7 @@ pnpm rate-limit:smoke
 pnpm idempotency:smoke
 ```
 
-`pnpm source-ingestion:smoke`는 URL/txt 수집, 새 문서 검색, 문서 외 질문 거절, reset/seed 복구뿐 아니라 수집 품질 리포트가 좋은 문서는 `ready`, 짧은 문서는 `attention`으로 갈리는지와 추천 테스트 질문이 생성되는지도 검증합니다.
+`pnpm source-ingestion:smoke`는 URL/txt/PDF/Word docx 수집, 각 형식의 파서 선택, 새 문서 검색, 문서 외 질문 거절, reset/seed 복구뿐 아니라 수집 품질 리포트가 좋은 문서는 `ready`, 짧은 문서는 `attention`으로 갈리는지와 추천 테스트 질문이 생성되는지도 검증합니다.
 
 ## 포트폴리오 데모
 
