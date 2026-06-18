@@ -56,6 +56,11 @@ export type SourceIngestionQualityReport = {
   }>;
   recommendations: string[];
   searchTestQuery: string;
+  suggestedQuestions: Array<{
+    question: string;
+    expectedEvidence: string[];
+    reason: string;
+  }>;
 };
 
 export type ResetDocumentsResult = {
@@ -1958,7 +1963,8 @@ export class DocumentsService {
       summary,
       checks,
       recommendations: buildSourceIngestionQualityRecommendations(summary, status),
-      searchTestQuery: buildSourceIngestionSearchQuery(parsed.metadata.title, retrievalHints)
+      searchTestQuery: buildSourceIngestionSearchQuery(parsed.metadata.title, retrievalHints),
+      suggestedQuestions: buildSourceIngestionSuggestedQuestions(parsed.metadata.title, retrievalHints)
     };
   }
 }
@@ -2346,6 +2352,68 @@ function buildSourceIngestionSearchQuery(title: string, hints: Set<string>): str
   }
 
   return tokens.slice(0, 4).join(" ");
+}
+
+function buildSourceIngestionSuggestedQuestions(
+  title: string,
+  hints: Set<string>
+): SourceIngestionQualityReport["suggestedQuestions"] {
+  const keywords = uniqueQuestionKeywords(title, hints);
+  const primary = keywords[0] ?? title;
+  const secondary = keywords.find((keyword) => keyword !== primary) ?? title;
+  const expectedEvidence = keywords.slice(0, 5);
+  const subject = documentQuestionSubject(title);
+  const questions = [
+    {
+      question: `${subject}는 무엇을 검증해?`,
+      expectedEvidence,
+      reason: "문서 제목과 핵심 키워드가 1순위 출처로 검색되는지 확인합니다."
+    },
+    {
+      question: `${primary} 기준은 무엇이야?`,
+      expectedEvidence: [primary, ...expectedEvidence.filter((keyword) => keyword !== primary)].slice(0, 5),
+      reason: "문서 안의 대표 키워드로 RAG 검색이 연결되는지 확인합니다."
+    },
+    {
+      question: `${secondary} 관련해서 운영자가 확인해야 할 핵심 내용은 뭐야?`,
+      expectedEvidence: [secondary, ...expectedEvidence.filter((keyword) => keyword !== secondary)].slice(0, 5),
+      reason: "실제 운영 질문처럼 물었을 때 출처 기반 답변이 나오는지 확인합니다."
+    }
+  ];
+
+  const seenQuestions = new Set<string>();
+  return questions
+    .filter((item) => {
+      const key = item.question.toLowerCase();
+      if (seenQuestions.has(key)) {
+        return false;
+      }
+      seenQuestions.add(key);
+      return true;
+    })
+    .slice(0, 3);
+}
+
+function uniqueQuestionKeywords(title: string, hints: Set<string>): string[] {
+  const keywords: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of [...hints, title]) {
+    const keyword = value.trim();
+    const key = keyword.toLowerCase();
+    if (keyword.length < 2 || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    keywords.push(keyword);
+  }
+
+  return keywords.slice(0, 8);
+}
+
+function documentQuestionSubject(title: string): string {
+  const trimmed = title.trim() || "등록한 문서";
+  return /문서$/u.test(trimmed) ? trimmed : `${trimmed} 문서`;
 }
 
 function buildHeadingOutline(

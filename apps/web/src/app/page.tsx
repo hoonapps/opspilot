@@ -3315,6 +3315,16 @@ export default function Home() {
                     </p>
                     <code>{sourceIngest.quality.searchTestQuery}</code>
                   </div>
+                  {sourceIngest.quality.suggestedQuestions.length > 0 ? (
+                    <div className="suggestedQuestions">
+                      <span>{locale === "ko" ? "추천 테스트 질문" : "Suggested test questions"}</span>
+                      {sourceIngest.quality.suggestedQuestions.map((item) => (
+                        <button key={item.question} onClick={() => setSourceQuestion(item.question)} title={item.reason} type="button">
+                          {item.question}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="sourceQualityChecks">
                     {sourceIngest.quality.checks.map((check) => (
                       <span className={check.status === "pass" ? "allow" : "deny"} key={check.id} title={check.evidence}>

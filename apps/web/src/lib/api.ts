@@ -102,6 +102,11 @@ export type SourceIngestResponse = IngestResponse & {
     }>;
     recommendations: string[];
     searchTestQuery: string;
+    suggestedQuestions: Array<{
+      question: string;
+      expectedEvidence: string[];
+      reason: string;
+    }>;
   };
 };
 

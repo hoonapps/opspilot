@@ -59,11 +59,17 @@ async function main() {
       text.quality.schemaVersion === "opspilot.source_ingestion_quality.v1" &&
       text.quality.status === "ready" &&
       text.quality.checks.some((check) => check.id === "retrieval_hints" && check.status === "pass") &&
+      text.quality.suggestedQuestions.length >= 3 &&
+      text.quality.suggestedQuestions.some(
+        (suggestion) => suggestion.question.includes("텍스트 수집 Smoke 문서") && suggestion.expectedEvidence.includes("텍스트 수집 Smoke 문서")
+      ) &&
       url.parser === "html_text_v1" &&
       url.chunks > 0 &&
       url.quality.status === "ready" &&
+      url.quality.suggestedQuestions.some((suggestion) => suggestion.question.includes("URL 수집 Smoke 문서")) &&
       weak.quality.status === "attention" &&
       weak.quality.checks.some((check) => check.id === "text_extraction" && check.status === "fail") &&
+      weak.quality.suggestedQuestions.length >= 3 &&
       textAnswer.sources[0]?.path === "public/uploads/source-text-smoke.md" &&
       urlAnswer.sources[0]?.path === "public/uploads/source-url-smoke.md" &&
       unsupportedAnswer.answer.includes("문서에서 확인할 수 없습니다") &&

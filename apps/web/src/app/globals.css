@@ -2390,6 +2390,31 @@ pre {
   gap: 6px;
 }
 
+.suggestedQuestions {
+  display: grid;
+  gap: 6px;
+}
+
+.suggestedQuestions button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #dbe7ee;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1f2a37;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.suggestedQuestions button:hover {
+  border-color: #9bb8c8;
+  background: #eef6f8;
+}
+
 .sourceQualityChecks span {
   padding: 5px 8px;
   border-radius: 999px;
