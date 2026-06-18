@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { LocalReranker } from "@opspilot/ai";
 import { AuthzService } from "../authz/authz.service";
 import { RequestContext } from "../shared/request-context";
 import { ElasticsearchService, LexicalHit } from "./elasticsearch.service";
@@ -19,6 +20,10 @@ export type SearchResult = {
     vectorScore?: number;
     lexicalScore?: number;
     fusedScore?: number;
+    baseScore?: number;
+    rerankScore?: number;
+    rerankRank?: number;
+    rerankMethod?: "local_bm25_keytoken_v1";
     mode: "vector" | "hybrid";
   };
 };
@@ -40,8 +45,15 @@ export type SearchWithAudit = {
   permissionAudit: PermissionBoundaryAudit;
 };
 
+export type SearchOptions = {
+  rerank?: boolean;
+  candidateWindow?: number;
+};
+
 @Injectable()
 export class SearchService {
+  private readonly reranker = new LocalReranker();
+
   constructor(
     private readonly orm: MikroORM,
     private readonly embeddings: EmbeddingService,
@@ -53,15 +65,18 @@ export class SearchService {
     return (await this.searchWithAudit(question, context, limit)).results;
   }
 
-  async searchWithAudit(question: string, context: RequestContext, limit = 5): Promise<SearchWithAudit> {
-    const results =
+  async searchWithAudit(question: string, context: RequestContext, limit = 5, options: SearchOptions = {}): Promise<SearchWithAudit> {
+    const rerank = options.rerank ?? process.env.RETRIEVAL_RERANKER !== "off";
+    const candidateLimit = rerank ? Math.max(options.candidateWindow ?? limit * 3, limit) : limit;
+    const baseResults =
       process.env.RETRIEVAL_MODE === "hybrid" && this.elasticsearch.isEnabled()
-        ? await this.hybridSearch(question, context, limit)
-        : await this.vectorSearch(question, context, limit);
+        ? await this.hybridSearch(question, context, candidateLimit)
+        : await this.vectorSearch(question, context, candidateLimit);
+    const results = rerank ? this.rerank(question, baseResults, limit) : baseResults.slice(0, limit);
 
     return {
       results,
-      permissionAudit: await this.auditPermissionBoundary(question, context, limit)
+      permissionAudit: await this.auditPermissionBoundary(question, context, candidateLimit)
     };
   }
 
@@ -210,6 +225,45 @@ export class SearchService {
         teamSlugs: context.teamSlugs
       }
     };
+  }
+
+  private rerank(question: string, rows: SearchResult[], limit: number): SearchResult[] {
+    const scores = new Map(
+      this.reranker
+        .rerank(
+          question,
+          rows.map((row) => ({
+            id: row.chunkId,
+            title: row.title,
+            path: row.path,
+            content: row.content,
+            baseScore: row.score
+          }))
+        )
+        .map((result, index) => [result.id, { ...result, rank: index + 1 }])
+    );
+
+    return [...rows]
+      .sort((left, right) => {
+        const leftScore = scores.get(left.chunkId)?.rerankScore ?? left.score;
+        const rightScore = scores.get(right.chunkId)?.rerankScore ?? right.score;
+        return rightScore - leftScore;
+      })
+      .slice(0, limit)
+      .map((row) => {
+        const score = scores.get(row.chunkId);
+        return {
+          ...row,
+          score: Number((score?.rerankScore ?? row.score).toFixed(6)),
+          retrieval: {
+            ...row.retrieval,
+            baseScore: Number(row.score.toFixed(6)),
+            rerankScore: score?.rerankScore,
+            rerankRank: score?.rank,
+            rerankMethod: "local_bm25_keytoken_v1"
+          }
+        };
+      });
   }
 
   private async unauthorizedCandidateWindow(question: string, limit: number): Promise<Array<{ visibility: string; teamSlug?: string | null }>> {

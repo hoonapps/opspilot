@@ -5,6 +5,7 @@ import {
   createChatProviderFromEnv,
   embedLocal,
   LocalEmbeddingProvider,
+  LocalReranker,
   OpenAIChatProvider
 } from "./index";
 
@@ -26,6 +27,40 @@ test("env factory selects anthropic chat provider", () => {
   });
 
   assert.ok(provider instanceof AnthropicChatProvider);
+});
+
+test("local reranker promotes candidates with matching incident codes and metrics", () => {
+  const reranker = new LocalReranker();
+  const rows = reranker.rerank("E102 payment.approval.timeout 에스컬레이션 기준은?", [
+    {
+      id: "generic",
+      title: "일반 결제 안내",
+      path: "public/payment-overview.md",
+      content: "결제 승인 절차와 고객 안내 문구를 설명합니다.",
+      baseScore: 0.9
+    },
+    {
+      id: "specific",
+      title: "E102 결제 오류 코드",
+      path: "public/payment-error-codes.md",
+      content: "E102 payment.approval.timeout 지표를 확인하고 결제 플랫폼 온콜에게 에스컬레이션합니다.",
+      baseScore: 0.4
+    }
+  ]);
+
+  assert.equal(rows[0]?.id, "specific");
+  assert.ok((rows[0]?.rerankScore ?? 0) > (rows[1]?.rerankScore ?? 0));
+  assert.ok((rows[0]?.keyTokenOverlap ?? 0) > 0);
+});
+
+test("local reranker remains deterministic", () => {
+  const reranker = new LocalReranker();
+  const candidates = [
+    { id: "a", title: "Redis 장애", path: "team/redis.md", content: "redis_connected_clients", baseScore: 0.5 },
+    { id: "b", title: "환불 정책", path: "public/refund.md", content: "refund reason", baseScore: 0.8 }
+  ];
+
+  assert.deepEqual(reranker.rerank("redis_connected_clients 확인", candidates), reranker.rerank("redis_connected_clients 확인", candidates));
 });
 
 test("anthropic provider sends messages request and parses text response", async () => {

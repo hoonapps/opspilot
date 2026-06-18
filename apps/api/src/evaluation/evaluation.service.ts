@@ -264,6 +264,26 @@ export type RetrievalEvaluationReport = {
     ndcgAt5: number;
     averageFirstRelevantRank: number | null;
   };
+  baselineMetrics: {
+    recallAt1: number;
+    recallAt3: number;
+    recallAt5: number;
+    mrr: number;
+    ndcgAt5: number;
+    averageFirstRelevantRank: number | null;
+  };
+  reranking: {
+    enabled: boolean;
+    method: "local_bm25_keytoken_v1";
+    candidateWindow: number;
+    changedTopSourceCount: number;
+    deltas: {
+      recallAt1: number;
+      recallAt3: number;
+      mrr: number;
+      ndcgAt5: number;
+    };
+  };
   thresholds: {
     recallAt3: number;
     mrr: number;
@@ -278,6 +298,13 @@ export type RetrievalEvaluationReport = {
     id: string;
     question: string;
     expectedSources: string[];
+    baseRankedSources: string[];
+    baseFirstRelevantRank: number | null;
+    baseReciprocalRank: number;
+    baseRecallAt1: boolean;
+    baseRecallAt3: boolean;
+    baseRecallAt5: boolean;
+    baseNdcgAt5: number;
     rankedSources: string[];
     firstRelevantRank: number | null;
     reciprocalRank: number;
@@ -285,6 +312,7 @@ export type RetrievalEvaluationReport = {
     recallAt3: boolean;
     recallAt5: boolean;
     ndcgAt5: number;
+    rankDelta: number | null;
     permissionEnforcement: string;
     deniedCandidateCount: number;
   }>;
@@ -740,15 +768,28 @@ export class EvaluationService {
 
   async retrieval(suiteName: string, questions?: EvalQuestion[]): Promise<{ report: RetrievalEvaluationReport }> {
     const evalQuestions = questions ?? (await loadEvalQuestionsFromEnv());
+    const candidateWindow = Number(process.env.RETRIEVAL_EVAL_CANDIDATE_WINDOW ?? 30);
     const rows = [];
     for (const item of evalQuestions) {
-      const searchResult = await this.search.searchWithAudit(item.question, item.actor, 10);
+      const [baseSearchResult, searchResult] = await Promise.all([
+        this.search.searchWithAudit(item.question, item.actor, 10, { rerank: false }),
+        this.search.searchWithAudit(item.question, item.actor, 10, { rerank: true, candidateWindow })
+      ]);
+      const baseRankedSources = uniqueRankedSources(baseSearchResult.results.map((result) => result.path));
+      const baseFirstRelevantRank = firstRelevantSourceRank(item.expectedSources, baseRankedSources);
       const rankedSources = uniqueRankedSources(searchResult.results.map((result) => result.path));
       const firstRelevantRank = firstRelevantSourceRank(item.expectedSources, rankedSources);
       rows.push({
         id: item.id,
         question: item.question,
         expectedSources: item.expectedSources,
+        baseRankedSources,
+        baseFirstRelevantRank,
+        baseReciprocalRank: baseFirstRelevantRank ? Number((1 / baseFirstRelevantRank).toFixed(3)) : 0,
+        baseRecallAt1: rankWithin(baseFirstRelevantRank, 1),
+        baseRecallAt3: rankWithin(baseFirstRelevantRank, 3),
+        baseRecallAt5: rankWithin(baseFirstRelevantRank, 5),
+        baseNdcgAt5: ndcgAtK(item.expectedSources, baseRankedSources, 5),
         rankedSources,
         firstRelevantRank,
         reciprocalRank: firstRelevantRank ? Number((1 / firstRelevantRank).toFixed(3)) : 0,
@@ -756,18 +797,28 @@ export class EvaluationService {
         recallAt3: rankWithin(firstRelevantRank, 3),
         recallAt5: rankWithin(firstRelevantRank, 5),
         ndcgAt5: ndcgAtK(item.expectedSources, rankedSources, 5),
+        rankDelta:
+          typeof baseFirstRelevantRank === "number" && typeof firstRelevantRank === "number"
+            ? baseFirstRelevantRank - firstRelevantRank
+            : null,
         permissionEnforcement: searchResult.permissionAudit.enforcement,
         deniedCandidateCount: searchResult.permissionAudit.deniedCandidateCount
       });
     }
 
-    const metrics = {
-      recallAt1: ratio(rows.filter((row) => row.recallAt1).length, rows.length),
-      recallAt3: ratio(rows.filter((row) => row.recallAt3).length, rows.length),
-      recallAt5: ratio(rows.filter((row) => row.recallAt5).length, rows.length),
-      mrr: average(rows.map((row) => row.reciprocalRank)),
-      ndcgAt5: average(rows.map((row) => row.ndcgAt5)),
-      averageFirstRelevantRank: averageNullable(rows.map((row) => row.firstRelevantRank))
+    const baselineMetrics = retrievalMetrics(rows, "base");
+    const metrics = retrievalMetrics(rows, "reranked");
+    const reranking = {
+      enabled: true,
+      method: "local_bm25_keytoken_v1" as const,
+      candidateWindow,
+      changedTopSourceCount: rows.filter((row) => row.baseRankedSources[0] !== row.rankedSources[0]).length,
+      deltas: {
+        recallAt1: delta(metrics.recallAt1, baselineMetrics.recallAt1),
+        recallAt3: delta(metrics.recallAt3, baselineMetrics.recallAt3),
+        mrr: delta(metrics.mrr, baselineMetrics.mrr),
+        ndcgAt5: delta(metrics.ndcgAt5, baselineMetrics.ndcgAt5)
+      }
     };
     const thresholds = {
       recallAt3: readThreshold("EVAL_MIN_RETRIEVAL_RECALL_AT_3", 1),
@@ -798,12 +849,17 @@ export class EvaluationService {
       total: rows.length,
       status,
       metrics,
+      baselineMetrics,
+      reranking,
       gates,
       rows: rows.map((row) => ({
         id: row.id,
         expectedSources: row.expectedSources,
+        baseRankedSources: row.baseRankedSources,
         rankedSources: row.rankedSources,
+        baseFirstRelevantRank: row.baseFirstRelevantRank,
         firstRelevantRank: row.firstRelevantRank,
+        rankDelta: row.rankDelta,
         ndcgAt5: row.ndcgAt5
       })),
       actionItems
@@ -817,6 +873,8 @@ export class EvaluationService {
         total: rows.length,
         status,
         metrics,
+        baselineMetrics,
+        reranking,
         thresholds,
         gates,
         rows,
@@ -824,7 +882,7 @@ export class EvaluationService {
         integrity: {
           reportHash: sha256(stableStringify(hashBasis)),
           hashAlgorithm: "sha256",
-          includedFields: ["suiteName", "total", "status", "metrics", "gates", "rows", "actionItems"]
+          includedFields: ["suiteName", "total", "status", "metrics", "baselineMetrics", "reranking", "gates", "rows", "actionItems"]
         }
       }
     };
@@ -926,6 +984,35 @@ function average(values: number[]): number {
 function averageNullable(values: Array<number | null>): number | null {
   const numbers = values.filter((value): value is number => typeof value === "number");
   return numbers.length === 0 ? null : average(numbers);
+}
+
+function delta(current: number, baseline: number): number {
+  return Number((current - baseline).toFixed(3));
+}
+
+function retrievalMetrics(
+  rows: RetrievalEvaluationReport["rows"],
+  mode: "base" | "reranked"
+): RetrievalEvaluationReport["metrics"] {
+  if (mode === "base") {
+    return {
+      recallAt1: ratio(rows.filter((row) => row.baseRecallAt1).length, rows.length),
+      recallAt3: ratio(rows.filter((row) => row.baseRecallAt3).length, rows.length),
+      recallAt5: ratio(rows.filter((row) => row.baseRecallAt5).length, rows.length),
+      mrr: average(rows.map((row) => row.baseReciprocalRank)),
+      ndcgAt5: average(rows.map((row) => row.baseNdcgAt5)),
+      averageFirstRelevantRank: averageNullable(rows.map((row) => row.baseFirstRelevantRank))
+    };
+  }
+
+  return {
+    recallAt1: ratio(rows.filter((row) => row.recallAt1).length, rows.length),
+    recallAt3: ratio(rows.filter((row) => row.recallAt3).length, rows.length),
+    recallAt5: ratio(rows.filter((row) => row.recallAt5).length, rows.length),
+    mrr: average(rows.map((row) => row.reciprocalRank)),
+    ndcgAt5: average(rows.map((row) => row.ndcgAt5)),
+    averageFirstRelevantRank: averageNullable(rows.map((row) => row.firstRelevantRank))
+  };
 }
 
 async function loadEvalQuestionsFromEnv(): Promise<EvalQuestion[]> {

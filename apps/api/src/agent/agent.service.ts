@@ -263,11 +263,11 @@ export type RetrievalQueryPlan = {
 };
 
 export type RankingExplanation = {
-  method: "weighted_vector_lexical_v1" | "rrf_hybrid_v1";
+  method: "weighted_vector_lexical_v1" | "rrf_hybrid_v1" | "local_bm25_keytoken_rerank_v1";
   matchedQueryTerms: string[];
   unmatchedQueryTerms: string[];
   scoreContributions: Array<{
-    signal: "vector" | "lexical" | "rrf";
+    signal: "vector" | "lexical" | "rrf" | "rerank";
     label: string;
     weight?: number;
     value: number;
@@ -693,14 +693,19 @@ function buildRankingExplanation(
   const matchedQueryTerms = queryTerms.filter((term) => haystack.includes(term.toLowerCase()));
   const unmatchedQueryTerms = queryTerms.filter((term) => !matchedQueryTerms.includes(term));
   const reasonCodes = [
+    source.retrieval.rerankMethod ? "local_bm25_keytoken_rerank" : null,
     source.retrieval.mode === "hybrid" ? "hybrid_rank_fusion" : "weighted_vector_lexical",
     matchedQueryTerms.length > 0 ? "query_term_overlap" : "semantic_only",
     "permission_allowed",
     source.visibility === "team" ? "team_scoped_source" : source.visibility === "restricted" ? "restricted_source_allowed" : "public_source"
-  ];
+  ].filter((reason): reason is string => Boolean(reason));
 
   return {
-    method: source.retrieval.mode === "hybrid" ? "rrf_hybrid_v1" : "weighted_vector_lexical_v1",
+    method: source.retrieval.rerankMethod
+      ? "local_bm25_keytoken_rerank_v1"
+      : source.retrieval.mode === "hybrid"
+        ? "rrf_hybrid_v1"
+        : "weighted_vector_lexical_v1",
     matchedQueryTerms,
     unmatchedQueryTerms,
     scoreContributions: buildScoreContributions(source),
@@ -884,8 +889,21 @@ function sanitizePersonaId(id: string): string {
 }
 
 function buildScoreContributions(source: SearchResult): RankingExplanation["scoreContributions"] {
+  const rerankContribution = source.retrieval.rerankScore
+    ? [
+        {
+          signal: "rerank" as const,
+          label: "리랭킹",
+          value: Number(source.retrieval.rerankScore.toFixed(6)),
+          contribution: Number((source.retrieval.rerankScore - (source.retrieval.baseScore ?? 0)).toFixed(6)),
+          evidence: "BM25 계열 점수, 오류 코드/지표/경로 핵심 토큰, 제목·경로 일치, 기존 검색 점수를 결합해 최종 순위를 재정렬했습니다."
+        }
+      ]
+    : [];
+
   if (source.retrieval.mode === "hybrid") {
     return [
+      ...rerankContribution,
       {
         signal: "rrf",
         label: "RRF 결합",
@@ -914,6 +932,7 @@ function buildScoreContributions(source: SearchResult): RankingExplanation["scor
   const lexicalScore = source.retrieval.lexicalScore ?? 0;
 
   return [
+    ...rerankContribution,
     {
       signal: "vector",
       label: "벡터 유사도",

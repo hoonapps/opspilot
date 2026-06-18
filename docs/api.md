@@ -55,7 +55,7 @@ GET /docs-json
 - `GET /evaluations/cases`: 최신 평가 실행의 케이스별 실패 원인, 위험도, 개선 권고
 - `GET /evaluations/regression`: 최신 평가와 직전 평가의 회귀 비교, 릴리즈 판단, 액션, 리포트 해시
 - `GET /evaluations/coverage`: 최신 평가 기준 문서별 기대/실제 출처 커버리지, 미검증 문서, 추가 질문 액션, 리포트 해시
-- `GET /evaluations/retrieval`: 답변 생성 전 검색 후보 기준 `recall@1/3/5`, `MRR`, `nDCG@5`, 첫 기대 문서 순위, 권한 경계 요약
+- `GET /evaluations/retrieval`: 답변 생성 전 검색 후보 기준 `recall@1/3/5`, `MRR`, `nDCG@5`, 첫 기대 문서 순위, 리랭킹 전/후 비교, 권한 경계 요약
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
 - `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, 오류 예산 소모율, 주요 실패 엔드포인트, 배포 권고
@@ -81,11 +81,13 @@ pnpm openapi:smoke
 
 - `method`: 벡터/키워드 가중 랭킹 또는 RRF 하이브리드 랭킹
 - `matchedQueryTerms`: 제목, 경로, 본문에 실제로 매칭된 검색어
-- `scoreContributions`: 벡터 유사도, 키워드 매칭, RRF 결합 점수의 기여도
+- `scoreContributions`: 벡터 유사도, 키워드 매칭, RRF 결합 점수, 리랭킹 점수의 기여도
 - `accessDecision`: 권한 필터를 통과한 이유와 적용된 집행 방식
 - `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
+
+기본 검색 경로는 권한 필터를 통과한 후보를 만든 뒤 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 이 리랭커는 BM25 계열 토큰 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 벡터/lexical 점수를 결합합니다. `GET /evaluations/retrieval`은 같은 평가셋에서 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환합니다.
 
 ## 검색 운영 프로파일
 

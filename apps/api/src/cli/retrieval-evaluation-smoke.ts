@@ -19,8 +19,18 @@ async function main() {
       report.metrics.recallAt5 >= 1 &&
       report.metrics.mrr >= 0.8 &&
       report.metrics.ndcgAt5 >= 0.8 &&
+      report.baselineMetrics.recallAt3 >= 1 &&
+      report.reranking.enabled &&
+      report.reranking.method === "local_bm25_keytoken_v1" &&
+      report.reranking.candidateWindow >= 10 &&
       report.gates.every((gate) => gate.passed) &&
-      report.rows.every((row) => row.firstRelevantRank !== null && row.rankedSources.length > 0) &&
+      report.rows.every(
+        (row) =>
+          row.baseFirstRelevantRank !== null &&
+          row.firstRelevantRank !== null &&
+          row.baseRankedSources.length > 0 &&
+          row.rankedSources.length > 0
+      ) &&
       report.integrity.reportHash.length === 64;
 
     console.log(
@@ -28,12 +38,17 @@ async function main() {
         {
           ok,
           status: report.status,
+          baselineMetrics: report.baselineMetrics,
           metrics: report.metrics,
+          reranking: report.reranking,
           rows: report.rows.map((row) => ({
             id: row.id,
             expectedSources: row.expectedSources,
+            baseRankedSources: row.baseRankedSources.slice(0, 5),
             rankedSources: row.rankedSources.slice(0, 5),
+            baseFirstRelevantRank: row.baseFirstRelevantRank,
             firstRelevantRank: row.firstRelevantRank,
+            rankDelta: row.rankDelta,
             reciprocalRank: row.reciprocalRank,
             ndcgAt5: row.ndcgAt5
           })),

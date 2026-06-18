@@ -82,10 +82,14 @@ GET /evaluations/retrieval
 - `mrr`: 첫 기대 출처 순위의 reciprocal rank 평균
 - `ndcgAt5`: top-5 랭킹 품질
 - `averageFirstRelevantRank`: 기대 출처가 처음 등장한 평균 순위
+- `baselineMetrics`: pgvector/lexical fusion만 적용한 기준선 검색 품질
+- `reranking`: `local_bm25_keytoken_v1` 리랭커 적용 후 top source 변경 수와 metric delta
+- `rows[].baseRankedSources`: 리랭킹 전 후보 문서 랭킹
 - `rows[].rankedSources`: 검색 후보 문서를 중복 제거한 실제 랭킹
+- `rows[].rankDelta`: 기대 출처가 리랭킹 후 몇 등 개선 또는 하락했는지
 - `rows[].permissionEnforcement`: 권한 경계가 검색 전 SQL 필터인지, Elasticsearch 후 PostgreSQL 재검사인지
 
-`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 지표는 이후 실제 임베딩 모델 연결이나 reranking을 추가할 때 before/after 개선 폭을 보여주는 기준선입니다.
+`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 리포트는 같은 질문셋에 대해 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환하므로, 검색 튜닝이 top-k 품질을 실제로 개선했는지 숫자로 비교할 수 있습니다. OpenAI 임베딩을 사용할 때는 같은 명령을 `AI_PROVIDER=openai OPENAI_API_KEY=...` 환경으로 재실행해 local hash embedding 대비 성능 차이를 남깁니다.
 
 ## 케이스 상세 리포트
 

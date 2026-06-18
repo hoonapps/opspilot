@@ -14,6 +14,23 @@ export type EmbeddingProvider = {
   embed(text: string): Promise<number[]>;
 };
 
+export type RerankCandidate = {
+  id: string;
+  title: string;
+  path: string;
+  content: string;
+  baseScore: number;
+};
+
+export type RerankResult = {
+  id: string;
+  rerankScore: number;
+  bm25Score: number;
+  keyTokenOverlap: number;
+  titlePathOverlap: number;
+  baseScore: number;
+};
+
 export type OpenAIConfig = {
   apiKey: string;
   chatModel?: string;
@@ -185,6 +202,60 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
+export class LocalReranker {
+  rerank(question: string, candidates: RerankCandidate[]): RerankResult[] {
+    if (candidates.length === 0) {
+      return [];
+    }
+
+    const questionTokens = tokenizeForRanking(question);
+    const keyTokens = questionTokens.filter(isKeyToken);
+    const documents = candidates.map((candidate) => tokenizeForRanking(`${candidate.title} ${candidate.path} ${candidate.content}`));
+    const avgDocumentLength = average(documents.map((tokens) => tokens.length)) || 1;
+    const documentFrequencies = new Map<string, number>();
+
+    for (const tokens of documents) {
+      for (const token of new Set(tokens)) {
+        documentFrequencies.set(token, (documentFrequencies.get(token) ?? 0) + 1);
+      }
+    }
+
+    const rawRows = candidates.map((candidate, index) => {
+      const documentTokens = documents[index] ?? [];
+      const titlePathTokens = tokenizeForRanking(`${candidate.title} ${candidate.path}`);
+      const bm25Score = bm25(questionTokens, documentTokens, avgDocumentLength, documentFrequencies, candidates.length);
+      const keyTokenOverlap = overlapRatio(keyTokens, documentTokens);
+      const titlePathOverlap = overlapRatio(questionTokens, titlePathTokens);
+
+      return {
+        id: candidate.id,
+        bm25Score,
+        keyTokenOverlap,
+        titlePathOverlap,
+        baseScore: candidate.baseScore
+      };
+    });
+
+    const maxBm25 = Math.max(...rawRows.map((row) => row.bm25Score), 1);
+    const maxBaseScore = Math.max(...rawRows.map((row) => row.baseScore), 1);
+
+    return rawRows
+      .map((row) => {
+        const normalizedBm25 = row.bm25Score / maxBm25;
+        const normalizedBase = row.baseScore / maxBaseScore;
+        const rerankScore = normalizedBm25 * 0.68 + row.keyTokenOverlap * 0.2 + row.titlePathOverlap * 0.08 + normalizedBase * 0.04;
+
+        return {
+          ...row,
+          bm25Score: Number(normalizedBm25.toFixed(6)),
+          baseScore: Number(normalizedBase.toFixed(6)),
+          rerankScore: Number(rerankScore.toFixed(6))
+        };
+      })
+      .sort((left, right) => right.rerankScore - left.rerankScore);
+  }
+}
+
 export function embedLocal(text: string, dimensions: number): number[] {
   const vector = Array.from({ length: dimensions }, () => 0);
   const tokens = text
@@ -223,4 +294,57 @@ function normalize(vector: number[]): number[] {
     return vector;
   }
   return vector.map((value) => value / norm);
+}
+
+function tokenizeForRanking(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}_./:-]+/gu, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+}
+
+function isKeyToken(token: string): boolean {
+  return /^[a-z]?\d{2,}$/i.test(token) || token.includes(".") || token.includes("_") || token.includes("/") || token.includes("-");
+}
+
+function bm25(questionTokens: string[], documentTokens: string[], avgDocumentLength: number, documentFrequencies: Map<string, number>, documentCount: number): number {
+  if (questionTokens.length === 0 || documentTokens.length === 0) {
+    return 0;
+  }
+
+  const frequencies = new Map<string, number>();
+  for (const token of documentTokens) {
+    frequencies.set(token, (frequencies.get(token) ?? 0) + 1);
+  }
+
+  const k1 = 1.2;
+  const b = 0.75;
+  const lengthFactor = 1 - b + b * (documentTokens.length / avgDocumentLength);
+
+  return [...new Set(questionTokens)].reduce((sum, token) => {
+    const frequency = frequencies.get(token) ?? 0;
+    if (frequency === 0) {
+      return sum;
+    }
+
+    const documentsWithToken = documentFrequencies.get(token) ?? 0;
+    const idf = Math.log(1 + (documentCount - documentsWithToken + 0.5) / (documentsWithToken + 0.5));
+    return sum + idf * ((frequency * (k1 + 1)) / (frequency + k1 * lengthFactor));
+  }, 0);
+}
+
+function overlapRatio(needles: string[], haystack: string[]): number {
+  const uniqueNeedles = [...new Set(needles)];
+  if (uniqueNeedles.length === 0) {
+    return 0;
+  }
+
+  const haystackSet = new Set(haystack);
+  return uniqueNeedles.filter((token) => haystackSet.has(token)).length / uniqueNeedles.length;
+}
+
+function average(values: number[]): number {
+  return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
