@@ -333,6 +333,7 @@ pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
 pnpm transformers-indexing:smoke
+pnpm semantic-rerank:smoke
 pnpm semantic-agreement:smoke
 pnpm retrieval-robustness:smoke
 pnpm eval:coverage-smoke
@@ -357,6 +358,7 @@ EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke
 RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke
+RUN_SEMANTIC_RERANK_SMOKE=true pnpm semantic-rerank:smoke
 RUN_SEMANTIC_AGREEMENT_SMOKE=true pnpm semantic-agreement:smoke
 ```
 

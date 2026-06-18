@@ -38,6 +38,7 @@ pnpm eval:regression-smoke
 pnpm eval:coverage-smoke
 pnpm retrieval-eval:smoke
 pnpm rerank-challenge:smoke
+pnpm semantic-rerank:smoke
 pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
@@ -90,7 +91,7 @@ GET /evaluations/retrieval
 - `ndcgAt5`: top-5 랭킹 품질
 - `averageFirstRelevantRank`: 기대 출처가 처음 등장한 평균 순위
 - `baselineMetrics`: pgvector/lexical fusion만 적용한 기준선 검색 품질
-- `reranking`: `local_bm25_keytoken_v1` 리랭커 적용 후 top source 변경 수와 metric delta
+- `reranking`: 현재 리랭커(`local_bm25_keytoken_v1` 또는 `embedding_cosine_v1`) 적용 후 top source 변경 수와 metric delta
 - `rows[].baseRankedSources`: 리랭킹 전 후보 문서 랭킹
 - `rows[].rankedSources`: 검색 후보 문서를 중복 제거한 실제 랭킹
 - `rows[].rankDelta`: 기대 출처가 리랭킹 후 몇 등 개선 또는 하락했는지
@@ -127,6 +128,8 @@ EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 `RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke`는 `@xenova/transformers` 모델을 실제로 내려받아 실행합니다. 모델 출력은 현재 pgvector 스키마에 맞게 64차원으로 투영하고, 관련 문장과 무관 문장의 cosine similarity 순서가 맞는지 확인합니다. CI에서는 모델 다운로드 시간을 피하기 위해 기본 스킵 상태로 둡니다.
 
 `RUN_SEMANTIC_AGREEMENT_SMOKE=true pnpm semantic-agreement:smoke`는 `/ask` 실제 경로에서 `DOCUMENT_AGREEMENT_METHOD=semantic_embedding`을 켜고, 답변과 출처 청크의 agreement가 `semantic_embedding_v1`로 저장되는지 검증합니다. 이 스모크는 token overlap과 semantic similarity를 함께 출력해 답변 근거성 평가가 단순 문자열 겹침에만 머물지 않음을 보여줍니다.
+
+`RUN_SEMANTIC_RERANK_SMOKE=true pnpm semantic-rerank:smoke`는 local hash embedding으로 만든 기본 검색 기준선 위에서 `RERANK_EMBEDDING_PROVIDER=transformers`, `RETRIEVAL_RERANKER=embedding`을 켜고, 실제 Transformers 임베딩 모델로 후보 청크를 cosine similarity 재정렬합니다. 출력 리포트에는 리랭킹 전 기준선과 `embedding_cosine_v1` 적용 후 `recall@k`, `MRR`, `nDCG@5`, 순위 delta가 함께 남습니다.
 
 `pnpm openai-embedding-path:smoke`는 mock OpenAI embedding 응답을 사용합니다. 외부 네트워크 없이 `EMBEDDING_PROVIDER=openai`가 문서 청크 색인, pgvector 저장, 질문 검색까지 실제 provider 경로를 타는지 검증합니다. OpenAI embedding을 명시했는데 `OPENAI_API_KEY`가 없거나 API 호출이 실패하면 local fallback으로 숨기지 않고 실패합니다. fallback이 필요한 개발 환경에서만 `OPENAI_EMBEDDING_FALLBACK_TO_LOCAL=true`를 명시합니다.
 

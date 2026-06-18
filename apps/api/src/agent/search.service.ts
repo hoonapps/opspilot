@@ -23,10 +23,12 @@ export type SearchResult = {
     baseScore?: number;
     rerankScore?: number;
     rerankRank?: number;
-    rerankMethod?: "local_bm25_keytoken_v1";
+    rerankMethod?: RerankMethod;
     mode: "vector" | "hybrid";
   };
 };
+
+export type RerankMethod = "local_bm25_keytoken_v1" | "embedding_cosine_v1";
 
 export type PermissionBoundaryAudit = {
   enforcement: "pre_ranking_sql_filter" | "postgres_recheck_after_elasticsearch";
@@ -72,7 +74,7 @@ export class SearchService {
       process.env.RETRIEVAL_MODE === "hybrid" && this.elasticsearch.isEnabled()
         ? await this.hybridSearch(question, context, candidateLimit)
         : await this.vectorSearch(question, context, candidateLimit);
-    const results = rerank ? this.rerank(question, baseResults, limit) : baseResults.slice(0, limit);
+    const results = rerank ? await this.rerank(question, baseResults, limit) : baseResults.slice(0, limit);
 
     return {
       results,
@@ -227,7 +229,11 @@ export class SearchService {
     };
   }
 
-  private rerank(question: string, rows: SearchResult[], limit: number): SearchResult[] {
+  private async rerank(question: string, rows: SearchResult[], limit: number): Promise<SearchResult[]> {
+    if (process.env.RETRIEVAL_RERANKER === "embedding") {
+      return this.embeddingRerank(question, rows, limit);
+    }
+
     const scores = new Map(
       this.reranker
         .rerank(
@@ -264,6 +270,40 @@ export class SearchService {
           }
         };
       });
+  }
+
+  private async embeddingRerank(question: string, rows: SearchResult[], limit: number): Promise<SearchResult[]> {
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const questionVector = await this.embeddings.embedForRerank(question);
+    const candidateVectors = await Promise.all(rows.map((row) => this.embeddings.embedForRerank(`${row.title}\n${row.path}\n${row.content}`)));
+    const maxBaseScore = Math.max(...rows.map((row) => row.score), 1);
+    const scoredRows = rows
+      .map((row, index) => {
+        const semanticScore = cosineSimilarity(questionVector, candidateVectors[index] ?? []);
+        const normalizedBase = row.score / maxBaseScore;
+        const rerankScore = Number((semanticScore * 0.78 + normalizedBase * 0.22).toFixed(6));
+
+        return {
+          row,
+          rerankScore
+        };
+      })
+      .sort((left, right) => right.rerankScore - left.rerankScore);
+
+    return scoredRows.slice(0, limit).map(({ row, rerankScore }, index) => ({
+      ...row,
+      score: rerankScore,
+      retrieval: {
+        ...row.retrieval,
+        baseScore: Number(row.score.toFixed(6)),
+        rerankScore,
+        rerankRank: index + 1,
+        rerankMethod: "embedding_cosine_v1"
+      }
+    }));
   }
 
   private async unauthorizedCandidateWindow(question: string, limit: number): Promise<Array<{ visibility: string; teamSlug?: string | null }>> {
@@ -355,6 +395,30 @@ function tokenizeForSearch(question: string): string[] {
   });
 
   return [...new Set(expanded)].slice(0, 16);
+}
+
+function cosineSimilarity(left: number[], right: number[]): number {
+  const dimensions = Math.min(left.length, right.length);
+  if (dimensions === 0) {
+    return 0;
+  }
+
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+  for (let index = 0; index < dimensions; index += 1) {
+    const leftValue = left[index] ?? 0;
+    const rightValue = right[index] ?? 0;
+    dot += leftValue * rightValue;
+    leftNorm += leftValue * leftValue;
+    rightNorm += rightValue * rightValue;
+  }
+
+  if (leftNorm === 0 || rightNorm === 0) {
+    return 0;
+  }
+
+  return Number((dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm))).toFixed(6));
 }
 
 function stripKoreanParticle(token: string): string {

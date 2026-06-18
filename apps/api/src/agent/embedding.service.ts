@@ -16,6 +16,14 @@ export class EmbeddingService {
     }).embed(text);
   }
 
+  async embedForRerank(text: string): Promise<number[]> {
+    return createEmbeddingProviderFromEnv({
+      ...process.env,
+      EMBEDDING_PROVIDER: process.env.RERANK_EMBEDDING_PROVIDER || process.env.EMBEDDING_PROVIDER,
+      OPENAI_EMBEDDING_DIMENSIONS: String(DIMENSIONS)
+    }).embed(text);
+  }
+
   embedLocal(text: string): number[] {
     return embedLocal(text, DIMENSIONS);
   }

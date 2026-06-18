@@ -88,7 +88,7 @@ pnpm openapi:smoke
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
 
-기본 검색 경로는 권한 필터를 통과한 후보를 만든 뒤 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 이 리랭커는 BM25 계열 토큰 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 벡터/lexical 점수를 결합합니다. `GET /evaluations/retrieval`은 같은 평가셋에서 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환합니다.
+기본 검색 경로는 권한 필터를 통과한 후보를 만든 뒤 `RETRIEVAL_RERANKER` 설정에 따라 리랭커를 적용합니다. 기본 `local_bm25_keytoken_v1`은 BM25 계열 토큰 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 벡터/lexical 점수를 결합합니다. `RETRIEVAL_RERANKER=embedding`은 `RERANK_EMBEDDING_PROVIDER`가 있으면 그 provider로, 없으면 현재 임베딩 provider로 질문과 후보 청크를 벡터화해 `embedding_cosine_v1`로 재정렬합니다. `GET /evaluations/retrieval`은 같은 평가셋에서 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환합니다.
 
 ## 임베딩 비교 평가
 
@@ -113,10 +113,12 @@ pnpm openai-embedding-path:smoke
 pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
 pnpm transformers-indexing:smoke
+pnpm semantic-rerank:smoke
 pnpm semantic-agreement:smoke
 pnpm agentic-tool-use:smoke
 EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
+RUN_SEMANTIC_RERANK_SMOKE=true pnpm semantic-rerank:smoke
 ```
 
 ## 검색 운영 프로파일

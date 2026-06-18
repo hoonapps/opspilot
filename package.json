@@ -20,6 +20,7 @@
     "eval:coverage-smoke": "pnpm --filter @opspilot/api eval:coverage-smoke",
     "retrieval-eval:smoke": "pnpm --filter @opspilot/api retrieval-eval:smoke",
     "rerank-challenge:smoke": "pnpm --filter @opspilot/api rerank-challenge:smoke",
+    "semantic-rerank:smoke": "pnpm --filter @opspilot/api semantic-rerank:smoke",
     "embedding-eval:smoke": "pnpm --filter @opspilot/api embedding-eval:smoke",
     "embedding-hard:smoke": "pnpm --filter @opspilot/api embedding-hard:smoke",
     "transformers-embedding:smoke": "pnpm --filter @opspilot/api transformers-embedding:smoke",

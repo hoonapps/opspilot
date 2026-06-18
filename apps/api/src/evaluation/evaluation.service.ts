@@ -7,7 +7,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { AgentService } from "../agent/agent.service";
 import { calculateDocumentAgreement } from "../agent/document-agreement";
 import { EmbeddingService } from "../agent/embedding.service";
-import { SearchService } from "../agent/search.service";
+import { RerankMethod, SearchService } from "../agent/search.service";
 import { AuthzService } from "../authz/authz.service";
 import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
@@ -277,7 +277,7 @@ export type RetrievalEvaluationReport = {
   };
   reranking: {
     enabled: boolean;
-    method: "local_bm25_keytoken_v1";
+    method: RerankMethod;
     candidateWindow: number;
     changedTopSourceCount: number;
     deltas: {
@@ -900,7 +900,7 @@ export class EvaluationService {
     const metrics = retrievalMetrics(rows, "reranked");
     const reranking = {
       enabled: true,
-      method: "local_bm25_keytoken_v1" as const,
+      method: readRetrievalRerankMethod(),
       candidateWindow,
       changedTopSourceCount: rows.filter((row) => row.baseRankedSources[0] !== row.rankedSources[0]).length,
       deltas: {
@@ -1282,6 +1282,10 @@ function readEmbeddingCandidateProvider(): EmbeddingComparisonReport["candidate"
   }
 
   throw new Error(`Unsupported EMBEDDING_CANDIDATE_PROVIDER: ${raw}`);
+}
+
+function readRetrievalRerankMethod(): RerankMethod {
+  return process.env.RETRIEVAL_RERANKER === "embedding" ? "embedding_cosine_v1" : "local_bm25_keytoken_v1";
 }
 
 function average(values: number[]): number {

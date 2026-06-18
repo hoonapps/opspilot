@@ -119,6 +119,9 @@ jobs:
       - name: Rerank challenge smoke
         run: pnpm rerank-challenge:smoke
 
+      - name: Semantic rerank optional smoke
+        run: pnpm semantic-rerank:smoke
+
       - name: OpenAI embedding path smoke
         run: pnpm openai-embedding-path:smoke
 

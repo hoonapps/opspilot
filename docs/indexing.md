@@ -46,6 +46,7 @@ pnpm revalidation-run:smoke
 pnpm queue:smoke
 pnpm github:smoke
 pnpm rerank-challenge:smoke
+pnpm semantic-rerank:smoke
 pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
@@ -76,9 +77,9 @@ pnpm --filter @opspilot/rag test
 
 `pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 테스트 문서를 임시 색인합니다. 질문과 문서가 같은 단어를 많이 공유하지 않도록 만든 세트라서, 단순 토큰 겹침이나 로컬 해시 임베딩이 약한 상황을 보여줍니다. 이 명령은 실행 후 기본 seed 문서를 다시 복구합니다.
 
-`RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke`는 로컬 Transformers embedding provider를 실제 모델 다운로드까지 포함해 실행합니다. 모델 원본 벡터는 pgvector `vector(64)` 스키마에 맞춰 deterministic projection으로 64차원에 저장합니다. `RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke`는 문서 저장부터 검색까지 `EMBEDDING_PROVIDER=transformers` 제품 경로가 동작하는지 확인합니다. `RUN_SEMANTIC_AGREEMENT_SMOKE=true pnpm semantic-agreement:smoke`는 같은 provider를 답변-출처 문서 일치율 계산에도 사용해 `semantic_embedding_v1` metadata가 저장되는지 확인합니다.
+`RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke`는 로컬 Transformers embedding provider를 실제 모델 다운로드까지 포함해 실행합니다. 모델 원본 벡터는 pgvector `vector(64)` 스키마에 맞춰 deterministic projection으로 64차원에 저장합니다. `RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke`는 문서 저장부터 검색까지 `EMBEDDING_PROVIDER=transformers` 제품 경로가 동작하는지 확인합니다. `RUN_SEMANTIC_RERANK_SMOKE=true pnpm semantic-rerank:smoke`는 local hash embedding 기준선 위에서 `RERANK_EMBEDDING_PROVIDER=transformers`를 사용해 후보를 `embedding_cosine_v1` 리랭킹하고, 리랭킹 전후 `recall@k`, `MRR`, `nDCG@5` 차이를 평가 리포트에 남깁니다. `RUN_SEMANTIC_AGREEMENT_SMOKE=true pnpm semantic-agreement:smoke`는 같은 provider를 답변-출처 문서 일치율 계산에도 사용해 `semantic_embedding_v1` metadata가 저장되는지 확인합니다.
 
-`pnpm rerank-challenge:smoke`는 `seed/rerank-challenge/documents`의 최신 runbook과 과거 archive 문서를 임시 색인합니다. 기본 pgvector/lexical fusion에서는 반복 키워드가 많은 archive가 1위가 되지만, `local_bm25_keytoken_v1` 리랭커가 제목, 경로, 핵심 토큰 신호를 결합해 최신 runbook을 1위로 올리는지 검증합니다.
+`pnpm rerank-challenge:smoke`는 `seed/rerank-challenge/documents`의 최신 runbook과 과거 archive 문서를 임시 색인합니다. 기본 pgvector/lexical fusion에서는 반복 키워드가 많은 archive가 1위가 되지만, `local_bm25_keytoken_v1` 리랭커가 제목, 경로, 핵심 토큰 신호를 결합해 최신 runbook을 1위로 올리는지 검증합니다. 실제 임베딩 기반 재정렬은 `RETRIEVAL_RERANKER=embedding`으로 켜며, `semantic-rerank:smoke`가 그 경로를 검증합니다.
 
 웹 콘솔 `문서` 화면에서는 문서 목록, 청크 수, 마스킹 메타데이터, 프롬프트 주입 격리 상태, 색인 스냅샷, 색인 품질 리포트, 문서 색인 설명, 버전 변경 차이, 문서 변경 영향 분석, 문서 재검증 큐, 재검증 실행 리포트와 최근 실행 이력, 청크 미리보기, 신규 문서 검색 검증 결과, BullMQ 큐 관제 패널을 볼 수 있습니다.
 
@@ -130,4 +131,4 @@ pnpm --filter @opspilot/rag test
 
 실제 청크 미리보기는 `GET /documents` 응답과 웹 콘솔 `문서` 화면에서 확인합니다. 검색 전 랭킹은 `POST /retrieval/preview`와 웹 콘솔 `검색` 화면에서 확인합니다. 이 응답은 후보별 랭킹 설명과 검색 실행 계획을 함께 반환해 매칭 검색어, 점수 기여도, 권한 통과 사유, 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 리랭킹, 컨텍스트 패키징, 검토 판단 단계를 확인할 수 있습니다.
 
-검색 파이프라인은 먼저 pgvector/lexical fusion으로 권한을 통과한 후보군을 만들고, 그 후보군에 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 리랭커는 BM25 계열 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 검색 점수를 결합합니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 리랭킹 전 기준선과 리랭킹 후 결과를 함께 비교합니다. `pnpm rerank-challenge:smoke`는 리랭커가 실제로 잘못된 1위 후보를 교체하는 회귀 방지 fixture입니다. 임베딩 모델 자체의 차이는 `GET /evaluations/embedding-comparison`과 `pnpm embedding-hard:smoke`에서 별도로 확인합니다.
+검색 파이프라인은 먼저 pgvector/lexical fusion으로 권한을 통과한 후보군을 만들고, `RETRIEVAL_RERANKER` 설정에 따라 리랭킹을 적용합니다. 기본 리랭커인 `local_bm25_keytoken_v1`은 BM25 계열 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 검색 점수를 결합합니다. `RETRIEVAL_RERANKER=embedding`은 `RERANK_EMBEDDING_PROVIDER`가 있으면 그 provider로, 없으면 현재 `EMBEDDING_PROVIDER`로 질문과 후보 청크를 벡터화해 `embedding_cosine_v1` 점수로 재정렬합니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 리랭킹 전 기준선과 리랭킹 후 결과를 함께 비교합니다. `pnpm rerank-challenge:smoke`는 local 리랭커가 잘못된 1위 후보를 교체하는 회귀 방지 fixture이고, `RUN_SEMANTIC_RERANK_SMOKE=true pnpm semantic-rerank:smoke`는 실제 Transformers 임베딩 리랭커 경로를 검증합니다. 임베딩 모델 자체의 차이는 `GET /evaluations/embedding-comparison`과 `pnpm embedding-hard:smoke`에서 별도로 확인합니다.

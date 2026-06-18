@@ -20,6 +20,7 @@
     "eval:coverage-smoke": "ts-node src/cli/evaluation-coverage-smoke.ts",
     "retrieval-eval:smoke": "ts-node src/cli/retrieval-evaluation-smoke.ts",
     "rerank-challenge:smoke": "ts-node src/cli/rerank-challenge-smoke.ts",
+    "semantic-rerank:smoke": "ts-node src/cli/semantic-rerank-smoke.ts",
     "embedding-eval:smoke": "ts-node src/cli/embedding-comparison-smoke.ts",
     "embedding-hard:smoke": "ts-node src/cli/embedding-hard-smoke.ts",
     "transformers-embedding:smoke": "ts-node src/cli/transformers-embedding-smoke.ts",
