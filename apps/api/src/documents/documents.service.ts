@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { lookup } from "node:dns/promises";
 import { readdir, readFile } from "node:fs/promises";
+import { isIP } from "node:net";
 import { join, relative } from "node:path";
 import { AnswerLineageGraph, AnswerQualityGate, AnswerReplay, AnswerTraceService } from "../agent/answer-trace.service";
 import { ElasticsearchService } from "../agent/elasticsearch.service";
@@ -1978,7 +1980,7 @@ async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
     if (!input.url) {
       throw new BadRequestException("url source requires url");
     }
-    const response = await fetch(input.url, { redirect: "follow" });
+    const response = await fetchAllowedSourceUrl(input.url);
     if (!response.ok) {
       throw new BadRequestException(`URL fetch failed: ${response.status}`);
     }
@@ -2042,6 +2044,118 @@ async function readBoundedResponse(response: Response, maxBytes: number): Promis
     throw new BadRequestException(`URL content is too large. Max ${maxBytes} bytes.`);
   }
   return text;
+}
+
+async function fetchAllowedSourceUrl(rawUrl: string, redirectCount = 0): Promise<Response> {
+  if (redirectCount > 3) {
+    throw new BadRequestException("URL fetch redirect limit exceeded");
+  }
+
+  const url = parseSourceUrl(rawUrl);
+  await assertSourceUrlAllowed(url);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(url, { redirect: "manual", signal: controller.signal });
+    if (isRedirectStatus(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) {
+        throw new BadRequestException("URL redirect response did not include a location header");
+      }
+      return fetchAllowedSourceUrl(new URL(location, url).toString(), redirectCount + 1);
+    }
+    return response;
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    const message = error instanceof Error && error.name === "AbortError" ? "URL fetch timed out" : `URL fetch failed: ${formatErrorMessage(error)}`;
+    throw new BadRequestException(message);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function parseSourceUrl(rawUrl: string): URL {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new BadRequestException("URL source only supports http and https");
+    }
+    if (!url.hostname) {
+      throw new BadRequestException("URL source requires a hostname");
+    }
+    return url;
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new BadRequestException("URL source is invalid");
+  }
+}
+
+async function assertSourceUrlAllowed(url: URL): Promise<void> {
+  if (process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS === "true") {
+    return;
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    throw new BadRequestException("URL source cannot target localhost unless SOURCE_INGESTION_ALLOW_PRIVATE_URLS=true");
+  }
+
+  const addresses = isIP(hostname)
+    ? [{ address: hostname }]
+    : await lookup(hostname, { all: true, verbatim: true }).catch(() => {
+        throw new BadRequestException("URL source hostname could not be resolved");
+      });
+
+  if (addresses.length === 0) {
+    throw new BadRequestException("URL source hostname could not be resolved");
+  }
+
+  for (const { address } of addresses) {
+    if (isPrivateNetworkAddress(address)) {
+      throw new BadRequestException("URL source cannot target private, loopback, link-local, multicast, or unspecified addresses");
+    }
+  }
+}
+
+function isPrivateNetworkAddress(address: string): boolean {
+  if (isIP(address) === 4) {
+    const octets = address.split(".").map(Number);
+    const [first, second] = octets;
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      first >= 224 ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168)
+    );
+  }
+
+  if (isIP(address) === 6) {
+    const lower = address.toLowerCase();
+    if (lower.startsWith("::ffff:")) {
+      return isPrivateNetworkAddress(lower.slice("::ffff:".length));
+    }
+    const firstSegment = lower.split(":")[0];
+    return lower === "::" || lower === "::1" || firstSegment === "fc00" || firstSegment === "fd00" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80:");
+  }
+
+  return true;
+}
+
+function isRedirectStatus(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+function formatErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function normalizeExtractedText(input: {

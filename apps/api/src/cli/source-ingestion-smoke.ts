@@ -21,6 +21,7 @@ async function main() {
     const fixtureUrl = `http://127.0.0.1:${address.port}/ops-url-fixture`;
 
     await documents.resetDocuments(false);
+    const privateUrlBlocked = await expectPrivateUrlBlocked(documents, fixtureUrl);
     const text = await documents.ingestSource({
       sourceType: "text",
       path: "public/uploads/source-text-smoke.md",
@@ -29,12 +30,23 @@ async function main() {
         "OPSTXT-77 텍스트 문서는 사용자가 txt 내용을 붙여넣으면 OpsPilot이 저장, 청킹, 임베딩, 검색 답변까지 연결해야 함을 증명합니다. " +
         "검증 기준은 텍스트 추출 길이, 검색 가능한 청크 생성, 검색 힌트 확보, 보안 스캔 통과이며 좋은 문서는 수집 품질 ready 상태가 되어야 합니다."
     });
-    const url = await documents.ingestSource({
-      sourceType: "url",
-      path: "public/uploads/source-url-smoke.md",
-      url: fixtureUrl,
-      title: "URL 수집 Smoke 문서"
-    });
+    const previousPrivateUrlSetting = process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS;
+    process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS = "true";
+    let url!: Awaited<ReturnType<DocumentsService["ingestSource"]>>;
+    try {
+      url = await documents.ingestSource({
+        sourceType: "url",
+        path: "public/uploads/source-url-smoke.md",
+        url: fixtureUrl,
+        title: "URL 수집 Smoke 문서"
+      });
+    } finally {
+      if (previousPrivateUrlSetting === undefined) {
+        delete process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS;
+      } else {
+        process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS = previousPrivateUrlSetting;
+      }
+    }
     const pdf = await documents.ingestSource({
       sourceType: "pdf",
       path: "public/uploads/source-pdf-smoke.md",
@@ -86,6 +98,7 @@ async function main() {
       text.quality.suggestedQuestions.some(
         (suggestion) => suggestion.question.includes("텍스트 수집 Smoke 문서") && suggestion.expectedEvidence.includes("텍스트 수집 Smoke 문서")
       ) &&
+      privateUrlBlocked &&
       url.parser === "html_text_v1" &&
       url.chunks > 0 &&
       url.quality.status === "ready" &&
@@ -126,6 +139,7 @@ async function main() {
             unsupported: unsupportedAnswer.answer,
             unsupportedReview: unsupportedAnswer.needsHumanReview
           },
+          privateUrlBlocked,
           reset: {
             deleted: reset.deleted,
             reloadedSeed: reset.reloadedSeed,
@@ -169,6 +183,28 @@ function createFixtureServer() {
 
 function listen(server: ReturnType<typeof createFixtureServer>): Promise<void> {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+}
+
+async function expectPrivateUrlBlocked(documents: DocumentsService, fixtureUrl: string): Promise<boolean> {
+  const previousPrivateUrlSetting = process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS;
+  delete process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS;
+  try {
+    await documents.ingestSource({
+      sourceType: "url",
+      path: "public/uploads/source-private-url-blocked.md",
+      url: fixtureUrl,
+      title: "차단되어야 하는 private URL"
+    });
+    return false;
+  } catch (error) {
+    return error instanceof Error && error.message.includes("private");
+  } finally {
+    if (previousPrivateUrlSetting === undefined) {
+      delete process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS;
+    } else {
+      process.env.SOURCE_INGESTION_ALLOW_PRIVATE_URLS = previousPrivateUrlSetting;
+    }
+  }
 }
 
 function createPdfFixture(text: string): Buffer {

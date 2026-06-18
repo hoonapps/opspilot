@@ -28,6 +28,8 @@ pnpm authn:smoke
 
 Markdown, URL, txt, PDF, Word docx 수집은 저장과 색인 전에 표준 Markdown으로 정규화되고 시크릿 패턴을 마스킹합니다. AWS 키, GitHub 토큰, Slack 토큰, bearer 토큰, `api_key`, `password`, `client_secret`류 키-값 시크릿을 대상으로 합니다.
 
+URL 수집은 기본적으로 `http`/`https`만 허용하고, DNS 해석 결과가 localhost, private network, loopback, link-local, multicast, unspecified 주소이면 차단합니다. Redirect도 자동으로 신뢰하지 않고 각 hop을 다시 검사합니다. 로컬 fixture 테스트처럼 내부 주소가 꼭 필요할 때만 `SOURCE_INGESTION_ALLOW_PRIVATE_URLS=true`로 명시적으로 우회합니다.
+
 ```bash
 pnpm redaction:smoke
 ```
