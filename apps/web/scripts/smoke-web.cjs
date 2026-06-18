@@ -225,6 +225,10 @@ async function main() {
       .isVisible();
     const securitySummaryVisible = await page.locator(".securityLine").getByText("마스킹:", { exact: false }).isVisible();
     const promptInjectionSummaryVisible = await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).isVisible();
+    const sourceProvenanceVisible =
+      (await page.locator(".sourceProvenanceLine").getByText("원본: Markdown", { exact: true }).isVisible()) &&
+      (await page.locator(".sourceProvenanceLine").getByText("저장 경로: public/status-page-policy.md", { exact: true }).isVisible()) &&
+      (await page.locator(".sourceProvenanceLine").getByText("태그:", { exact: false }).isVisible());
     const indexProofVisible = await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).isVisible();
     const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("출처 적중", { exact: true }).isVisible();
     const indexQualityVisible =
@@ -644,6 +648,7 @@ async function main() {
         chunkPreviewVisible &&
         securitySummaryVisible &&
         promptInjectionSummaryVisible &&
+        sourceProvenanceVisible &&
         indexProofVisible &&
         indexProofSourceHitVisible &&
         indexSnapshotVisible &&
@@ -731,6 +736,7 @@ async function main() {
         chunkPreviewVisible,
         securitySummaryVisible,
         promptInjectionSummaryVisible,
+        sourceProvenanceVisible,
         indexProofVisible,
         indexProofSourceHitVisible,
         indexSnapshotVisible,

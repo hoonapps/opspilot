@@ -3686,10 +3686,14 @@ export default function Home() {
                       type="button"
                     >
                       <span>
-                        <strong>{document.title}</strong>
+                        <span className="documentRowTitle">
+                          <strong>{document.title}</strong>
+                          <em>{formatDocumentSourceType(document)}</em>
+                        </span>
                         <small>{document.path}</small>
+                        {hasDocumentSourceProvenance(document) ? <small>{formatDocumentSourceOrigin(document)}</small> : null}
                       </span>
-	                      <code>청크 {document.chunkCount}개</code>
+                      <code>청크 {document.chunkCount}개</code>
                     </button>
                   ))}
                 </div>
@@ -3716,12 +3720,17 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="securityLine">
-	                        <span>팀: {selectedDocument.teamSlug ?? "전체 공개"}</span>
-	                        <span>마스킹: {getRedactionCount(selectedDocument)}</span>
-	                        <span className={hasPromptInjectionRisk(selectedDocument) ? "securityWarn" : ""}>
-	                          프롬프트 주입: {formatPromptInjectionRisk(selectedDocument)}
-	                        </span>
-	                        <span>해시: {selectedDocument.contentHash.slice(0, 10)}</span>
+                        <span>팀: {selectedDocument.teamSlug ?? "전체 공개"}</span>
+                        <span>마스킹: {getRedactionCount(selectedDocument)}</span>
+                        <span className={hasPromptInjectionRisk(selectedDocument) ? "securityWarn" : ""}>
+                          프롬프트 주입: {formatPromptInjectionRisk(selectedDocument)}
+                        </span>
+                        <span>해시: {selectedDocument.contentHash.slice(0, 10)}</span>
+                      </div>
+                      <div className="sourceProvenanceLine">
+                        <span>원본: {formatDocumentSourceType(selectedDocument)}</span>
+                        <span>{formatDocumentSourceOrigin(selectedDocument)}</span>
+                        <span>태그: {formatDocumentTags(selectedDocument)}</span>
                       </div>
                       {documentVersionHistory?.document.id === selectedDocument.id ? (
                         <section className="versionPanel" aria-label="문서 버전 이력">
@@ -5322,6 +5331,45 @@ function formatPromptInjectionRisk(document: DocumentInventoryItem): string {
   }
   const count = document.metadata.security?.promptInjectionPatternCount ?? document.metadata.security?.promptInjectionPatterns?.length ?? 0;
   return `격리 ${count}개`;
+}
+
+function formatDocumentSourceType(document: DocumentInventoryItem): string {
+  const sourceType = document.metadata.sourceType;
+  if (sourceType === "url") {
+    return "URL";
+  }
+  if (sourceType === "pdf") {
+    return "PDF";
+  }
+  if (sourceType === "docx") {
+    return "Word";
+  }
+  if (sourceType === "text") {
+    return "TXT";
+  }
+  return "Markdown";
+}
+
+function hasDocumentSourceProvenance(document: DocumentInventoryItem): boolean {
+  return Boolean(document.metadata.sourceUrl || document.metadata.fileName);
+}
+
+function formatDocumentSourceOrigin(document: DocumentInventoryItem): string {
+  if (document.metadata.sourceUrl) {
+    return document.metadata.sourceUrl;
+  }
+  if (document.metadata.fileName) {
+    return `파일: ${document.metadata.fileName}`;
+  }
+  return `저장 경로: ${document.path}`;
+}
+
+function formatDocumentTags(document: DocumentInventoryItem): string {
+  const tags = document.metadata.tags ?? [];
+  if (tags.length === 0) {
+    return "없음";
+  }
+  return tags.slice(0, 4).join(", ");
 }
 
 function inferSourceType(fileName: string): DocumentSourceType {

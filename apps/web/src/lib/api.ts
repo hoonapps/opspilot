@@ -173,6 +173,9 @@ export type DocumentInventoryItem = {
   teamSlug?: string | null;
   contentHash: string;
   metadata: {
+    sourceType?: DocumentSourceType;
+    sourceUrl?: string;
+    fileName?: string;
     security?: {
       redactionCount?: number;
       redactionPatterns?: string[];

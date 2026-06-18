@@ -2853,6 +2853,31 @@ pre {
   background: #f2fbf8;
 }
 
+.documentRowTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.documentRowTitle strong {
+  min-width: 0;
+}
+
+.documentRowTitle em {
+  flex: 0 0 auto;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 6px;
+  background: var(--info-soft);
+  color: var(--info);
+  padding: 2px 6px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .documentRow strong,
 .chunkHeader strong {
   display: block;
@@ -3614,6 +3639,24 @@ pre {
 
 .securityLine .securityWarn {
   color: #b45309;
+}
+
+.sourceProvenanceLine {
+  display: grid;
+  grid-template-columns: 0.7fr minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.sourceProvenanceLine span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chunkList {
@@ -6233,6 +6276,7 @@ pre {
   .impactMetrics,
   .impactAnswerItem,
   .timelineItem,
+  .sourceProvenanceLine,
   .feedbackBar {
     grid-template-columns: 1fr;
   }
