@@ -44,6 +44,8 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 
 ## 현재 구현 범위
 
+기능별 상세 설명은 [기능 명세](docs/features.md)에 따로 정리했습니다. 포트폴리오 면접에서는 “문서 수집 → 청킹/임베딩 → 권한 인식 검색 → 근거 기반 답변 → 도구 호출/승인 → 평가” 흐름으로 설명하면 됩니다.
+
 - NestJS + TypeScript API
 - PostgreSQL + pgvector 기반 권한 인식 RAG 검색
 - Redis + BullMQ 기반 비동기 문서 색인
@@ -405,6 +407,7 @@ GitHub Actions는 다음 범위를 검증합니다.
 
 ## 주요 문서
 
+- [기능 명세](docs/features.md)
 - [사용법](docs/usage.md)
 - [시스템 설계](docs/system-design.md)
 - [에이전트 작업 흐름](docs/agent-workflow.md)
