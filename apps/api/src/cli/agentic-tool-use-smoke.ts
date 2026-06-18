@@ -87,7 +87,6 @@ async function main() {
     const agent = app.get(AgentService);
     const traces = app.get(AnswerTraceService);
 
-    await documents.resetDocuments(false);
     await documents.ingestMarkdown(AGENTIC_RUNBOOK_PATH, AGENTIC_RUNBOOK);
 
     const answer = await agent.ask("PAY-99 결제 장애 대응 체크리스트 만들고 운영 DB 수정은 진행해도 돼?", { roles: [], teamSlugs: [] }, "agentic-tool-use-smoke");
@@ -139,7 +138,6 @@ async function main() {
       throw new Error("Agentic tool-use smoke test failed");
     }
   } finally {
-    await app.get(DocumentsService).resetDocuments(true);
     await app.close();
     globalThis.fetch = previousFetch;
     restoreEnv(previousEnv);

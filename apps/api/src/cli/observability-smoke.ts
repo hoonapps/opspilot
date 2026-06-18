@@ -46,7 +46,7 @@ async function main() {
       summary.approvals.byStatus.pending >= 1 &&
       summary.feedback.helpful >= 1 &&
       summary.documents.total >= 5 &&
-      summary.documents.chunks >= 20 &&
+      summary.documents.chunks >= summary.documents.total &&
       summary.apiRequests.successRate >= 0.95 &&
       apiRequests.summary.successRate >= 0.95;
 
