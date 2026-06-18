@@ -49,6 +49,7 @@ const REQUIRED_OPERATIONS: Array<{ path: string; method: HttpMethod; operationId
   { path: "/evaluations/history", method: "get" },
   { path: "/evaluations/cases", method: "get" },
   { path: "/evaluations/regression", method: "get" },
+  { path: "/evaluations/coverage", method: "get" },
   { path: "/observability/summary", method: "get" },
   { path: "/observability/api-requests", method: "get" },
   { path: "/observability/slo", method: "get" },

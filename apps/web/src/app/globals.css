@@ -4478,6 +4478,126 @@ pre {
   white-space: nowrap;
 }
 
+.evalCoverage {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.evalCoverage--gaps {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.evalCoverage--missing_eval {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.evalCoverageSummary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evalCoverageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evalCoverageDocument {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.evalCoverageDocument--medium {
+  border-color: #fde68a;
+}
+
+.evalCoverageDocument--high {
+  border-color: #fecaca;
+}
+
+.evalCoverageDocument span {
+  display: inline-block;
+  margin-bottom: 5px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.evalCoverageDocument strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.evalCoverageDocument p {
+  overflow: hidden;
+  margin: 3px 0 7px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.evalCoverageDocument code {
+  color: var(--muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+}
+
+.evalCoverageBlindSpots {
+  display: grid;
+  gap: 8px;
+}
+
+.evalCoverageBlindSpot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.9fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px;
+  border: 1px dashed #f59e0b;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.evalCoverageBlindSpot strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.evalCoverageBlindSpot p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.evalCoverageBlindSpot code {
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--ink);
+  padding: 5px 7px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .approvalPanel {
   border-top: 3px solid #f59e0b;
 }
@@ -5765,6 +5885,9 @@ pre {
   .evalRegressionSummary,
   .evalRegressionDeltas,
   .evalRegressionAction,
+  .evalCoverageSummary,
+  .evalCoverageGrid,
+  .evalCoverageBlindSpot,
   .evalHistoryHead,
   .evalHistoryItem,
   .opsGrid,

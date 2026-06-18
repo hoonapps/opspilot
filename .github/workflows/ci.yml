@@ -110,6 +110,9 @@ jobs:
       - name: Evaluation regression smoke
         run: pnpm eval:regression-smoke
 
+      - name: Evaluation coverage smoke
+        run: pnpm eval:coverage-smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

@@ -35,6 +35,7 @@ EVAL_MIN_CITATION_ACCURACY=1
 pnpm eval:history-smoke
 pnpm eval:cases-smoke
 pnpm eval:regression-smoke
+pnpm eval:coverage-smoke
 pnpm freshness:smoke
 ```
 
@@ -53,6 +54,20 @@ GET /evaluations/regression
 - 게이트 통과와 회귀 없음이 함께 만족되면 `promote`
 
 응답에는 메트릭별 delta, 실패 게이트, 고위험 케이스, 담당 영역별 액션 아이템, SHA-256 `reportHash`가 포함됩니다. 웹 콘솔 `품질` 화면의 `회귀 릴리즈 리포트`에서 같은 내용을 확인할 수 있습니다.
+
+## 평가 문서 커버리지
+
+```txt
+GET /evaluations/coverage
+```
+
+최신 평가가 현재 문서 집합을 얼마나 덮는지 계산합니다. 각 문서는 기대 출처, 실제 검색 출처, 둘 다, 미검증 중 하나로 분류됩니다.
+
+- 제한 문서와 팀 문서 커버리지를 별도 비율로 계산합니다.
+- 평가에 포함되지 않은 문서는 blind spot으로 표시하고 suggested question을 생성합니다.
+- 응답에는 action item과 SHA-256 `reportHash`가 포함됩니다.
+
+`pnpm eval:coverage-smoke`는 평가에 포함되지 않은 임시 문서를 추가해 blind spot 탐지와 리포트 해시가 생성되는지 검증합니다.
 
 ## 케이스 상세 리포트
 

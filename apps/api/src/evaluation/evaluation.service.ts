@@ -192,6 +192,61 @@ export type EvaluationRegressionReport = {
   };
 };
 
+export type EvaluationCoverageReport = {
+  schemaVersion: "opspilot.evaluation_coverage.v1";
+  suiteName: string;
+  runId: string;
+  generatedAt: string;
+  status: "healthy" | "gaps" | "missing_eval";
+  summary: {
+    totalDocuments: number;
+    coveredDocuments: number;
+    uncoveredDocuments: number;
+    coverageRatio: number;
+    restrictedCoverageRatio: number;
+    teamCoverageRatio: number;
+    evalCaseCount: number;
+    expectedSourceCount: number;
+    actualSourceCount: number;
+  };
+  documents: Array<{
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug: string | null;
+    updatedAt: string;
+    coveredBy: "expected" | "actual" | "both" | "none";
+    expectedCaseCount: number;
+    actualHitCount: number;
+    topSourceCount: number;
+    averageDocumentAgreement: number;
+    riskLevel: "low" | "medium" | "high";
+    recommendations: string[];
+  }>;
+  blindSpots: Array<{
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug: string | null;
+    riskLevel: "medium" | "high";
+    reason: string;
+    suggestedQuestion: string;
+  }>;
+  actionItems: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2";
+    owner: "evaluation" | "security" | "retrieval";
+    title: string;
+    evidence: string;
+    command: string;
+  }>;
+  integrity: {
+    reportHash: string;
+    hashAlgorithm: "sha256";
+    includedFields: string[];
+  };
+};
+
 export type EvaluationMetrics = {
   sourceHitRate: number;
   topSourceAccuracy: number;
@@ -215,6 +270,14 @@ type EvaluationMetricDetails = {
   gates?: EvaluationGate[];
   metrics?: EvaluationMetrics;
   passed?: boolean;
+};
+
+type EvaluationDocumentRow = {
+  path: string;
+  title: string;
+  visibility: string;
+  team_slug?: string | null;
+  updated_at: Date | string;
 };
 
 const METRIC_NAMES = {
@@ -519,6 +582,105 @@ export class EvaluationService {
     };
   }
 
+  async coverage(suiteName: string): Promise<{ report: EvaluationCoverageReport | null }> {
+    const [latest, runId, documents] = await Promise.all([
+      this.latest(suiteName),
+      this.latestRunId(suiteName),
+      this.loadEvaluationDocuments()
+    ]);
+
+    if (!latest.report) {
+      return { report: null };
+    }
+
+    const rows = latest.report.rows;
+    const documentReports = buildCoverageDocuments(documents, rows);
+    const coveredDocuments = documentReports.filter((document) => document.coveredBy !== "none").length;
+    const restrictedDocuments = documentReports.filter((document) => document.visibility === "restricted");
+    const teamDocuments = documentReports.filter((document) => document.visibility === "team");
+    const blindSpots = documentReports
+      .filter((document) => document.coveredBy === "none")
+      .sort((left, right) => coverageRiskRank(right.riskLevel) - coverageRiskRank(left.riskLevel) || left.path.localeCompare(right.path))
+      .slice(0, 8)
+      .map((document) => ({
+        path: document.path,
+        title: document.title,
+        visibility: document.visibility,
+        teamSlug: document.teamSlug,
+        riskLevel: document.riskLevel === "low" ? ("medium" as const) : document.riskLevel,
+        reason:
+          document.visibility === "restricted"
+            ? "제한 문서인데 최신 평가 케이스의 기대/실제 출처에 포함되지 않았습니다."
+            : document.visibility === "team"
+              ? "팀 문서인데 최신 평가 케이스가 이 문서를 직접 검증하지 않았습니다."
+              : "공개 문서가 최신 평가 케이스의 기대/실제 출처에 포함되지 않았습니다.",
+        suggestedQuestion: buildSuggestedCoverageQuestion(document)
+      }));
+    const summary = {
+      totalDocuments: documentReports.length,
+      coveredDocuments,
+      uncoveredDocuments: documentReports.length - coveredDocuments,
+      coverageRatio: ratio(coveredDocuments, documentReports.length),
+      restrictedCoverageRatio: ratio(
+        restrictedDocuments.filter((document) => document.coveredBy !== "none").length,
+        restrictedDocuments.length
+      ),
+      teamCoverageRatio: ratio(
+        teamDocuments.filter((document) => document.coveredBy !== "none").length,
+        teamDocuments.length
+      ),
+      evalCaseCount: rows.length,
+      expectedSourceCount: new Set(rows.flatMap((row) => row.expectedSources)).size,
+      actualSourceCount: new Set(rows.flatMap((row) => row.actualSources)).size
+    };
+    const status: EvaluationCoverageReport["status"] =
+      documentReports.length === 0 || rows.length === 0
+        ? "missing_eval"
+        : summary.uncoveredDocuments > 0 || summary.restrictedCoverageRatio < 1
+          ? "gaps"
+          : "healthy";
+    const actionItems = buildCoverageActionItems({
+      suiteName,
+      summary,
+      blindSpots
+    });
+    const hashBasis = {
+      suiteName,
+      runId,
+      status,
+      summary,
+      documents: documentReports.map((document) => ({
+        path: document.path,
+        coveredBy: document.coveredBy,
+        expectedCaseCount: document.expectedCaseCount,
+        actualHitCount: document.actualHitCount,
+        topSourceCount: document.topSourceCount,
+        riskLevel: document.riskLevel
+      })),
+      blindSpots,
+      actionItems
+    };
+
+    return {
+      report: {
+        schemaVersion: "opspilot.evaluation_coverage.v1",
+        suiteName,
+        runId,
+        generatedAt: new Date().toISOString(),
+        status,
+        summary,
+        documents: documentReports,
+        blindSpots,
+        actionItems,
+        integrity: {
+          reportHash: sha256(stableStringify(hashBasis)),
+          hashAlgorithm: "sha256",
+          includedFields: ["suiteName", "runId", "status", "summary", "documents", "blindSpots", "actionItems"]
+        }
+      }
+    };
+  }
+
   private async loadSourceContents(chunkIds: string[]): Promise<string[]> {
     if (chunkIds.length === 0) {
       return [];
@@ -549,6 +711,16 @@ export class EvaluationService {
     )) as Array<{ details: EvaluationMetricDetails | string }>;
 
     return normalizeDetails(row?.details).runId ?? "unknown";
+  }
+
+  private async loadEvaluationDocuments(): Promise<EvaluationDocumentRow[]> {
+    return (await this.orm.em.fork().getConnection().execute(
+      `
+        select path, title, visibility, team_slug, updated_at
+        from documents
+        order by visibility desc, path asc;
+      `
+    )) as EvaluationDocumentRow[];
   }
 }
 
@@ -951,6 +1123,170 @@ function buildCaseRecommendations(row: EvalReport["rows"][number], checks: Evalu
   });
 
   return [...new Set(recommendations)].slice(0, 4);
+}
+
+function buildCoverageDocuments(
+  documents: EvaluationDocumentRow[],
+  rows: EvalReport["rows"]
+): EvaluationCoverageReport["documents"] {
+  return documents.map((document) => {
+    const expectedRows = rows.filter((row) => row.expectedSources.includes(document.path));
+    const actualRows = rows.filter((row) => row.actualSources.includes(document.path));
+    const topSourceCount = rows.filter((row) => row.actualSources[0] === document.path).length;
+    const agreements = rows
+      .filter((row) => row.expectedSources.includes(document.path) || row.actualSources.includes(document.path))
+      .map((row) => row.documentAgreement);
+    const coveredBy =
+      expectedRows.length > 0 && actualRows.length > 0
+        ? ("both" as const)
+        : expectedRows.length > 0
+          ? ("expected" as const)
+          : actualRows.length > 0
+            ? ("actual" as const)
+            : ("none" as const);
+    const riskLevel = coverageRiskLevel({
+      visibility: document.visibility,
+      coveredBy,
+      expectedCaseCount: expectedRows.length,
+      actualHitCount: actualRows.length
+    });
+
+    return {
+      path: document.path,
+      title: document.title,
+      visibility: document.visibility,
+      teamSlug: document.team_slug ?? null,
+      updatedAt: toIsoString(document.updated_at),
+      coveredBy,
+      expectedCaseCount: expectedRows.length,
+      actualHitCount: actualRows.length,
+      topSourceCount,
+      averageDocumentAgreement: average(agreements),
+      riskLevel,
+      recommendations: buildCoverageRecommendations({
+        path: document.path,
+        visibility: document.visibility,
+        coveredBy,
+        expectedCaseCount: expectedRows.length,
+        actualHitCount: actualRows.length,
+        topSourceCount
+      })
+    };
+  });
+}
+
+function coverageRiskLevel(input: {
+  visibility: string;
+  coveredBy: EvaluationCoverageReport["documents"][number]["coveredBy"];
+  expectedCaseCount: number;
+  actualHitCount: number;
+}): EvaluationCoverageReport["documents"][number]["riskLevel"] {
+  if (input.coveredBy === "none") {
+    return input.visibility === "restricted" || input.visibility === "team" ? "high" : "medium";
+  }
+  if (input.expectedCaseCount === 0 && input.actualHitCount > 0) {
+    return "medium";
+  }
+  return "low";
+}
+
+function coverageRiskRank(riskLevel: EvaluationCoverageReport["documents"][number]["riskLevel"]): number {
+  const ranks: Record<EvaluationCoverageReport["documents"][number]["riskLevel"], number> = {
+    low: 1,
+    medium: 2,
+    high: 3
+  };
+  return ranks[riskLevel];
+}
+
+function buildCoverageRecommendations(input: {
+  path: string;
+  visibility: string;
+  coveredBy: EvaluationCoverageReport["documents"][number]["coveredBy"];
+  expectedCaseCount: number;
+  actualHitCount: number;
+  topSourceCount: number;
+}): string[] {
+  const recommendations: string[] = [];
+  if (input.coveredBy === "none") {
+    recommendations.push("이 문서를 기대 출처로 하는 평가 질문을 추가하세요.");
+  }
+  if (input.coveredBy === "actual") {
+    recommendations.push("검색 결과에는 등장했지만 기대 출처로 검증되지 않았습니다. golden question에 명시하세요.");
+  }
+  if ((input.visibility === "restricted" || input.visibility === "team") && input.expectedCaseCount === 0) {
+    recommendations.push("권한 경계와 사람 검토 기대값을 포함한 보안 평가 케이스를 추가하세요.");
+  }
+  if (input.actualHitCount > 0 && input.topSourceCount === 0) {
+    recommendations.push("문서가 검색 후보에는 잡히지만 1순위가 아닙니다. 제목/별칭/청킹을 점검하세요.");
+  }
+  if (recommendations.length === 0) {
+    recommendations.push("기대 출처와 실제 검색 출처가 최신 평가에서 검증됐습니다.");
+  }
+  return recommendations.slice(0, 3);
+}
+
+function buildSuggestedCoverageQuestion(document: EvaluationCoverageReport["documents"][number]): string {
+  if (document.visibility === "restricted") {
+    return `${document.title} 문서 기준으로 민감 작업을 직접 실행해도 되는지 설명해줘`;
+  }
+  if (document.visibility === "team") {
+    return `${document.title} 문서 기준으로 온콜이 확인해야 할 운영 절차를 알려줘`;
+  }
+  return `${document.title} 문서의 핵심 정책을 근거와 함께 알려줘`;
+}
+
+function buildCoverageActionItems(input: {
+  suiteName: string;
+  summary: EvaluationCoverageReport["summary"];
+  blindSpots: EvaluationCoverageReport["blindSpots"];
+}): EvaluationCoverageReport["actionItems"] {
+  const items: EvaluationCoverageReport["actionItems"] = [];
+  if (input.summary.restrictedCoverageRatio < 1) {
+    items.push({
+      id: "cover-restricted-documents",
+      priority: "P0",
+      owner: "security",
+      title: "제한 문서 평가 커버리지 보강",
+      evidence: `제한 문서 커버리지가 ${formatPercent(input.summary.restrictedCoverageRatio)}입니다.`,
+      command: "pnpm eval"
+    });
+  }
+  if (input.summary.coverageRatio < 1) {
+    items.push({
+      id: "add-golden-questions",
+      priority: "P1",
+      owner: "evaluation",
+      title: "미검증 문서 golden question 추가",
+      evidence: `전체 문서 ${input.summary.totalDocuments}개 중 ${input.summary.uncoveredDocuments}개가 최신 평가에 포함되지 않았습니다.`,
+      command: `curl http://localhost:3000/evaluations/coverage?suiteName=${input.suiteName}`
+    });
+  }
+  for (const blindSpot of input.blindSpots.slice(0, 3)) {
+    items.push({
+      id: `blind-spot-${sha256(blindSpot.path).slice(0, 10)}`,
+      priority: blindSpot.riskLevel === "high" ? "P1" : "P2",
+      owner: blindSpot.visibility === "restricted" ? "security" : "retrieval",
+      title: `${blindSpot.title} 평가 질문 추가`,
+      evidence: blindSpot.reason,
+      command: `# ${blindSpot.suggestedQuestion}`
+    });
+  }
+  if (items.length === 0) {
+    items.push({
+      id: "coverage-healthy",
+      priority: "P2",
+      owner: "evaluation",
+      title: "평가 커버리지 증거 기록",
+      evidence: "모든 문서가 최신 평가의 기대 또는 실제 출처에 포함됐습니다.",
+      command: `curl http://localhost:3000/evaluations/coverage?suiteName=${input.suiteName}`
+    });
+  }
+  return items.slice(0, 6);
+}
+
+function toIsoString(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
 function formatPercent(value: number): string {

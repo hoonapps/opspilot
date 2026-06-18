@@ -29,6 +29,7 @@ import {
   ErrorBudgetReport,
   enqueueMarkdownIndexingJob,
   EvaluationCaseReport,
+  EvaluationCoverageReport,
   EvaluationHistory,
   EvaluationReport,
   EvaluationRegressionReport,
@@ -50,6 +51,7 @@ import {
   getDocumentIndexQuality,
   getErrorBudget,
   getEvaluationCases,
+  getEvaluationCoverage,
   getEvaluationHistory,
   getEvaluationRegression,
   getIndexingQueueHealth,
@@ -225,6 +227,7 @@ export default function Home() {
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationHistory | null>(null);
   const [evaluationCases, setEvaluationCases] = useState<EvaluationCaseReport | null>(null);
   const [evaluationRegression, setEvaluationRegression] = useState<EvaluationRegressionReport | null>(null);
+  const [evaluationCoverage, setEvaluationCoverage] = useState<EvaluationCoverageReport | null>(null);
   const [observability, setObservability] = useState<ObservabilitySummary | null>(null);
   const [apiRequests, setApiRequests] = useState<ApiRequestObservabilityReport | null>(null);
   const [errorBudget, setErrorBudget] = useState<ErrorBudgetReport | null>(null);
@@ -800,16 +803,18 @@ export default function Home() {
     setError(null);
     setLoading("evaluation");
     try {
-      const [latest, history, cases, regression] = await Promise.all([
+      const [latest, history, cases, regression, coverage] = await Promise.all([
         getLatestEvaluation(),
         getEvaluationHistory(),
         getEvaluationCases(),
-        getEvaluationRegression()
+        getEvaluationRegression(),
+        getEvaluationCoverage()
       ]);
       setEvaluation(latest);
       setEvaluationHistory(history);
       setEvaluationCases(cases);
       setEvaluationRegression(regression);
+      setEvaluationCoverage(coverage);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "평가 요청에 실패했습니다.");
     } finally {
@@ -2615,6 +2620,69 @@ export default function Home() {
                     </div>
                   </section>
                 ) : null}
+                {evaluationCoverage ? (
+                  <section className={`evalCoverage evalCoverage--${evaluationCoverage.status}`} aria-label="평가 문서 커버리지 리포트">
+                    <div className="evalHistoryHead">
+                      <div>
+                        <span>평가 문서 커버리지</span>
+                        <p>
+                          최신 평가가 문서 {evaluationCoverage.summary.coveredDocuments}/{evaluationCoverage.summary.totalDocuments}개를 기대 또는 실제 출처로 검증했습니다.
+                        </p>
+                      </div>
+                      <span className={evaluationCoverage.status === "healthy" ? "badge" : "badge review"}>
+                        {formatEvaluationCoverageStatus(evaluationCoverage.status)}
+                      </span>
+                    </div>
+                    <div className="evalCoverageSummary">
+                      <Metric label="전체 커버리지" value={formatPercent(evaluationCoverage.summary.coverageRatio)} />
+                      <Metric label="제한 문서" value={formatPercent(evaluationCoverage.summary.restrictedCoverageRatio)} />
+                      <Metric label="팀 문서" value={formatPercent(evaluationCoverage.summary.teamCoverageRatio)} />
+                      <Metric label="미검증 문서" value={`${evaluationCoverage.summary.uncoveredDocuments}개`} />
+                      <Metric label="평가 케이스" value={`${evaluationCoverage.summary.evalCaseCount}개`} />
+                      <Metric label="리포트 해시" value={shortHash(evaluationCoverage.integrity.reportHash)} />
+                    </div>
+                    <div className="evalCoverageGrid">
+                      {evaluationCoverage.documents.slice(0, 6).map((document) => (
+                        <article className={`evalCoverageDocument evalCoverageDocument--${document.riskLevel}`} key={document.path}>
+                          <div>
+                            <span>{formatCoverageSource(document.coveredBy)}</span>
+                            <strong>{document.title}</strong>
+                            <p>{document.path}</p>
+                          </div>
+                          <code>
+                            기대 {document.expectedCaseCount} · 실제 {document.actualHitCount} · 1순위 {document.topSourceCount}
+                          </code>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="evalCoverageBlindSpots">
+                      {evaluationCoverage.blindSpots.slice(0, 3).map((item) => (
+                        <article className="evalCoverageBlindSpot" key={item.path}>
+                          <div>
+                            <strong>
+                              {formatCoverageRisk(item.riskLevel)} · {item.title}
+                            </strong>
+                            <p>{item.reason}</p>
+                          </div>
+                          <code>{item.suggestedQuestion}</code>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="evalRegressionActions">
+                      {evaluationCoverage.actionItems.slice(0, 3).map((item) => (
+                        <article className="evalRegressionAction" key={item.id}>
+                          <div>
+                            <strong>
+                              {item.priority} · {item.title}
+                            </strong>
+                            <p>{item.evidence}</p>
+                          </div>
+                          <code>{item.command}</code>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
                 {evaluationHistory && evaluationHistory.items.length > 0 ? (
                   <div className="evalHistory" aria-label="평가 이력">
                     <div className="evalHistoryHead">
@@ -4034,6 +4102,34 @@ function formatEvaluationRegressionDelta(status: EvaluationRegressionReport["met
     new: "신규 기준선"
   };
   return labels[status];
+}
+
+function formatEvaluationCoverageStatus(status: EvaluationCoverageReport["status"]): string {
+  const labels: Record<EvaluationCoverageReport["status"], string> = {
+    healthy: "충분",
+    gaps: "사각지대 있음",
+    missing_eval: "평가 필요"
+  };
+  return labels[status];
+}
+
+function formatCoverageSource(coveredBy: EvaluationCoverageReport["documents"][number]["coveredBy"]): string {
+  const labels: Record<EvaluationCoverageReport["documents"][number]["coveredBy"], string> = {
+    both: "기대+실제",
+    expected: "기대 출처",
+    actual: "실제 출처",
+    none: "미검증"
+  };
+  return labels[coveredBy];
+}
+
+function formatCoverageRisk(riskLevel: EvaluationCoverageReport["documents"][number]["riskLevel"]): string {
+  const labels: Record<EvaluationCoverageReport["documents"][number]["riskLevel"], string> = {
+    low: "낮음",
+    medium: "주의",
+    high: "높음"
+  };
+  return labels[riskLevel];
 }
 
 function formatIndexQualityStatus(status: string): string {

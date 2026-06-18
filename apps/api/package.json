@@ -17,6 +17,7 @@
     "eval:history-smoke": "ts-node src/cli/evaluation-history-smoke.ts",
     "eval:cases-smoke": "ts-node src/cli/evaluation-cases-smoke.ts",
     "eval:regression-smoke": "ts-node src/cli/evaluation-regression-smoke.ts",
+    "eval:coverage-smoke": "ts-node src/cli/evaluation-coverage-smoke.ts",
     "checklist:smoke": "ts-node src/cli/checklist-smoke.ts",
     "incident-plan:smoke": "ts-node src/cli/incident-plan-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",

@@ -51,6 +51,7 @@ GET /docs-json
 - `GET /evaluations/history`: 평가 이력
 - `GET /evaluations/cases`: 최신 평가 실행의 케이스별 실패 원인, 위험도, 개선 권고
 - `GET /evaluations/regression`: 최신 평가와 직전 평가의 회귀 비교, 릴리즈 판단, 액션, 리포트 해시
+- `GET /evaluations/coverage`: 최신 평가 기준 문서별 기대/실제 출처 커버리지, 미검증 문서, 추가 질문 액션, 리포트 해시
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
 - `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, 오류 예산 소모율, 주요 실패 엔드포인트, 배포 권고

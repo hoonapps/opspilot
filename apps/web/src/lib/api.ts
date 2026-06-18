@@ -1036,6 +1036,61 @@ export type EvaluationRegressionReport = {
   };
 };
 
+export type EvaluationCoverageReport = {
+  schemaVersion: "opspilot.evaluation_coverage.v1";
+  suiteName: string;
+  runId: string;
+  generatedAt: string;
+  status: "healthy" | "gaps" | "missing_eval";
+  summary: {
+    totalDocuments: number;
+    coveredDocuments: number;
+    uncoveredDocuments: number;
+    coverageRatio: number;
+    restrictedCoverageRatio: number;
+    teamCoverageRatio: number;
+    evalCaseCount: number;
+    expectedSourceCount: number;
+    actualSourceCount: number;
+  };
+  documents: Array<{
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug: string | null;
+    updatedAt: string;
+    coveredBy: "expected" | "actual" | "both" | "none";
+    expectedCaseCount: number;
+    actualHitCount: number;
+    topSourceCount: number;
+    averageDocumentAgreement: number;
+    riskLevel: "low" | "medium" | "high";
+    recommendations: string[];
+  }>;
+  blindSpots: Array<{
+    path: string;
+    title: string;
+    visibility: string;
+    teamSlug: string | null;
+    riskLevel: "medium" | "high";
+    reason: string;
+    suggestedQuestion: string;
+  }>;
+  actionItems: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2";
+    owner: "evaluation" | "security" | "retrieval";
+    title: string;
+    evidence: string;
+    command: string;
+  }>;
+  integrity: {
+    reportHash: string;
+    hashAlgorithm: "sha256";
+    includedFields: string[];
+  };
+};
+
 export type ToolCallAuditItem = {
   id: string;
   questionId: string | null;
@@ -2235,6 +2290,17 @@ export async function getEvaluationRegression(): Promise<EvaluationRegressionRep
   }
 
   const data = (await response.json()) as { report: EvaluationRegressionReport | null };
+  return data.report;
+}
+
+export async function getEvaluationCoverage(): Promise<EvaluationCoverageReport | null> {
+  const response = await fetch(`${API_BASE_URL}/evaluations/coverage`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const data = (await response.json()) as { report: EvaluationCoverageReport | null };
   return data.report;
 }
 

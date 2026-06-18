@@ -87,6 +87,11 @@ async function main() {
     await page.locator(".evalRegression").getByText("리포트 해시", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalRegressionDecision").getByText(/배포 가능|관찰 후 배포|배포 차단/u).first().waitFor({ timeout: 10000 });
     await page.locator(".evalRegressionAction").getByText(/pnpm eval|evaluations\/regression/u).first().waitFor({ timeout: 10000 });
+    await page.locator(".evalCoverage").getByText("평가 문서 커버리지", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evalCoverage").getByText("리포트 해시", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".evalCoverage").getByText(/사각지대 있음|충분|평가 필요/u).first().waitFor({ timeout: 10000 });
+    await page.locator(".evalCoverageBlindSpot").getByText(/평가|문서|정책/u).first().waitFor({ timeout: 10000 });
+    await page.locator(".evalCoverage").getByText(/evaluations\/coverage|pnpm eval/u).first().waitFor({ timeout: 10000 });
     await page.locator(".evalCaseReport").getByText("케이스 상세 리포트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalCaseReport").getByText("기대 출처 적중", { exact: true }).first().waitFor({ timeout: 10000 });
     await page.locator(".evalCaseExplorer").getByText("error-e102", { exact: true }).waitFor({ timeout: 10000 });
@@ -104,6 +109,11 @@ async function main() {
       (await page.locator(".evalRegression").getByText("리포트 해시", { exact: true }).isVisible()) &&
       (await page.locator(".evalRegressionDecision").getByText(/배포 가능|관찰 후 배포|배포 차단/u).first().isVisible()) &&
       (await page.locator(".evalRegressionAction").getByText(/pnpm eval|evaluations\/regression/u).first().isVisible());
+    const evalCoverageVisible =
+      (await page.locator(".evalCoverage").getByText("평가 문서 커버리지", { exact: true }).isVisible()) &&
+      (await page.locator(".evalCoverage").getByText("리포트 해시", { exact: true }).isVisible()) &&
+      (await page.locator(".evalCoverage").getByText(/사각지대 있음|충분|평가 필요/u).first().isVisible()) &&
+      (await page.locator(".evalCoverage").getByText(/evaluations\/coverage|pnpm eval/u).first().isVisible());
     const evalCaseDetailVisible =
       (await page.locator(".evalCaseReport").getByText("케이스 상세 리포트", { exact: true }).isVisible()) &&
       (await page.locator(".evalCaseReport").getByText("기대 출처 적중", { exact: true }).first().isVisible());
@@ -649,6 +659,7 @@ async function main() {
         evalHistoryVisible &&
         evalHistoryDeltaVisible &&
         evalRegressionVisible &&
+        evalCoverageVisible &&
         evalCaseDetailVisible &&
         evalCaseExplorerVisible &&
         evalSourceCompareVisible &&
@@ -733,6 +744,7 @@ async function main() {
         evalHistoryVisible,
         evalHistoryDeltaVisible,
         evalRegressionVisible,
+        evalCoverageVisible,
         evalCaseDetailVisible,
         evalCaseExplorerVisible,
         evalSourceCompareVisible,

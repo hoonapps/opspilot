@@ -26,4 +26,9 @@ export class EvaluationController {
   regression(@Query("suiteName") suiteName?: string) {
     return this.evaluationService.regression(suiteName ?? "seed-ops-wiki");
   }
+
+  @Get("coverage")
+  coverage(@Query("suiteName") suiteName?: string) {
+    return this.evaluationService.coverage(suiteName ?? "seed-ops-wiki");
+  }
 }

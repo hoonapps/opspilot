@@ -17,6 +17,7 @@
     "eval:history-smoke": "pnpm --filter @opspilot/api eval:history-smoke",
     "eval:cases-smoke": "pnpm --filter @opspilot/api eval:cases-smoke",
     "eval:regression-smoke": "pnpm --filter @opspilot/api eval:regression-smoke",
+    "eval:coverage-smoke": "pnpm --filter @opspilot/api eval:coverage-smoke",
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",
