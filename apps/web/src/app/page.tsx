@@ -223,6 +223,9 @@ type IndexProof = {
   sourceHit: boolean;
   documentAgreement: number;
   confidence: number;
+  verdict: "pass" | "review";
+  verdictReason: string;
+  answerPreview: string;
   answerId: string;
   verifiedAt: string;
 };
@@ -746,6 +749,10 @@ export default function Home() {
       ]);
       const topCandidate = preview.candidates[0] ?? null;
       const topSource = verificationAnswer.sources[0] ?? null;
+      const sourceHit = topSource?.path === targetIngest.path || topCandidate?.path === targetIngest.path;
+      const documentAgreement = verificationAnswer.documentAgreement.score;
+      const confidence = verificationAnswer.confidence;
+      const verdict = sourceHit && documentAgreement >= 0.6 && confidence >= 0.5 ? "pass" : "review";
       setRetrievalPreview(preview);
       setIndexProof({
         path: targetIngest.path,
@@ -753,9 +760,15 @@ export default function Home() {
         chunkCount: targetIngest.chunks,
         topSourcePath: topSource?.path ?? topCandidate?.path ?? null,
         topScore: topSource?.score ?? topCandidate?.score ?? null,
-        sourceHit: topSource?.path === targetIngest.path || topCandidate?.path === targetIngest.path,
-        documentAgreement: verificationAnswer.documentAgreement.score,
-        confidence: verificationAnswer.confidence,
+        sourceHit,
+        documentAgreement,
+        confidence,
+        verdict,
+        verdictReason:
+          verdict === "pass"
+            ? "신규 문서가 검색 후보 또는 답변 출처에 포함됐고, 답변 일치율과 신뢰도가 기준을 넘었습니다."
+            : "신규 문서 출처 적중, 답변 일치율, 신뢰도 중 하나 이상이 검토 기준에 걸렸습니다.",
+        answerPreview: verificationAnswer.answer.slice(0, 360),
         answerId: verificationAnswer.answerId,
         verifiedAt: new Date().toISOString()
       });
@@ -4084,13 +4097,19 @@ export default function Home() {
 	                    <p className="eyebrow">증명</p>
 	                    <h2>{indexProof.sourceHit ? "색인 문서 검색 성공" : "1순위 출처 불일치"}</h2>
 	                  </div>
-	                  <span className={indexProof.sourceHit ? "badge" : "badge review"}>{indexProof.sourceHit ? "출처 적중" : "검토"}</span>
+	                  <span className={indexProof.verdict === "pass" ? "badge" : "badge review"}>
+                      {indexProof.verdict === "pass" ? "검증 통과" : "검토 필요"}
+                    </span>
                 </div>
                 <div className="proofGrid">
 	                  <Metric label="청크" value={String(indexProof.chunkCount)} />
 	                  <Metric label="최고 점수" value={indexProof.topScore === null ? "해당 없음" : formatScore(indexProof.topScore)} />
 	                  <Metric label="답변 일치율" value={formatPercent(indexProof.documentAgreement)} />
 	                  <Metric label="신뢰도" value={formatPercent(indexProof.confidence)} />
+                </div>
+                <div className="proofVerdict">
+                  <strong>{indexProof.sourceHit ? "출처 적중" : "출처 검토 필요"}</strong>
+                  <p>{indexProof.verdictReason}</p>
                 </div>
                 <div className="proofDetails">
 	                  <span>질문</span>
@@ -4101,6 +4120,10 @@ export default function Home() {
                   <code>{indexProof.topSourcePath ?? "없음"}</code>
 	                  <span>답변</span>
                   <code>{indexProof.answerId}</code>
+                </div>
+                <div className="proofAnswerPreview">
+                  <span>답변 미리보기</span>
+                  <p>{indexProof.answerPreview}</p>
                 </div>
               </section>
             ) : null}

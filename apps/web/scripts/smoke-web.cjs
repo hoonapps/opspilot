@@ -161,7 +161,9 @@ async function main() {
     await page.locator(".securityLine").getByText("해시:", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".securityLine").getByText("프롬프트 주입:", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexProof").getByText("검증 통과", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexProof").getByText("출처 적중", { exact: true }).waitFor({ timeout: 10000 });
+    await page.locator(".indexProof").getByText("답변 미리보기", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexSnapshotPanel").getByText("지식 베이스 스냅샷", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexSnapshotPanel").getByText("스냅샷 해시", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".indexSnapshotPanel").getByText("document_chunk_manifest_v1", { exact: true }).waitFor({ timeout: 10000 });
@@ -230,7 +232,10 @@ async function main() {
       (await page.locator(".sourceProvenanceLine").getByText("저장 경로: public/status-page-policy.md", { exact: true }).isVisible()) &&
       (await page.locator(".sourceProvenanceLine").getByText("태그:", { exact: false }).isVisible());
     const indexProofVisible = await page.locator(".indexProof").getByText("색인 문서 검색 성공", { exact: true }).isVisible();
-    const indexProofSourceHitVisible = await page.locator(".indexProof").getByText("출처 적중", { exact: true }).isVisible();
+    const indexProofSourceHitVisible =
+      (await page.locator(".indexProof").getByText("검증 통과", { exact: true }).isVisible()) &&
+      (await page.locator(".indexProof").getByText("출처 적중", { exact: true }).isVisible()) &&
+      (await page.locator(".indexProof").getByText("답변 미리보기", { exact: true }).isVisible());
     const indexQualityVisible =
       (await page.locator(".indexQualityPanel").getByText("색인 품질 리포트", { exact: true }).isVisible()) &&
       (await page.locator(".indexQualityPanel").getByText("게이트 통과율", { exact: true }).isVisible()) &&

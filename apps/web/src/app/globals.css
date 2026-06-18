@@ -2184,6 +2184,38 @@ pre {
   box-shadow: none;
 }
 
+.proofVerdict,
+.proofAnswerPreview {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.proofVerdict strong,
+.proofAnswerPreview span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.proofVerdict p,
+.proofAnswerPreview p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.proofAnswerPreview p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
 .proofDetails {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
