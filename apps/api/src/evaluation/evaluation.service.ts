@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
-import { EmbeddingProvider, OpenAIEmbeddingProvider } from "@opspilot/ai";
+import { EmbeddingProvider, OpenAIEmbeddingProvider, TransformersEmbeddingProvider } from "@opspilot/ai";
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
@@ -347,7 +347,7 @@ export type EmbeddingComparisonReport = {
     metrics: RetrievalMetricSummary;
   };
   candidate: {
-    provider: "openai";
+    provider: "openai" | "transformers";
     model: string;
     available: boolean;
     skippedReason?: string;
@@ -982,7 +982,11 @@ export class EvaluationService {
     const evalQuestions = questions ?? (await loadEvalQuestionsFromEnv());
     const chunks = await this.loadEmbeddingComparisonChunks();
     const dimensions = this.embeddings.dimensions();
-    const openAiModel = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
+    const candidateProviderName = readEmbeddingCandidateProvider();
+    const candidateModel =
+      candidateProviderName === "transformers"
+        ? (process.env.TRANSFORMERS_EMBEDDING_MODEL ?? "Xenova/paraphrase-multilingual-MiniLM-L12-v2")
+        : (process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small");
     const localRows = await this.rankEmbeddingQuestions(evalQuestions, chunks, {
       provider: {
         embed: async (text: string) => this.embeddings.embedLocal(text)
@@ -994,12 +998,24 @@ export class EvaluationService {
     let candidateRows: EmbeddingComparisonRankRow[] = [];
     let skippedReason: string | undefined;
 
-    if (openAiKey) {
+    if (candidateProviderName === "transformers") {
+      try {
+        candidateRows = await this.rankEmbeddingQuestions(evalQuestions, chunks, {
+          provider: new TransformersEmbeddingProvider({
+            model: candidateModel,
+            dimensions
+          }),
+          providerLabel: "transformers"
+        });
+      } catch (error) {
+        skippedReason = error instanceof Error ? error.message : "Transformers embedding comparison failed";
+      }
+    } else if (openAiKey) {
       try {
         candidateRows = await this.rankEmbeddingQuestions(evalQuestions, chunks, {
           provider: new OpenAIEmbeddingProvider({
             apiKey: openAiKey,
-            embeddingModel: openAiModel,
+            embeddingModel: candidateModel,
             embeddingDimensions: dimensions,
             fallbackToLocal: false
           }),
@@ -1050,6 +1066,8 @@ export class EvaluationService {
     const actionItems = buildEmbeddingComparisonActionItems({
       status,
       skippedReason,
+      candidateProvider: candidateProviderName,
+      candidateModel,
       localMetrics,
       candidateMetrics,
       deltas
@@ -1060,7 +1078,8 @@ export class EvaluationService {
       dimensions,
       baseline: localMetrics,
       candidate: {
-        model: openAiModel,
+        provider: candidateProviderName,
+        model: candidateModel,
         available: candidateAvailable,
         metrics: candidateMetrics,
         deltas
@@ -1089,8 +1108,8 @@ export class EvaluationService {
           metrics: localMetrics
         },
         candidate: {
-          provider: "openai",
-          model: openAiModel,
+          provider: candidateProviderName,
+          model: candidateModel,
           available: candidateAvailable,
           skippedReason,
           metrics: candidateMetrics,
@@ -1254,6 +1273,15 @@ function readThreshold(name: string, fallback: number): number {
   }
 
   return value;
+}
+
+function readEmbeddingCandidateProvider(): EmbeddingComparisonReport["candidate"]["provider"] {
+  const raw = process.env.EMBEDDING_CANDIDATE_PROVIDER ?? "openai";
+  if (raw === "openai" || raw === "transformers") {
+    return raw;
+  }
+
+  throw new Error(`Unsupported EMBEDDING_CANDIDATE_PROVIDER: ${raw}`);
 }
 
 function average(values: number[]): number {
@@ -1431,19 +1459,35 @@ function buildRetrievalActionItems(input: {
 function buildEmbeddingComparisonActionItems(input: {
   status: EmbeddingComparisonReport["status"];
   skippedReason?: string;
+  candidateProvider: EmbeddingComparisonReport["candidate"]["provider"];
+  candidateModel: string;
   localMetrics: RetrievalMetricSummary;
   candidateMetrics: RetrievalMetricSummary | null;
   deltas: EmbeddingComparisonReport["candidate"]["deltas"];
 }): EmbeddingComparisonReport["actionItems"] {
+  const rerunCommand =
+    input.candidateProvider === "transformers"
+      ? "EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-eval:smoke"
+      : "EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke";
+  const hardCommand =
+    input.candidateProvider === "transformers"
+      ? "EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke"
+      : "EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke";
+
   if (input.status === "skipped") {
+    const noKeyFallbackCommand =
+      input.candidateProvider === "openai" && input.skippedReason === "OPENAI_API_KEY is not set"
+        ? "EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke"
+        : hardCommand;
+
     return [
       {
         id: "run-real-embedding-comparison",
         priority: "P1",
         owner: "embedding",
         title: "실제 임베딩 비교가 아직 실행되지 않았습니다.",
-        evidence: input.skippedReason ?? "OpenAI embedding provider was unavailable.",
-        command: "EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+        evidence: input.skippedReason ?? `${input.candidateProvider} embedding provider was unavailable.`,
+        command: noKeyFallbackCommand
       }
     ];
   }
@@ -1455,8 +1499,8 @@ function buildEmbeddingComparisonActionItems(input: {
         priority: "P0",
         owner: "embedding",
         title: "실제 임베딩 모델이 local baseline보다 낮은 검색 품질을 보였습니다.",
-        evidence: `local MRR ${input.localMetrics.mrr}, OpenAI MRR ${input.candidateMetrics?.mrr ?? 0}, delta ${input.deltas.mrr ?? 0}`,
-        command: "EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+        evidence: `local MRR ${input.localMetrics.mrr}, ${input.candidateProvider} ${input.candidateModel} MRR ${input.candidateMetrics?.mrr ?? 0}, delta ${input.deltas.mrr ?? 0}`,
+        command: rerunCommand
       }
     ];
   }
@@ -1469,7 +1513,7 @@ function buildEmbeddingComparisonActionItems(input: {
         owner: "evaluation",
         title: "현재 평가셋에서는 실제 임베딩 개선폭이 뚜렷하지 않습니다.",
         evidence: `recall@3 delta ${input.deltas.recallAt3 ?? 0}, MRR delta ${input.deltas.mrr ?? 0}, nDCG@5 delta ${input.deltas.ndcgAt5 ?? 0}`,
-        command: "EVAL_SET_PATH=../../seed/eval/embedding-hard.json EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+        command: hardCommand
       }
     ];
   }

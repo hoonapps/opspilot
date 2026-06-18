@@ -56,7 +56,7 @@ GET /docs-json
 - `GET /evaluations/regression`: 최신 평가와 직전 평가의 회귀 비교, 릴리즈 판단, 액션, 리포트 해시
 - `GET /evaluations/coverage`: 최신 평가 기준 문서별 기대/실제 출처 커버리지, 미검증 문서, 추가 질문 액션, 리포트 해시
 - `GET /evaluations/retrieval`: 답변 생성 전 검색 후보 기준 `recall@1/3/5`, `MRR`, `nDCG@5`, 첫 기대 문서 순위, 리랭킹 전/후 비교, 권한 경계 요약
-- `GET /evaluations/embedding-comparison`: 로컬 해시 임베딩과 OpenAI 임베딩 후보의 의미 검색 순위, `recall@k`, `MRR`, `nDCG@5`, 지표 delta, 실행 해시 비교
+- `GET /evaluations/embedding-comparison`: 로컬 해시 임베딩과 OpenAI/Transformers 임베딩 후보의 의미 검색 순위, `recall@k`, `MRR`, `nDCG@5`, 지표 delta, 실행 해시 비교
 - `GET /observability/summary`: 운영 지표 요약
 - `GET /observability/api-requests`: HTTP API 요청 성공률, p95 지연, 엔드포인트별 오류율
 - `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, 오류 예산 소모율, 주요 실패 엔드포인트, 배포 권고
@@ -100,7 +100,7 @@ GET /evaluations/embedding-comparison
 
 - `status`: `pass`, `warn`, `fail`, `skipped`
 - `baseline`: 로컬 임베딩 기준 `recall@1/3/5`, `MRR`, `nDCG@5`, 평균 첫 관련 문서 순위
-- `candidate`: OpenAI 임베딩 기준 같은 지표. API key가 없으면 `available=false`
+- `candidate`: OpenAI 또는 Transformers 임베딩 기준 같은 지표. API key가 없고 candidate provider를 바꾸지 않으면 `available=false`
 - `deltas`: candidate와 baseline의 지표 차이
 - `rows`: 질문별 기대 출처, baseline 순위, candidate 순위
 - `actionItems`: API key 설정, 회귀 조사, 어려운 평가셋 재실행 같은 후속 조치
@@ -111,7 +111,9 @@ GET /evaluations/embedding-comparison
 pnpm embedding-eval:smoke
 pnpm openai-embedding-path:smoke
 pnpm embedding-hard:smoke
-EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
+pnpm transformers-embedding:smoke
+EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
+EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 ```
 
 ## 검색 운영 프로파일

@@ -11,7 +11,7 @@ async function main() {
     await app.get(DocumentsService).ingestSeedDocuments();
 
     const { report } = await app.get(EvaluationService).embeddingComparison("seed-ops-wiki");
-    const openAiEnabled = Boolean(process.env.OPENAI_API_KEY);
+    const candidateExpected = Boolean(process.env.OPENAI_API_KEY) || process.env.EMBEDDING_CANDIDATE_PROVIDER === "transformers";
     const ok =
       report.schemaVersion === "opspilot.embedding_comparison.v1" &&
       report.total >= 4 &&
@@ -20,7 +20,7 @@ async function main() {
       report.baseline.metrics.recallAt3 > 0 &&
       report.rows.every((row) => row.localRankedSources.length > 0 && row.localFirstRelevantRank !== null) &&
       report.integrity.reportHash.length === 64 &&
-      (openAiEnabled
+      (candidateExpected
         ? report.candidate.available && report.candidate.metrics !== null && report.candidate.deltas.mrr !== null
         : report.status === "skipped" && report.candidate.available === false && report.actionItems.some((item) => item.id === "run-real-embedding-comparison"));
 

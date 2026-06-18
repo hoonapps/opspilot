@@ -20,13 +20,13 @@ async function main() {
 
     const questions = JSON.parse(await readFile(resolve(join(process.cwd(), "../../seed/eval/embedding-hard.json")), "utf8")) as EvalQuestion[];
     const { report } = await app.get(EvaluationService).embeddingComparison("embedding-hard", questions);
-    const openAiEnabled = Boolean(process.env.OPENAI_API_KEY);
+    const candidateExpected = Boolean(process.env.OPENAI_API_KEY) || process.env.EMBEDDING_CANDIDATE_PROVIDER === "transformers";
     const ok =
       report.schemaVersion === "opspilot.embedding_comparison.v1" &&
       report.suiteName === "embedding-hard" &&
       report.total === questions.length &&
       report.rows.every((row) => row.localRankedSources.length > 0) &&
-      (openAiEnabled
+      (candidateExpected
         ? report.candidate.available && report.candidate.metrics !== null && report.candidate.deltas.ndcgAt5 !== null
         : report.status === "skipped" && report.candidate.available === false);
 

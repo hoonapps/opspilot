@@ -8,7 +8,9 @@ import {
   LocalEmbeddingProvider,
   LocalReranker,
   OpenAIChatProvider,
-  OpenAIEmbeddingProvider
+  OpenAIEmbeddingProvider,
+  projectEmbedding,
+  TransformersEmbeddingProvider
 } from "./index";
 
 test("local embeddings are deterministic and normalized", async () => {
@@ -42,6 +44,16 @@ test("env factory selects openai embedding provider explicitly", () => {
   assert.ok(provider instanceof OpenAIEmbeddingProvider);
 });
 
+test("env factory selects transformers embedding provider explicitly", () => {
+  const provider = createEmbeddingProviderFromEnv({
+    EMBEDDING_PROVIDER: "transformers",
+    EMBEDDING_DIMENSIONS: "64",
+    TRANSFORMERS_EMBEDDING_MODEL: "Xenova/multilingual-e5-small"
+  });
+
+  assert.ok(provider instanceof TransformersEmbeddingProvider);
+});
+
 test("env factory fails when openai embeddings are requested without a key", () => {
   assert.throws(
     () =>
@@ -51,6 +63,33 @@ test("env factory fails when openai embeddings are requested without a key", () 
       }),
     /requires OPENAI_API_KEY/
   );
+});
+
+test("transformers embedding provider projects model vectors to configured dimensions", async () => {
+  const provider = new TransformersEmbeddingProvider({
+    dimensions: 4,
+    pipeline: async (text) => ({
+      data: Float32Array.from(text.includes("timeout") ? [0.1, 0.3, 0.5, 0.7, 0.9, 1.1] : [1.1, 0.9, 0.7, 0.5, 0.3, 0.1])
+    })
+  });
+
+  const first = await provider.embed("payment timeout");
+  const second = await provider.embed("refund policy");
+
+  assert.equal(first.length, 4);
+  assert.equal(second.length, 4);
+  assert.ok(Math.abs(vectorNorm(first) - 1) < 0.000001);
+  assert.notDeepEqual(first, second);
+});
+
+test("embedding projection is deterministic and normalized", () => {
+  const vector = [0.1, 0.2, 0.3, 0.4, 0.5];
+  const first = projectEmbedding(vector, 3);
+  const second = projectEmbedding(vector, 3);
+
+  assert.deepEqual(first, second);
+  assert.equal(first.length, 3);
+  assert.ok(Math.abs(vectorNorm(first) - 1) < 0.000001);
 });
 
 test("openai embedding provider can run without local fallback", async () => {

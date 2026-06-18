@@ -22,6 +22,7 @@
     "rerank-challenge:smoke": "pnpm --filter @opspilot/api rerank-challenge:smoke",
     "embedding-eval:smoke": "pnpm --filter @opspilot/api embedding-eval:smoke",
     "embedding-hard:smoke": "pnpm --filter @opspilot/api embedding-hard:smoke",
+    "transformers-embedding:smoke": "pnpm --filter @opspilot/api transformers-embedding:smoke",
     "openai-embedding-path:smoke": "pnpm --filter @opspilot/api openai-embedding-path:smoke",
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",

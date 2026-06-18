@@ -1,5 +1,5 @@
 export type AiProviderName = "local" | "openai" | "anthropic";
-export type EmbeddingProviderName = "local" | "openai";
+export type EmbeddingProviderName = "local" | "openai" | "transformers";
 
 export type ChatCompletionInput = {
   system: string;
@@ -51,6 +51,17 @@ export type LocalEmbeddingConfig = {
   dimensions: number;
 };
 
+export type TransformersFeatureExtractionPipeline = (
+  text: string,
+  options: { pooling: "mean"; normalize: boolean }
+) => Promise<{ data: Float32Array | number[] }>;
+
+export type TransformersEmbeddingConfig = {
+  model?: string;
+  dimensions: number;
+  pipeline?: TransformersFeatureExtractionPipeline;
+};
+
 export type AiEnvironment = Record<string, string | undefined>;
 
 export function createChatProviderFromEnv(env: AiEnvironment = process.env): ChatProvider | null {
@@ -73,7 +84,7 @@ export function createChatProviderFromEnv(env: AiEnvironment = process.env): Cha
 }
 
 export function createEmbeddingProviderFromEnv(env: AiEnvironment = process.env): EmbeddingProvider {
-  const dimensions = Number(env.OPENAI_EMBEDDING_DIMENSIONS ?? 64);
+  const dimensions = Number(env.EMBEDDING_DIMENSIONS ?? env.OPENAI_EMBEDDING_DIMENSIONS ?? 64);
   const provider = readEmbeddingProviderName(env);
 
   if (provider === "openai") {
@@ -89,12 +100,19 @@ export function createEmbeddingProviderFromEnv(env: AiEnvironment = process.env)
     });
   }
 
+  if (provider === "transformers") {
+    return new TransformersEmbeddingProvider({
+      model: env.TRANSFORMERS_EMBEDDING_MODEL,
+      dimensions
+    });
+  }
+
   return new LocalEmbeddingProvider({ dimensions });
 }
 
 function readEmbeddingProviderName(env: AiEnvironment): EmbeddingProviderName {
   const raw = env.EMBEDDING_PROVIDER ?? (env.AI_PROVIDER === "openai" ? "openai" : "local");
-  if (raw === "openai" || raw === "local") {
+  if (raw === "openai" || raw === "local" || raw === "transformers") {
     return raw;
   }
 
@@ -227,6 +245,46 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
+export class TransformersEmbeddingProvider implements EmbeddingProvider {
+  private static readonly pipelines = new Map<string, Promise<TransformersFeatureExtractionPipeline>>();
+  private readonly model: string;
+
+  constructor(private readonly config: TransformersEmbeddingConfig) {
+    this.model = config.model ?? "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
+  }
+
+  async embed(text: string): Promise<number[]> {
+    const pipeline = this.config.pipeline ?? (await this.loadPipeline());
+    const output = await pipeline(text, { pooling: "mean", normalize: true });
+    const vector = Array.from(output.data);
+
+    if (vector.length === 0) {
+      throw new Error(`Transformers embedding model ${this.model} returned an empty vector`);
+    }
+
+    return projectEmbedding(vector, this.config.dimensions);
+  }
+
+  private loadPipeline(): Promise<TransformersFeatureExtractionPipeline> {
+    const existing = TransformersEmbeddingProvider.pipelines.get(this.model);
+    if (existing) {
+      return existing;
+    }
+
+    const loading = loadTransformersPipeline(this.model);
+    TransformersEmbeddingProvider.pipelines.set(this.model, loading);
+    return loading;
+  }
+}
+
+async function loadTransformersPipeline(model: string): Promise<TransformersFeatureExtractionPipeline> {
+  const module = (await import("@xenova/transformers")) as {
+    pipeline: (task: "feature-extraction", model: string) => Promise<TransformersFeatureExtractionPipeline>;
+  };
+
+  return module.pipeline("feature-extraction", model);
+}
+
 export class LocalReranker {
   rerank(question: string, candidates: RerankCandidate[]): RerankResult[] {
     if (candidates.length === 0) {
@@ -298,6 +356,21 @@ export function embedLocal(text: string, dimensions: number): number[] {
   }
 
   return normalize(vector);
+}
+
+export function projectEmbedding(vector: number[], dimensions: number): number[] {
+  if (vector.length === dimensions) {
+    return normalize(vector);
+  }
+
+  const projected = Array.from({ length: dimensions }, () => 0);
+  for (let index = 0; index < vector.length; index += 1) {
+    const target = stableHash(`embedding-dimension:${index}`) % dimensions;
+    const sign = stableHash(`embedding-sign:${index}`) % 2 === 0 ? 1 : -1;
+    projected[target] += vector[index] * sign;
+  }
+
+  return normalize(projected);
 }
 
 function stableHash(token: string): number {

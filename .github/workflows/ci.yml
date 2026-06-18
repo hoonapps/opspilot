@@ -128,6 +128,9 @@ jobs:
       - name: Hard semantic embedding smoke
         run: pnpm embedding-hard:smoke
 
+      - name: Transformers embedding optional smoke
+        run: pnpm transformers-embedding:smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
