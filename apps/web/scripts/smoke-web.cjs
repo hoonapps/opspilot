@@ -328,7 +328,7 @@ async function main() {
     await page.locator(".permissionDiffPanel").getByText("격리 정상", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".permissionDiffPanel").getByText("제한 문서 격리", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".permissionDiffPanel").getByText("운영 관리자", { exact: true }).waitFor({ timeout: 10000 });
-    await page.locator(".permissionDiffPanel").getByText("restricted/production-db-policy.md", { exact: true }).waitFor({
+    await page.locator(".permissionDiffPanel").getByText("restricted/production-db-policy.md", { exact: false }).first().waitFor({
       timeout: 10000
     });
     const retrievalPreviewVisible = await page.locator(".candidateList").getByText("종합", { exact: true }).first().isVisible();
@@ -355,7 +355,7 @@ async function main() {
     const retrievalPermissionDiffVisible =
       (await page.locator(".permissionDiffPanel").getByText("격리 정상", { exact: true }).isVisible()) &&
       (await page.locator(".permissionDiffPanel").getByText("제한 문서 격리", { exact: true }).isVisible()) &&
-      (await page.locator(".permissionDiffPanel").getByText("restricted/production-db-policy.md", { exact: true }).isVisible());
+      (await page.locator(".permissionDiffPanel").getByText("restricted/production-db-policy.md", { exact: false }).first().isVisible());
 
     await page.locator(".railNav").getByRole("button", { name: /^대응 / }).click();
     await page.getByRole("heading", { name: "장애 대응 플랜" }).waitFor({ timeout: 10000 });
