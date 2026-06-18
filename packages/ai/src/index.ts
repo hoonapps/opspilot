@@ -226,12 +226,14 @@ export class LocalReranker {
       const bm25Score = bm25(questionTokens, documentTokens, avgDocumentLength, documentFrequencies, candidates.length);
       const keyTokenOverlap = overlapRatio(keyTokens, documentTokens);
       const titlePathOverlap = overlapRatio(questionTokens, titlePathTokens);
+      const queryCoverage = overlapRatio(questionTokens, documentTokens);
 
       return {
         id: candidate.id,
         bm25Score,
         keyTokenOverlap,
         titlePathOverlap,
+        queryCoverage,
         baseScore: candidate.baseScore
       };
     });
@@ -243,7 +245,8 @@ export class LocalReranker {
       .map((row) => {
         const normalizedBm25 = row.bm25Score / maxBm25;
         const normalizedBase = row.baseScore / maxBaseScore;
-        const rerankScore = normalizedBm25 * 0.68 + row.keyTokenOverlap * 0.2 + row.titlePathOverlap * 0.08 + normalizedBase * 0.04;
+        const rerankScore =
+          normalizedBm25 * 0.42 + row.keyTokenOverlap * 0.28 + row.titlePathOverlap * 0.18 + row.queryCoverage * 0.08 + normalizedBase * 0.04;
 
         return {
           ...row,
@@ -297,12 +300,18 @@ function normalize(vector: number[]): number[] {
 }
 
 function tokenizeForRanking(text: string): string[] {
-  return text
+  const baseTokens = text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}_./:-]+/gu, " ")
     .split(/\s+/)
     .map((token) => token.trim())
     .filter((token) => token.length >= 2);
+
+  return baseTokens.flatMap((token) => {
+    const stripped = stripKoreanParticle(token);
+    const stemmed = stripKoreanPredicate(stripped);
+    return [...new Set([token, stripped, stemmed].filter((value) => value.length >= 2))];
+  });
 }
 
 function isKeyToken(token: string): boolean {
@@ -347,4 +356,12 @@ function overlapRatio(needles: string[], haystack: string[]): number {
 
 function average(values: number[]): number {
   return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function stripKoreanParticle(token: string): string {
+  return token.replace(/(에서|으로|에게|한테|부터|까지|처럼|보다|은|는|이|가|을|를|도|만|와|과|로)$/u, "");
+}
+
+function stripKoreanPredicate(token: string): string {
+  return token.replace(/(합니다|한다|하는지|했는지|해야|해줘|해)$/u, "");
 }
