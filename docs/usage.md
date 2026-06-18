@@ -328,6 +328,7 @@ CLI 검증:
 
 ```bash
 pnpm eval
+pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm retrieval-robustness:smoke
@@ -348,7 +349,7 @@ pnpm action-plan:smoke
 임베딩 모델 차이까지 보여주려면 `OPENAI_API_KEY`를 넣고 같은 명령을 다시 실행합니다. API key가 없으면 candidate는 `skipped`로 남고, 로컬 해시 임베딩 기준선만 기록됩니다.
 
 ```bash
-AI_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
+EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 ```
 
 `pnpm eval`은 출처 적중, 1순위 출처 정확도, 사람 검토 정확도, 문서 일치율, 인용 정확도를 기준값과 비교합니다.

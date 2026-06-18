@@ -109,8 +109,9 @@ GET /evaluations/embedding-comparison
 
 ```bash
 pnpm embedding-eval:smoke
+pnpm openai-embedding-path:smoke
 pnpm embedding-hard:smoke
-AI_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
+EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 ```
 
 ## 검색 운영 프로파일

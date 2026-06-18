@@ -45,6 +45,7 @@ pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 pnpm queue:smoke
 pnpm github:smoke
+pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm --filter @opspilot/rag test
@@ -67,6 +68,8 @@ pnpm --filter @opspilot/rag test
 `pnpm queue:smoke`는 BullMQ 작업 생성, 워커 처리, 완료 작업 조회, 큐 관제 API의 완료 카운트와 최근 작업 목록까지 검증합니다.
 
 `pnpm embedding-eval:smoke`는 현재 seed 문서 청크를 대상으로 로컬 해시 임베딩 baseline과 OpenAI embedding candidate를 비교할 수 있는 리포트가 생성되는지 검증합니다. 로컬/CI처럼 `OPENAI_API_KEY`가 없는 환경에서는 candidate를 `skipped`로 남기고, key가 있는 데모 환경에서는 같은 문서와 질문으로 실제 OpenAI embedding 순위까지 계산합니다.
+
+`pnpm openai-embedding-path:smoke`는 mock OpenAI embedding 응답으로 `EMBEDDING_PROVIDER=openai` 경로를 켭니다. 문서 색인 시 OpenAI provider가 호출되고, 반환 embedding이 pgvector에 저장되며, 질문 검색도 같은 provider를 통과하는지 확인합니다. OpenAI provider를 명시하면 기본적으로 API 실패를 local embedding으로 숨기지 않습니다.
 
 `pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 테스트 문서를 임시 색인합니다. 질문과 문서가 같은 단어를 많이 공유하지 않도록 만든 세트라서, 단순 토큰 겹침이나 로컬 해시 임베딩이 약한 상황을 보여줍니다. 이 명령은 실행 후 기본 seed 문서를 다시 복구합니다.
 
@@ -102,7 +105,7 @@ pnpm --filter @opspilot/rag test
 
 `GET /documents/{id}/index-explain`은 선택한 문서 하나를 기준으로 색인 파이프라인과 청크 결과를 설명합니다. 색인 품질 리포트가 전체 지식 베이스의 건강 상태라면, 색인 설명 리포트는 “이 문서 하나가 왜 검색 가능한가”를 증명합니다.
 
-- 파이프라인: `frontmatter_markdown_v1`, `security_redaction_v1`, `heading_paragraph_window_v1`, `local_hash_embedding_64d`, `pgvector_hnsw`
+- 파이프라인: `frontmatter_markdown_v1`, `security_redaction_v1`, `heading_paragraph_window_v1`, `local_hash_embedding_64d` 또는 `openai_text_embedding_3_small_64d`, `pgvector_hnsw`
 - 요약: 청크 수, 본문 길이, 헤딩 커버리지, 64차원 임베딩 커버리지, 검색 준비 상태
 - 체크: 청크 생성, 임베딩 커버리지, 헤딩 신호, 청크 크기, 버전 추적, 보안 메타데이터
 - 청크: 미리보기, 토큰 추정치, 검색 힌트, 임베딩 저장 여부

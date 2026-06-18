@@ -1421,7 +1421,7 @@ function buildRetrievalActionItems(input: {
       owner: "embedding",
       title: "현재 seed 평가셋의 retrieval baseline은 기준을 통과했습니다.",
       evidence: `recall@3 ${input.metrics.recallAt3}, MRR ${input.metrics.mrr}, nDCG@5 ${input.metrics.ndcgAt5}. 다음 단계는 실제 임베딩 모델과 local hash embedding 비교입니다.`,
-      command: "AI_PROVIDER=openai OPENAI_API_KEY=... pnpm retrieval-eval:smoke"
+      command: "EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm retrieval-eval:smoke"
     });
   }
 
@@ -1443,7 +1443,7 @@ function buildEmbeddingComparisonActionItems(input: {
         owner: "embedding",
         title: "실제 임베딩 비교가 아직 실행되지 않았습니다.",
         evidence: input.skippedReason ?? "OpenAI embedding provider was unavailable.",
-        command: "AI_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+        command: "EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
       }
     ];
   }
@@ -1456,7 +1456,7 @@ function buildEmbeddingComparisonActionItems(input: {
         owner: "embedding",
         title: "실제 임베딩 모델이 local baseline보다 낮은 검색 품질을 보였습니다.",
         evidence: `local MRR ${input.localMetrics.mrr}, OpenAI MRR ${input.candidateMetrics?.mrr ?? 0}, delta ${input.deltas.mrr ?? 0}`,
-        command: "OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+        command: "EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
       }
     ];
   }
@@ -1469,7 +1469,7 @@ function buildEmbeddingComparisonActionItems(input: {
         owner: "evaluation",
         title: "현재 평가셋에서는 실제 임베딩 개선폭이 뚜렷하지 않습니다.",
         evidence: `recall@3 delta ${input.deltas.recallAt3 ?? 0}, MRR delta ${input.deltas.mrr ?? 0}, nDCG@5 delta ${input.deltas.ndcgAt5 ?? 0}`,
-        command: "EVAL_SET_PATH=../../seed/eval/embedding-hard.json OPENAI_API_KEY=... pnpm embedding-eval:smoke"
+        command: "EVAL_SET_PATH=../../seed/eval/embedding-hard.json EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke"
       }
     ];
   }

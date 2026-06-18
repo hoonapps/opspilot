@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   AnthropicChatProvider,
+  createEmbeddingProviderFromEnv,
   createChatProviderFromEnv,
   embedLocal,
   LocalEmbeddingProvider,
   LocalReranker,
-  OpenAIChatProvider
+  OpenAIChatProvider,
+  OpenAIEmbeddingProvider
 } from "./index";
 
 test("local embeddings are deterministic and normalized", async () => {
@@ -27,6 +29,39 @@ test("env factory selects anthropic chat provider", () => {
   });
 
   assert.ok(provider instanceof AnthropicChatProvider);
+});
+
+test("env factory selects openai embedding provider explicitly", () => {
+  const provider = createEmbeddingProviderFromEnv({
+    EMBEDDING_PROVIDER: "openai",
+    OPENAI_API_KEY: "test-key",
+    OPENAI_EMBEDDING_MODEL: "text-embedding-test",
+    OPENAI_EMBEDDING_DIMENSIONS: "64"
+  });
+
+  assert.ok(provider instanceof OpenAIEmbeddingProvider);
+});
+
+test("env factory fails when openai embeddings are requested without a key", () => {
+  assert.throws(
+    () =>
+      createEmbeddingProviderFromEnv({
+        AI_PROVIDER: "openai",
+        OPENAI_EMBEDDING_DIMENSIONS: "64"
+      }),
+    /requires OPENAI_API_KEY/
+  );
+});
+
+test("openai embedding provider can run without local fallback", async () => {
+  const provider = new OpenAIEmbeddingProvider({
+    apiKey: "openai-key",
+    embeddingDimensions: 64,
+    fallbackToLocal: false,
+    fetchImpl: async () => new Response("rate limited", { status: 429 })
+  });
+
+  await assert.rejects(() => provider.embed("question"), /status 429/);
 });
 
 test("local reranker promotes candidates with matching incident codes and metrics", () => {

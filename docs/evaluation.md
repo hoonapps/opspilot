@@ -37,6 +37,7 @@ pnpm eval:cases-smoke
 pnpm eval:regression-smoke
 pnpm eval:coverage-smoke
 pnpm retrieval-eval:smoke
+pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm freshness:smoke
@@ -91,7 +92,7 @@ GET /evaluations/retrieval
 - `rows[].rankDelta`: 기대 출처가 리랭킹 후 몇 등 개선 또는 하락했는지
 - `rows[].permissionEnforcement`: 권한 경계가 검색 전 SQL 필터인지, Elasticsearch 후 PostgreSQL 재검사인지
 
-`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 리포트는 같은 질문셋에 대해 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환하므로, 검색 튜닝이 top-k 품질을 실제로 개선했는지 숫자로 비교할 수 있습니다. OpenAI 임베딩을 사용할 때는 같은 명령을 `AI_PROVIDER=openai OPENAI_API_KEY=...` 환경으로 재실행해 local hash embedding 대비 성능 차이를 남깁니다.
+`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 리포트는 같은 질문셋에 대해 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환하므로, 검색 튜닝이 top-k 품질을 실제로 개선했는지 숫자로 비교할 수 있습니다. OpenAI 임베딩을 사용할 때는 같은 명령을 `EMBEDDING_PROVIDER=openai OPENAI_API_KEY=...` 환경으로 재실행해 local hash embedding 대비 성능 차이를 남깁니다.
 
 ## 임베딩 비교 리포트
 
@@ -112,10 +113,12 @@ GET /evaluations/embedding-comparison
 로컬/CI에서는 외부 API key 없이도 `pnpm embedding-eval:smoke`가 실행됩니다. 이때 리포트 상태는 `skipped`이고 candidate는 `unavailable`로 남습니다. 실제 포트폴리오 데모에서는 아래처럼 실행해 OpenAI embedding과 로컬 기준선의 차이를 같은 리포트에 남깁니다.
 
 ```bash
-AI_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke
+EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke
 ```
 
 `pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 어려운 패러프레이즈 문서 세트를 임시로 색인합니다. 이 세트는 단어가 그대로 겹치지 않는 질문을 넣어 로컬 해시 임베딩의 한계를 드러내기 위한 테스트입니다. API key가 없을 때도 로컬 기준선 순위와 지표를 남기고, API key가 있으면 같은 문서와 질문으로 OpenAI embedding 후보 지표까지 계산합니다.
+
+`pnpm openai-embedding-path:smoke`는 mock OpenAI embedding 응답을 사용합니다. 외부 네트워크 없이 `EMBEDDING_PROVIDER=openai`가 문서 청크 색인, pgvector 저장, 질문 검색까지 실제 provider 경로를 타는지 검증합니다. OpenAI embedding을 명시했는데 `OPENAI_API_KEY`가 없거나 API 호출이 실패하면 local fallback으로 숨기지 않고 실패합니다. fallback이 필요한 개발 환경에서만 `OPENAI_EMBEDDING_FALLBACK_TO_LOCAL=true`를 명시합니다.
 
 ## 케이스 상세 리포트
 

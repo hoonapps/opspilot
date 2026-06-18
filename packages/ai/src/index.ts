@@ -1,4 +1,5 @@
 export type AiProviderName = "local" | "openai" | "anthropic";
+export type EmbeddingProviderName = "local" | "openai";
 
 export type ChatCompletionInput = {
   system: string;
@@ -73,16 +74,31 @@ export function createChatProviderFromEnv(env: AiEnvironment = process.env): Cha
 
 export function createEmbeddingProviderFromEnv(env: AiEnvironment = process.env): EmbeddingProvider {
   const dimensions = Number(env.OPENAI_EMBEDDING_DIMENSIONS ?? 64);
+  const provider = readEmbeddingProviderName(env);
 
-  if (env.AI_PROVIDER === "openai" && env.OPENAI_API_KEY) {
+  if (provider === "openai") {
+    if (!env.OPENAI_API_KEY) {
+      throw new Error("EMBEDDING_PROVIDER=openai requires OPENAI_API_KEY");
+    }
+
     return new OpenAIEmbeddingProvider({
       apiKey: env.OPENAI_API_KEY,
       embeddingModel: env.OPENAI_EMBEDDING_MODEL,
-      embeddingDimensions: dimensions
+      embeddingDimensions: dimensions,
+      fallbackToLocal: env.OPENAI_EMBEDDING_FALLBACK_TO_LOCAL === "true"
     });
   }
 
   return new LocalEmbeddingProvider({ dimensions });
+}
+
+function readEmbeddingProviderName(env: AiEnvironment): EmbeddingProviderName {
+  const raw = env.EMBEDDING_PROVIDER ?? (env.AI_PROVIDER === "openai" ? "openai" : "local");
+  if (raw === "openai" || raw === "local") {
+    return raw;
+  }
+
+  throw new Error(`Unsupported EMBEDDING_PROVIDER: ${raw}`);
 }
 
 export class OpenAIChatProvider implements ChatProvider {

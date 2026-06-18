@@ -21,6 +21,7 @@
     "retrieval-eval:smoke": "pnpm --filter @opspilot/api retrieval-eval:smoke",
     "embedding-eval:smoke": "pnpm --filter @opspilot/api embedding-eval:smoke",
     "embedding-hard:smoke": "pnpm --filter @opspilot/api embedding-hard:smoke",
+    "openai-embedding-path:smoke": "pnpm --filter @opspilot/api openai-embedding-path:smoke",
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",

@@ -102,7 +102,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - 데이터베이스: PostgreSQL + pgvector
 - 큐/캐시: Redis, BullMQ
 - 검색: pgvector 기본, Elasticsearch 선택형 하이브리드 검색, BM25/key-token 리랭킹
-- AI: 로컬 결정론적 임베딩/답변 기본값, OpenAI/Anthropic 어댑터 구조, 임베딩/리랭킹 평가 리포트
+- AI: 로컬 결정론적 임베딩/답변 기본값, OpenAI embedding/chat 연결 경로, Anthropic chat 어댑터, 임베딩/리랭킹 평가 리포트
 - 연동: Slack 봇
 - 웹: Next.js
 - 인프라: Docker Compose
@@ -266,6 +266,7 @@ pnpm eval
 pnpm eval:regression-smoke
 pnpm eval:coverage-smoke
 pnpm retrieval-eval:smoke
+pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm indexing:smoke
@@ -377,7 +378,7 @@ EVAL_MIN_RETRIEVAL_RECALL_AT_3=1
 EVAL_MIN_RETRIEVAL_MRR=0.8
 ```
 
-`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 답변 생성 전 검색기 자체의 `recall@1/3/5`, `MRR`, `nDCG@5`, 첫 기대 문서 순위를 계산하고, 리랭킹 전 기준선과 `local_bm25_keytoken_v1` 적용 후 결과를 비교해 임베딩/랭킹 튜닝 근거를 제공합니다. `GET /evaluations/embedding-comparison`과 `pnpm embedding-eval:smoke`는 같은 청크/질문셋을 local hash embedding과 OpenAI embedding으로 각각 인메모리 랭킹해 `recall@k`, `MRR`, `nDCG@5` 차이를 반환합니다. `pnpm embedding-hard:smoke`는 `seed/embedding-hard`의 paraphrase 문서/질문셋으로 local hash baseline이 약한 semantic 검색 케이스를 따로 검증합니다. 실제 OpenAI 비교는 `OPENAI_API_KEY=... pnpm embedding-hard:smoke`로 실행합니다. `GET /evaluations/regression`과 `pnpm eval:regression-smoke`는 최신 평가와 직전 평가를 비교해 메트릭 하락, 실패 게이트, 고위험 케이스, 릴리즈 판단, 리포트 해시를 반환합니다. `GET /evaluations/coverage`와 `pnpm eval:coverage-smoke`는 최신 평가가 전체 문서 중 어떤 문서를 기대/실제 출처로 검증했는지, 제한/팀 문서 커버리지와 미검증 문서 추가 질문 액션을 반환합니다. `GET /documents/index-snapshot`과 `pnpm index-snapshot:smoke`는 같은 색인 상태에서 스냅샷 해시가 안정적이고, 새 문서를 넣으면 문서/청크/버전 매니페스트 해시가 바뀌는지 검증합니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `GET /documents/revalidation-queue`와 `pnpm revalidation-queue:smoke`는 문서 변경 이후 오래된 답변을 우선순위 큐로 모아 replay, lineage, quality gate 재검증 경로가 잡히는지 확인합니다. `POST /documents/revalidation-runs`와 `pnpm revalidation-run:smoke`는 큐 항목 하나를 실제로 재검증해 현재 문서 기준 replay, 품질 게이트, 계보 무결성, 권한 재검사를 한 응답으로 묶고 종료/재검토/차단 판정, 리포트 해시, 최근 이력 저장을 검증합니다. `GET /documents/revalidation-runs`는 저장된 재검증 실행 이력을 조회합니다. `error-budget:smoke`는 API 5xx가 5분/1시간/24시간 오류 예산을 얼마나 소모하는지 계산하고, 오류 예산 소모율이 높으면 배포 동결 권고가 나오는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
+`pnpm eval`은 기준값이 깨지면 실패합니다. `GET /evaluations/cases`와 `pnpm eval:cases-smoke`는 각 평가 케이스를 출처 적중, 1순위 출처, 사람 검토 경계, 문서 일치율, 인용 체크로 분해해 실패 원인과 개선 액션을 보여줍니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 답변 생성 전 검색기 자체의 `recall@1/3/5`, `MRR`, `nDCG@5`, 첫 기대 문서 순위를 계산하고, 리랭킹 전 기준선과 `local_bm25_keytoken_v1` 적용 후 결과를 비교해 임베딩/랭킹 튜닝 근거를 제공합니다. `pnpm openai-embedding-path:smoke`는 mock OpenAI embedding 응답을 사용해 `EMBEDDING_PROVIDER=openai`가 문서 색인, pgvector 저장, 질문 검색 경로까지 실제로 연결되는지 검증합니다. `GET /evaluations/embedding-comparison`과 `pnpm embedding-eval:smoke`는 같은 청크/질문셋을 local hash embedding과 OpenAI embedding으로 각각 인메모리 랭킹해 `recall@k`, `MRR`, `nDCG@5` 차이를 반환합니다. `pnpm embedding-hard:smoke`는 `seed/embedding-hard`의 paraphrase 문서/질문셋으로 local hash baseline이 약한 semantic 검색 케이스를 따로 검증합니다. 실제 OpenAI 비교는 `EMBEDDING_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke`로 실행합니다. `GET /evaluations/regression`과 `pnpm eval:regression-smoke`는 최신 평가와 직전 평가를 비교해 메트릭 하락, 실패 게이트, 고위험 케이스, 릴리즈 판단, 리포트 해시를 반환합니다. `GET /evaluations/coverage`와 `pnpm eval:coverage-smoke`는 최신 평가가 전체 문서 중 어떤 문서를 기대/실제 출처로 검증했는지, 제한/팀 문서 커버리지와 미검증 문서 추가 질문 액션을 반환합니다. `GET /documents/index-snapshot`과 `pnpm index-snapshot:smoke`는 같은 색인 상태에서 스냅샷 해시가 안정적이고, 새 문서를 넣으면 문서/청크/버전 매니페스트 해시가 바뀌는지 검증합니다. `freshness:smoke`와 `release-gate:smoke`는 문서가 바뀐 뒤 최신 평가가 오래된 상태가 되는지, 재평가 후 게이트가 회복되는지 검증합니다. `GET /documents/revalidation-queue`와 `pnpm revalidation-queue:smoke`는 문서 변경 이후 오래된 답변을 우선순위 큐로 모아 replay, lineage, quality gate 재검증 경로가 잡히는지 확인합니다. `POST /documents/revalidation-runs`와 `pnpm revalidation-run:smoke`는 큐 항목 하나를 실제로 재검증해 현재 문서 기준 replay, 품질 게이트, 계보 무결성, 권한 재검사를 한 응답으로 묶고 종료/재검토/차단 판정, 리포트 해시, 최근 이력 저장을 검증합니다. `GET /documents/revalidation-runs`는 저장된 재검증 실행 이력을 조회합니다. `error-budget:smoke`는 API 5xx가 5분/1시간/24시간 오류 예산을 얼마나 소모하는지 계산하고, 오류 예산 소모율이 높으면 배포 동결 권고가 나오는지 검증합니다. `action-plan:smoke`는 배포 차단/검토 항목이 실제 담당자별 조치와 검증 명령으로 변환되는지 확인합니다.
 
 개별 답변은 `GET /answers/{id}/quality-gate`로 별도 판정합니다. 이 게이트는 증명 패킷, 재실행 안정성, 승인 상태, 피드백 신호, 신뢰도, 문서 일치율, 근거 커버리지, 출처 겹침, 권한 재검사를 묶어 `pass`, `review`, `block`으로 결정합니다. 긍정 피드백이 없는 답변은 검토 대상으로 남고, 민감 작업 승인 대기 답변은 자동 공유되지 않습니다.
 
