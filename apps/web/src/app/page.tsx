@@ -3295,12 +3295,40 @@ export default function Home() {
             </form>
 
             {sourceIngest ? (
-              <div className="sourceResult">
-                <Metric label={locale === "ko" ? "등록 문서" : "Document"} value={sourceIngest.title} />
-                <Metric label={locale === "ko" ? "파서" : "Parser"} value={sourceIngest.parser} />
-                <Metric label={locale === "ko" ? "청크" : "Chunks"} value={`${sourceIngest.chunks}`} />
-                <Metric label={locale === "ko" ? "추출 문자" : "Extracted"} value={`${sourceIngest.extractedCharacters}`} />
-              </div>
+              <>
+                <div className="sourceResult">
+                  <Metric label={locale === "ko" ? "등록 문서" : "Document"} value={sourceIngest.title} />
+                  <Metric label={locale === "ko" ? "파서" : "Parser"} value={sourceIngest.parser} />
+                  <Metric label={locale === "ko" ? "청크" : "Chunks"} value={`${sourceIngest.chunks}`} />
+                  <Metric label={locale === "ko" ? "추출 문자" : "Extracted"} value={`${sourceIngest.extractedCharacters}`} />
+                </div>
+                <div className={`sourceQuality sourceQuality--${sourceIngest.quality.status}`}>
+                  <div>
+                    <span>{locale === "ko" ? "수집 품질" : "Ingestion quality"}</span>
+                    <strong>
+                      {formatSourceQualityStatus(sourceIngest.quality.status)} · {formatPercent(sourceIngest.quality.score)}
+                    </strong>
+                    <p>
+                      {locale === "ko"
+                        ? `검색 힌트 ${sourceIngest.quality.summary.retrievalHintCount}개 · 평균 청크 ${Math.round(sourceIngest.quality.summary.avgChunkLength)}자`
+                        : `${sourceIngest.quality.summary.retrievalHintCount} retrieval hints · ${Math.round(sourceIngest.quality.summary.avgChunkLength)} avg chars`}
+                    </p>
+                    <code>{sourceIngest.quality.searchTestQuery}</code>
+                  </div>
+                  <div className="sourceQualityChecks">
+                    {sourceIngest.quality.checks.map((check) => (
+                      <span className={check.status === "pass" ? "allow" : "deny"} key={check.id} title={check.evidence}>
+                        {check.label}
+                      </span>
+                    ))}
+                  </div>
+                  <ul>
+                    {sourceIngest.quality.recommendations.slice(0, 3).map((recommendation) => (
+                      <li key={recommendation}>{recommendation}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
             ) : null}
 
             {resetResult ? (
@@ -4474,6 +4502,15 @@ function formatIndexQualityStatus(status: string): string {
     critical: "위험"
   };
   return labels[status] ?? status;
+}
+
+function formatSourceQualityStatus(status: SourceIngestResponse["quality"]["status"]): string {
+  const labels: Record<SourceIngestResponse["quality"]["status"], string> = {
+    ready: "검색 준비 완료",
+    attention: "검토 필요",
+    blocked: "색인 차단"
+  };
+  return labels[status];
 }
 
 function formatIndexSnapshotStatus(status: DocumentIndexSnapshotReport["status"]): string {

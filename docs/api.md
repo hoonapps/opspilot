@@ -24,7 +24,7 @@ GET /docs-json
 - `GET /documents/index-snapshot`: 전체 지식 베이스의 문서/청크/버전/임베딩/보안 메타데이터 스냅샷 해시 확인
 - `GET /documents/index-quality`: 색인 품질 리포트, 게이트, 문서별 청크/버전/헤딩/보안 점검 결과 확인
 - `POST /documents/markdown`: Markdown 문서 등록/재색인
-- `POST /documents/source`: URL, txt, Markdown, PDF, Word docx를 수집해 표준 Markdown으로 변환하고 기존 RAG 색인에 연결
+- `POST /documents/source`: URL, txt, Markdown, PDF, Word docx를 수집해 표준 Markdown으로 변환하고 기존 RAG 색인에 연결. 응답의 `quality`는 텍스트 추출 길이, 청크 생성, 청크 크기, 헤딩 신호, 검색 힌트, 보안 스캔을 `ready`/`attention`/`blocked`로 판정합니다.
 - `POST /documents/reset`: 문서, 청크, 버전을 초기화하고 선택적으로 seed 문서를 다시 적재
 - `GET /documents/{id}/versions`: 마스킹된 문서 버전과 변경 차이 확인
 - `GET /documents/{id}/index-explain`: 특정 문서의 청킹 전략, 임베딩 커버리지, 헤딩 아웃라인, 검색 힌트, 버전 변경 차이 확인

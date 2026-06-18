@@ -2329,6 +2329,94 @@ pre {
   box-shadow: none;
 }
 
+.sourceQuality {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #d9e2ea;
+  border-left: 4px solid #64748b;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.sourceQuality--ready {
+  border-left-color: #0f766e;
+}
+
+.sourceQuality--attention {
+  border-left-color: #b45309;
+}
+
+.sourceQuality--blocked {
+  border-left-color: #b91c1c;
+}
+
+.sourceQuality span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sourceQuality strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.sourceQuality p {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sourceQuality code {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 8px;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+}
+
+.sourceQualityChecks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sourceQualityChecks span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sourceQualityChecks span.allow {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.sourceQualityChecks span.deny {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sourceQuality ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .resetResult {
   padding: 12px;
   border: 1px solid #cfe4df;

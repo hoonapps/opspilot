@@ -28,6 +28,34 @@ export type IngestedDocumentSource = {
   changed: boolean;
   extractedCharacters: number;
   parser: "markdown_passthrough_v1" | "plain_text_v1" | "html_text_v1" | "pdf_text_v1" | "docx_text_v1";
+  quality: SourceIngestionQualityReport;
+};
+
+export type SourceIngestionQualityReport = {
+  schemaVersion: "opspilot.source_ingestion_quality.v1";
+  status: "ready" | "attention" | "blocked";
+  score: number;
+  summary: {
+    extractedCharacters: number;
+    normalizedCharacters: number;
+    chunkCount: number;
+    avgChunkLength: number;
+    maxChunkLength: number;
+    headingCoverageRatio: number;
+    retrievalHintCount: number;
+    redactionCount: number;
+    promptInjectionRisk: boolean;
+  };
+  checks: Array<{
+    id: "text_extraction" | "chunk_generation" | "chunk_size" | "heading_signal" | "retrieval_hints" | "security_scan";
+    label: string;
+    status: "pass" | "warn" | "fail";
+    metric: number;
+    threshold: number;
+    evidence: string;
+  }>;
+  recommendations: string[];
+  searchTestQuery: string;
 };
 
 export type ResetDocumentsResult = {
@@ -618,6 +646,11 @@ export class DocumentsService {
       body: normalized.markdown
     });
     const path = input.path ?? buildSourcePath(input.sourceType, normalized.title, input.fileName, input.url);
+    const quality = this.analyzeSourceIngestionQuality({
+      path,
+      markdown,
+      extractedMarkdown: normalized.markdown
+    });
     const ingested = await this.ingestMarkdown(path, markdown);
 
     return {
@@ -627,7 +660,8 @@ export class DocumentsService {
       chunks: ingested.chunks,
       changed: ingested.changed,
       extractedCharacters: normalized.markdown.length,
-      parser: normalized.parser
+      parser: normalized.parser,
+      quality
     };
   }
 
@@ -1880,6 +1914,53 @@ export class DocumentsService {
       changed
     };
   }
+
+  private analyzeSourceIngestionQuality(input: {
+    path: string;
+    markdown: string;
+    extractedMarkdown: string;
+  }): SourceIngestionQualityReport {
+    const parsed = parseMarkdownDocument(input.path, input.markdown);
+    const redacted = this.redaction.redactMarkdown(parsed.body);
+    const chunks = this.chunker.chunk(redacted.content);
+    const chunkLengths = chunks.map((chunk) => chunk.content.trim().length);
+    const chunkCount = chunks.length;
+    const avgChunkLength = chunkCount === 0 ? 0 : chunkLengths.reduce((sum, length) => sum + length, 0) / chunkCount;
+    const maxChunkLength = Math.max(0, ...chunkLengths);
+    const headingCoverageRatio = chunkCount === 0 ? 0 : chunks.filter((chunk) => chunk.heading && chunk.heading.trim().length > 0).length / chunkCount;
+    const retrievalHints = new Set(chunks.flatMap((chunk) => buildChunkRetrievalHints({ heading: chunk.heading, content: chunk.content })));
+    const summary: SourceIngestionQualityReport["summary"] = {
+      extractedCharacters: input.extractedMarkdown.length,
+      normalizedCharacters: redacted.content.length,
+      chunkCount,
+      avgChunkLength,
+      maxChunkLength,
+      headingCoverageRatio,
+      retrievalHintCount: retrievalHints.size,
+      redactionCount: redacted.redactionCount,
+      promptInjectionRisk: redacted.promptInjection.risk
+    };
+    const checks = buildSourceIngestionQualityChecks(summary);
+    const failedRequiredCheck = checks.some((check) => check.status === "fail" && check.id === "chunk_generation");
+    const status: SourceIngestionQualityReport["status"] = failedRequiredCheck
+      ? "blocked"
+      : checks.some((check) => check.status !== "pass")
+        ? "attention"
+        : "ready";
+    const score = Number(
+      (checks.reduce((sum, check) => sum + (check.status === "pass" ? 1 : check.status === "warn" ? 0.5 : 0), 0) / checks.length).toFixed(3)
+    );
+
+    return {
+      schemaVersion: "opspilot.source_ingestion_quality.v1",
+      status,
+      score,
+      summary,
+      checks,
+      recommendations: buildSourceIngestionQualityRecommendations(summary, status),
+      searchTestQuery: buildSourceIngestionSearchQuery(parsed.metadata.title, retrievalHints)
+    };
+  }
 }
 
 async function normalizeSourceInput(input: IngestDocumentSourceDto): Promise<{
@@ -2154,6 +2235,117 @@ function buildIndexExplainChecks(
         : `마스킹 ${summary.redactionCount}건이 기록됐고 프롬프트 주입 위험은 없습니다.`
     }
   ];
+}
+
+function buildSourceIngestionQualityChecks(
+  summary: SourceIngestionQualityReport["summary"]
+): SourceIngestionQualityReport["checks"] {
+  return [
+    {
+      id: "text_extraction",
+      label: "텍스트 추출",
+      status: summary.extractedCharacters >= 80 ? "pass" : summary.extractedCharacters >= 30 ? "warn" : "fail",
+      metric: summary.extractedCharacters,
+      threshold: 80,
+      evidence:
+        summary.extractedCharacters >= 80
+          ? `추출 텍스트 ${summary.extractedCharacters}자를 확보했습니다.`
+          : `추출 텍스트가 ${summary.extractedCharacters}자로 짧아 검색 신호가 약할 수 있습니다.`
+    },
+    {
+      id: "chunk_generation",
+      label: "청크 생성",
+      status: summary.chunkCount > 0 ? "pass" : "fail",
+      metric: summary.chunkCount,
+      threshold: 1,
+      evidence: summary.chunkCount > 0 ? `검색 가능한 청크 ${summary.chunkCount}개를 미리 계산했습니다.` : "검색 가능한 청크가 생성되지 않았습니다."
+    },
+    {
+      id: "chunk_size",
+      label: "청크 크기",
+      status: summary.chunkCount === 0 ? "fail" : summary.avgChunkLength >= 120 && summary.maxChunkLength <= 1400 ? "pass" : "warn",
+      metric: Math.round(summary.avgChunkLength),
+      threshold: 120,
+      evidence: `평균 ${Math.round(summary.avgChunkLength)}자, 최대 ${summary.maxChunkLength}자입니다.`
+    },
+    {
+      id: "heading_signal",
+      label: "헤딩 신호",
+      status: summary.headingCoverageRatio >= 0.5 ? "pass" : summary.headingCoverageRatio > 0 ? "warn" : "warn",
+      metric: summary.headingCoverageRatio,
+      threshold: 0.5,
+      evidence: `헤딩이 붙은 청크 비율은 ${Math.round(summary.headingCoverageRatio * 100)}%입니다.`
+    },
+    {
+      id: "retrieval_hints",
+      label: "검색 힌트",
+      status: summary.retrievalHintCount >= 4 ? "pass" : summary.retrievalHintCount >= 2 ? "warn" : "fail",
+      metric: summary.retrievalHintCount,
+      threshold: 4,
+      evidence: `제목, 헤딩, 본문에서 검색 힌트 ${summary.retrievalHintCount}개를 추출했습니다.`
+    },
+    {
+      id: "security_scan",
+      label: "보안 스캔",
+      status: summary.promptInjectionRisk ? "warn" : "pass",
+      metric: summary.redactionCount,
+      threshold: 0,
+      evidence: summary.promptInjectionRisk
+        ? `프롬프트 주입 위험 문구가 감지됐고 마스킹 ${summary.redactionCount}건을 기록했습니다.`
+        : `마스킹 ${summary.redactionCount}건, 프롬프트 주입 위험 없음으로 기록했습니다.`
+    }
+  ];
+}
+
+function buildSourceIngestionQualityRecommendations(
+  summary: SourceIngestionQualityReport["summary"],
+  status: SourceIngestionQualityReport["status"]
+): string[] {
+  const recommendations: string[] = [];
+
+  if (summary.extractedCharacters < 80) {
+    recommendations.push("추출 텍스트가 짧습니다. PDF/Word가 스캔 이미지라면 OCR 또는 원본 텍스트 문서를 사용하세요.");
+  }
+  if (summary.chunkCount === 0) {
+    recommendations.push("검색 가능한 청크가 없으므로 문서 내용을 보강한 뒤 다시 등록하세요.");
+  }
+  if (summary.avgChunkLength < 120 && summary.chunkCount > 0) {
+    recommendations.push("짧은 문단만 있는 문서는 관련 문단을 합쳐 검색 신호를 강화하세요.");
+  }
+  if (summary.maxChunkLength > 1400) {
+    recommendations.push("긴 문서는 하위 헤딩이나 문단으로 나눠 답변 컨텍스트 오염을 줄이세요.");
+  }
+  if (summary.headingCoverageRatio < 0.5) {
+    recommendations.push("Markdown 헤딩을 추가하면 청크 주제와 출처 근거를 더 명확히 보여줄 수 있습니다.");
+  }
+  if (summary.retrievalHintCount < 4) {
+    recommendations.push("서비스명, 장애 코드, 정책명처럼 질문에 쓰일 키워드를 문서 본문에 명시하세요.");
+  }
+  if (summary.promptInjectionRisk) {
+    recommendations.push("프롬프트 주입 문구가 있는 문서는 공개 범위를 제한하고 운영 검토 후 사용하세요.");
+  }
+  if (status === "ready" && recommendations.length === 0) {
+    recommendations.push("수집 텍스트, 청크, 검색 힌트, 보안 스캔이 새 문서 테스트 기준을 충족합니다.");
+  }
+
+  return [...new Set(recommendations)].slice(0, 6);
+}
+
+function buildSourceIngestionSearchQuery(title: string, hints: Set<string>): string {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of [title, ...hints]) {
+    const token = value.trim();
+    const key = token.toLowerCase();
+    if (token.length === 0 || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    tokens.push(token);
+  }
+
+  return tokens.slice(0, 4).join(" ");
 }
 
 function buildHeadingOutline(

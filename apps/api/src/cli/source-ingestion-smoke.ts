@@ -25,7 +25,8 @@ async function main() {
       path: "public/uploads/source-text-smoke.md",
       title: "텍스트 수집 Smoke 문서",
       content:
-        "OPSTXT-77 텍스트 문서는 사용자가 txt 내용을 붙여넣으면 OpsPilot이 저장, 청킹, 임베딩, 검색 답변까지 연결해야 함을 증명합니다."
+        "OPSTXT-77 텍스트 문서는 사용자가 txt 내용을 붙여넣으면 OpsPilot이 저장, 청킹, 임베딩, 검색 답변까지 연결해야 함을 증명합니다. " +
+        "검증 기준은 텍스트 추출 길이, 검색 가능한 청크 생성, 검색 힌트 확보, 보안 스캔 통과이며 좋은 문서는 수집 품질 ready 상태가 되어야 합니다."
     });
     const url = await documents.ingestSource({
       sourceType: "url",
@@ -33,22 +34,41 @@ async function main() {
       url: fixtureUrl,
       title: "URL 수집 Smoke 문서"
     });
+    const weak = await documents.ingestSource({
+      sourceType: "text",
+      path: "public/uploads/source-weak-smoke.md",
+      title: "짧은 수집 Smoke 문서",
+      content: "짧은 문서입니다. OPSWEAK-11"
+    });
     const textAnswer = await agent.ask("OPSTXT-77 텍스트 문서는 무엇을 증명해?", ACTOR, "source-ingestion-smoke");
     const urlAnswer = await agent.ask("OPSURL-88 URL 문서의 검증 기준은 뭐야?", ACTOR, "source-ingestion-smoke");
+    const previousUnsupportedThreshold = process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD;
+    process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD = "0.95";
     const unsupportedAnswer = await agent.ask("화성 토양 배터리 교체 절차는 뭐야?", ACTOR, "source-ingestion-smoke");
+    if (previousUnsupportedThreshold === undefined) {
+      delete process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD;
+    } else {
+      process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD = previousUnsupportedThreshold;
+    }
     const reset = await documents.resetDocuments(true);
     const inventory = await documents.listInventory();
 
     const ok =
       text.parser === "plain_text_v1" &&
       text.chunks > 0 &&
+      text.quality.schemaVersion === "opspilot.source_ingestion_quality.v1" &&
+      text.quality.status === "ready" &&
+      text.quality.checks.some((check) => check.id === "retrieval_hints" && check.status === "pass") &&
       url.parser === "html_text_v1" &&
       url.chunks > 0 &&
+      url.quality.status === "ready" &&
+      weak.quality.status === "attention" &&
+      weak.quality.checks.some((check) => check.id === "text_extraction" && check.status === "fail") &&
       textAnswer.sources[0]?.path === "public/uploads/source-text-smoke.md" &&
       urlAnswer.sources[0]?.path === "public/uploads/source-url-smoke.md" &&
       unsupportedAnswer.answer.includes("문서에서 확인할 수 없습니다") &&
       unsupportedAnswer.needsHumanReview &&
-      reset.deleted.documents >= 2 &&
+      reset.deleted.documents >= 3 &&
       reset.reloadedSeed &&
       inventory.documents.some((document) => document.path === "public/payment-error-codes.md");
 
@@ -56,7 +76,7 @@ async function main() {
       JSON.stringify(
         {
           ok,
-          ingested: { text, url },
+          ingested: { text, url, weak },
           answers: {
             textTopSource: textAnswer.sources[0]?.path,
             urlTopSource: urlAnswer.sources[0]?.path,

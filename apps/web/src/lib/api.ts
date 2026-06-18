@@ -77,6 +77,32 @@ export type SourceIngestResponse = IngestResponse & {
   sourceType: DocumentSourceType;
   extractedCharacters: number;
   parser: "markdown_passthrough_v1" | "plain_text_v1" | "html_text_v1" | "pdf_text_v1" | "docx_text_v1";
+  quality: {
+    schemaVersion: "opspilot.source_ingestion_quality.v1";
+    status: "ready" | "attention" | "blocked";
+    score: number;
+    summary: {
+      extractedCharacters: number;
+      normalizedCharacters: number;
+      chunkCount: number;
+      avgChunkLength: number;
+      maxChunkLength: number;
+      headingCoverageRatio: number;
+      retrievalHintCount: number;
+      redactionCount: number;
+      promptInjectionRisk: boolean;
+    };
+    checks: Array<{
+      id: "text_extraction" | "chunk_generation" | "chunk_size" | "heading_signal" | "retrieval_hints" | "security_scan";
+      label: string;
+      status: "pass" | "warn" | "fail";
+      metric: number;
+      threshold: number;
+      evidence: string;
+    }>;
+    recommendations: string[];
+    searchTestQuery: string;
+  };
 };
 
 export type ResetDocumentsResponse = {
