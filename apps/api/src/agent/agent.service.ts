@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { createEmbeddingProviderFromEnv } from "@opspilot/ai";
 import { AuthzService } from "../authz/authz.service";
 import { ToolCallStatus } from "../database/entities/types";
 import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 import { AnswerGeneratorService } from "./answer-generator.service";
-import { calculateDocumentAgreement, DocumentAgreement } from "./document-agreement";
+import { calculateDocumentAgreement, calculateSemanticDocumentAgreement, DocumentAgreement } from "./document-agreement";
 import { RunbookChecklistService } from "./runbook-checklist.service";
 import { PermissionBoundaryAudit, SearchResult, SearchService } from "./search.service";
 
@@ -366,7 +367,7 @@ export class AgentService {
       sensitiveAction,
       checklist
     });
-    const documentAgreement = calculateDocumentAgreement(
+    const documentAgreement = await calculateAnswerDocumentAgreement(
       answer,
       sources.map((source) => source.content)
     );
@@ -1637,6 +1638,14 @@ function buildContextPackage(sources: SearchResult[]): ContextPackage {
     omittedChunkCount: chunks.filter((chunk) => !chunk.included).length,
     chunks
   };
+}
+
+async function calculateAnswerDocumentAgreement(answer: string, sourceContents: string[]): Promise<DocumentAgreement> {
+  if (process.env.DOCUMENT_AGREEMENT_METHOD === "semantic_embedding") {
+    return calculateSemanticDocumentAgreement(answer, sourceContents, createEmbeddingProviderFromEnv());
+  }
+
+  return calculateDocumentAgreement(answer, sourceContents);
 }
 
 function estimateTokens(value: string): number {

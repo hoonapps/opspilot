@@ -333,6 +333,7 @@ pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
 pnpm transformers-embedding:smoke
 pnpm transformers-indexing:smoke
+pnpm semantic-agreement:smoke
 pnpm retrieval-robustness:smoke
 pnpm eval:coverage-smoke
 pnpm agreement:smoke
@@ -355,9 +356,12 @@ EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-hard:smoke
 EMBEDDING_CANDIDATE_PROVIDER=transformers pnpm embedding-hard:smoke
 RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke
 RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke
+RUN_SEMANTIC_AGREEMENT_SMOKE=true pnpm semantic-agreement:smoke
 ```
 
 `pnpm eval`은 출처 적중, 1순위 출처 정확도, 사람 검토 정확도, 문서 일치율, 인용 정확도를 기준값과 비교합니다.
+
+`DOCUMENT_AGREEMENT_METHOD=semantic_embedding`을 켜면 문서 일치율은 토큰 겹침 대신 답변과 출처 청크의 embedding cosine similarity를 사용합니다. 기본 token overlap 값은 `tokenOverlapScore`로 함께 남아 비교할 수 있습니다.
 
 웹 콘솔 `질문` 화면에서는 근거 커버리지에 출처별 근거 스니펫이 표시되고, 추적 요약 아래에 `답변 신뢰 게이트`가 표시됩니다. 이 게이트는 증명 패킷, 현재 문서 기준 재실행, 승인 상태, 피드백 신호, 문서 일치율, 근거 커버리지, 권한 재검사를 묶어 `공유 가능`, `검토 후 공유`, `차단 후 재작성` 중 하나로 판정합니다. 일반 답변은 피드백 저장 전에는 검토 대상으로 남고, `도움됨` 피드백을 저장하면 공유 가능으로 바뀝니다. 민감 작업 질문은 승인 대기 상태 때문에 자동 공유되지 않습니다.
 

@@ -76,7 +76,7 @@ pnpm --filter @opspilot/rag test
 
 `pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 테스트 문서를 임시 색인합니다. 질문과 문서가 같은 단어를 많이 공유하지 않도록 만든 세트라서, 단순 토큰 겹침이나 로컬 해시 임베딩이 약한 상황을 보여줍니다. 이 명령은 실행 후 기본 seed 문서를 다시 복구합니다.
 
-`RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke`는 로컬 Transformers embedding provider를 실제 모델 다운로드까지 포함해 실행합니다. 모델 원본 벡터는 pgvector `vector(64)` 스키마에 맞춰 deterministic projection으로 64차원에 저장합니다. `RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke`는 문서 저장부터 검색까지 `EMBEDDING_PROVIDER=transformers` 제품 경로가 동작하는지 확인합니다.
+`RUN_TRANSFORMERS_EMBEDDING_SMOKE=true pnpm transformers-embedding:smoke`는 로컬 Transformers embedding provider를 실제 모델 다운로드까지 포함해 실행합니다. 모델 원본 벡터는 pgvector `vector(64)` 스키마에 맞춰 deterministic projection으로 64차원에 저장합니다. `RUN_TRANSFORMERS_INDEXING_SMOKE=true pnpm transformers-indexing:smoke`는 문서 저장부터 검색까지 `EMBEDDING_PROVIDER=transformers` 제품 경로가 동작하는지 확인합니다. `RUN_SEMANTIC_AGREEMENT_SMOKE=true pnpm semantic-agreement:smoke`는 같은 provider를 답변-출처 문서 일치율 계산에도 사용해 `semantic_embedding_v1` metadata가 저장되는지 확인합니다.
 
 `pnpm rerank-challenge:smoke`는 `seed/rerank-challenge/documents`의 최신 runbook과 과거 archive 문서를 임시 색인합니다. 기본 pgvector/lexical fusion에서는 반복 키워드가 많은 archive가 1위가 되지만, `local_bm25_keytoken_v1` 리랭커가 제목, 경로, 핵심 토큰 신호를 결합해 최신 runbook을 1위로 올리는지 검증합니다.
 

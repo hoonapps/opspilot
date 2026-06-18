@@ -1,5 +1,6 @@
 export {
   calculateDocumentAgreement,
+  calculateSemanticDocumentAgreement,
   removeAgreementBoilerplate,
   tokenizeForAgreement,
   type DocumentAgreement

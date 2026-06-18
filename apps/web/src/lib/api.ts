@@ -8,7 +8,11 @@ export type AskResponse = {
     matchedTokenCount: number;
     answerTokenCount: number;
     sourceChunkCount: number;
-    method: "token_overlap_v1";
+    method: "token_overlap_v1" | "semantic_embedding_v1";
+    tokenOverlapScore?: number;
+    semanticSimilarity?: number;
+    bestSourceIndex?: number;
+    sourceSimilarities?: number[];
   };
   needsHumanReview: boolean;
   reviewReasons: Array<{

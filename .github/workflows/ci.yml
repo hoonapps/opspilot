@@ -134,6 +134,9 @@ jobs:
       - name: Transformers indexing optional smoke
         run: pnpm transformers-indexing:smoke
 
+      - name: Semantic agreement optional smoke
+        run: pnpm semantic-agreement:smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 

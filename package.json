@@ -24,6 +24,7 @@
     "embedding-hard:smoke": "pnpm --filter @opspilot/api embedding-hard:smoke",
     "transformers-embedding:smoke": "pnpm --filter @opspilot/api transformers-embedding:smoke",
     "transformers-indexing:smoke": "pnpm --filter @opspilot/api transformers-indexing:smoke",
+    "semantic-agreement:smoke": "pnpm --filter @opspilot/api semantic-agreement:smoke",
     "openai-embedding-path:smoke": "pnpm --filter @opspilot/api openai-embedding-path:smoke",
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",

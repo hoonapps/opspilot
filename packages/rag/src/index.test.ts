@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   calculateDocumentAgreement,
+  calculateSemanticDocumentAgreement,
   chunkMarkdown,
   removeAgreementBoilerplate,
   tokenizeForAgreement
@@ -51,4 +52,28 @@ test("calculateDocumentAgreement scores normalized answer tokens against source 
   assert.equal(agreement.method, "token_overlap_v1");
   assert.equal(agreement.sourceChunkCount, 2);
   assert.equal(agreement.score, 0.9);
+});
+
+test("calculateSemanticDocumentAgreement scores answer against the closest embedded source chunk", async () => {
+  const agreement = await calculateSemanticDocumentAgreement(
+    "고객 안내는 SLA 안에 발송합니다.",
+    ["상태 페이지 공지는 15분 안에 게시합니다.", "사무실 점심 주문 공지는 총무 채널에서 처리합니다."],
+    {
+      async embed(text: string) {
+        if (text.includes("고객 안내") || text.includes("상태 페이지")) {
+          return [1, 0, 0];
+        }
+        return [0, 1, 0];
+      }
+    }
+  );
+
+  assert.equal(agreement.method, "semantic_embedding_v1");
+  assert.equal(agreement.sourceChunkCount, 2);
+  assert.equal(agreement.bestSourceIndex, 0);
+  assert.equal(agreement.semanticSimilarity, 1);
+  assert.equal(agreement.sourceSimilarities?.[0], 1);
+  assert.equal(agreement.sourceSimilarities?.[1], 0);
+  assert.equal(agreement.tokenOverlapScore, 0.2);
+  assert.equal(agreement.semanticSimilarity > agreement.tokenOverlapScore, true);
 });

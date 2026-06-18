@@ -22,7 +22,15 @@ export type DocumentAgreement = {
   matchedTokenCount: number;
   answerTokenCount: number;
   sourceChunkCount: number;
-  method: "token_overlap_v1";
+  method: "token_overlap_v1" | "semantic_embedding_v1";
+  tokenOverlapScore?: number;
+  semanticSimilarity?: number;
+  bestSourceIndex?: number;
+  sourceSimilarities?: number[];
+};
+
+export type SemanticEmbeddingProvider = {
+  embed(text: string): Promise<number[]>;
 };
 
 const DEFAULT_MAX_CHUNK_LENGTH = 1200;
@@ -105,6 +113,50 @@ export function calculateDocumentAgreement(answer: string, sourceContents: strin
   };
 }
 
+export async function calculateSemanticDocumentAgreement(
+  answer: string,
+  sourceContents: string[],
+  embeddingProvider: SemanticEmbeddingProvider
+): Promise<DocumentAgreement> {
+  const tokenAgreement = calculateDocumentAgreement(answer, sourceContents);
+  const cleanedAnswer = removeAgreementBoilerplate(answer).trim();
+
+  if (!cleanedAnswer || sourceContents.length === 0) {
+    return {
+      ...tokenAgreement,
+      method: "semantic_embedding_v1",
+      tokenOverlapScore: tokenAgreement.score,
+      semanticSimilarity: sourceContents.length === 0 && !cleanedAnswer ? 1 : 0,
+      bestSourceIndex: -1,
+      sourceSimilarities: []
+    };
+  }
+
+  const [answerEmbedding, ...sourceEmbeddings] = await Promise.all([
+    embeddingProvider.embed(cleanedAnswer),
+    ...sourceContents.map((content) => embeddingProvider.embed(content))
+  ]);
+  const sourceSimilarities = sourceEmbeddings.map((sourceEmbedding) => cosineSimilarity(answerEmbedding, sourceEmbedding));
+  const bestSourceIndex = sourceSimilarities.reduce(
+    (bestIndex, value, index) => (value > sourceSimilarities[bestIndex] ? index : bestIndex),
+    0
+  );
+  const semanticSimilarity = sourceSimilarities[bestSourceIndex] ?? 0;
+  const score = Number(semanticSimilarity.toFixed(3));
+
+  return {
+    score,
+    matchedTokenCount: tokenAgreement.matchedTokenCount,
+    answerTokenCount: tokenAgreement.answerTokenCount,
+    sourceChunkCount: sourceContents.length,
+    method: "semantic_embedding_v1",
+    tokenOverlapScore: tokenAgreement.score,
+    semanticSimilarity: score,
+    bestSourceIndex,
+    sourceSimilarities: sourceSimilarities.map((value) => Number(value.toFixed(3)))
+  };
+}
+
 export function removeAgreementBoilerplate(answer: string): string {
   return answer
     .split(/\n+/)
@@ -149,4 +201,26 @@ function isHeadingOnly(content: string): boolean {
 
 function stripParticle(token: string): string {
   return token.replace(/(에서|으로|에게|한테|부터|까지|처럼|보다|은|는|이|가|을|를|도|만|와|과|로)$/u, "");
+}
+
+function cosineSimilarity(left: number[], right: number[]): number {
+  const length = Math.min(left.length, right.length);
+  if (length === 0) {
+    return 0;
+  }
+
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+  for (let index = 0; index < length; index += 1) {
+    dot += left[index] * right[index];
+    leftNorm += left[index] * left[index];
+    rightNorm += right[index] * right[index];
+  }
+
+  if (leftNorm === 0 || rightNorm === 0) {
+    return 0;
+  }
+
+  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
 }
