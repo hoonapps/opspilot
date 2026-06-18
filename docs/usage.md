@@ -382,6 +382,15 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 
 하이브리드 모드에서도 Elasticsearch 결과는 권한의 기준이 아닙니다. 반환된 청크 ID를 PostgreSQL에서 다시 로드하면서 같은 권한 필터를 적용합니다.
 
+로컬에서 실제 동작을 검증하려면 아래 명령을 실행합니다.
+
+```bash
+docker compose --profile search up -d
+pnpm elasticsearch:smoke
+```
+
+이 스모크는 공개 문서와 제한 문서를 Elasticsearch에 미러 색인하고, 검색 계획이 `hybrid`인지, 권한 집행이 `postgres_recheck_after_elasticsearch`인지, 공개 사용자가 제한 문서를 받지 않는지, 운영 관리자는 제한 문서를 검색할 수 있는지 확인합니다.
+
 ## 13. 포트폴리오 데모 리포트 생성
 
 브라우저 없이 핵심 증거를 만들려면:

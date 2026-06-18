@@ -321,6 +321,13 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm ingest
 ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 ```
 
+하이브리드 검색과 권한 재검사를 CLI로 검증하려면:
+
+```bash
+docker compose --profile search up -d
+pnpm elasticsearch:smoke
+```
+
 로컬 포트:
 
 - PostgreSQL: `localhost:25432`
@@ -328,6 +335,8 @@ ENABLE_ELASTICSEARCH=true RETRIEVAL_MODE=hybrid pnpm dev:api
 - Elasticsearch: `localhost:29200`
 
 Elasticsearch 결과는 권한의 기준으로 신뢰하지 않습니다. 하이브리드 모드에서도 Elasticsearch가 반환한 청크 ID를 PostgreSQL에서 다시 로드하고, 같은 권한 필터를 통과한 청크만 답변 컨텍스트에 들어갑니다.
+
+`pnpm elasticsearch:smoke`는 공개 문서와 제한 문서를 Elasticsearch에 미러 색인한 뒤, 공개 사용자는 제한 문서를 보지 못하고 운영 관리자는 볼 수 있으며 검색 계획이 `hybrid`, 권한 집행이 `postgres_recheck_after_elasticsearch`로 기록되는지 확인합니다.
 
 ## 보안 경계
 
