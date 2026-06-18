@@ -45,6 +45,7 @@ pnpm revalidation-queue:smoke
 pnpm revalidation-run:smoke
 pnpm queue:smoke
 pnpm github:smoke
+pnpm rerank-challenge:smoke
 pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
@@ -72,6 +73,8 @@ pnpm --filter @opspilot/rag test
 `pnpm openai-embedding-path:smoke`는 mock OpenAI embedding 응답으로 `EMBEDDING_PROVIDER=openai` 경로를 켭니다. 문서 색인 시 OpenAI provider가 호출되고, 반환 embedding이 pgvector에 저장되며, 질문 검색도 같은 provider를 통과하는지 확인합니다. OpenAI provider를 명시하면 기본적으로 API 실패를 local embedding으로 숨기지 않습니다.
 
 `pnpm embedding-hard:smoke`는 `seed/embedding-hard/documents`의 테스트 문서를 임시 색인합니다. 질문과 문서가 같은 단어를 많이 공유하지 않도록 만든 세트라서, 단순 토큰 겹침이나 로컬 해시 임베딩이 약한 상황을 보여줍니다. 이 명령은 실행 후 기본 seed 문서를 다시 복구합니다.
+
+`pnpm rerank-challenge:smoke`는 `seed/rerank-challenge/documents`의 최신 runbook과 과거 archive 문서를 임시 색인합니다. 기본 pgvector/lexical fusion에서는 반복 키워드가 많은 archive가 1위가 되지만, `local_bm25_keytoken_v1` 리랭커가 제목, 경로, 핵심 토큰 신호를 결합해 최신 runbook을 1위로 올리는지 검증합니다.
 
 웹 콘솔 `문서` 화면에서는 문서 목록, 청크 수, 마스킹 메타데이터, 프롬프트 주입 격리 상태, 색인 스냅샷, 색인 품질 리포트, 문서 색인 설명, 버전 변경 차이, 문서 변경 영향 분석, 문서 재검증 큐, 재검증 실행 리포트와 최근 실행 이력, 청크 미리보기, 신규 문서 검색 검증 결과, BullMQ 큐 관제 패널을 볼 수 있습니다.
 
@@ -123,4 +126,4 @@ pnpm --filter @opspilot/rag test
 
 실제 청크 미리보기는 `GET /documents` 응답과 웹 콘솔 `문서` 화면에서 확인합니다. 검색 전 랭킹은 `POST /retrieval/preview`와 웹 콘솔 `검색` 화면에서 확인합니다. 이 응답은 후보별 랭킹 설명과 검색 실행 계획을 함께 반환해 매칭 검색어, 점수 기여도, 권한 통과 사유, 질문 정규화, 후보 생성, 권한 경계, 점수 결합, 리랭킹, 컨텍스트 패키징, 검토 판단 단계를 확인할 수 있습니다.
 
-검색 파이프라인은 먼저 pgvector/lexical fusion으로 권한을 통과한 후보군을 만들고, 그 후보군에 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 리랭커는 BM25 계열 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 검색 점수를 결합합니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 리랭킹 전 기준선과 리랭킹 후 결과를 함께 비교합니다. 임베딩 모델 자체의 차이는 `GET /evaluations/embedding-comparison`과 `pnpm embedding-hard:smoke`에서 별도로 확인합니다.
+검색 파이프라인은 먼저 pgvector/lexical fusion으로 권한을 통과한 후보군을 만들고, 그 후보군에 `local_bm25_keytoken_v1` 리랭커를 적용합니다. 리랭커는 BM25 계열 점수, 오류 코드/지표/경로 같은 핵심 토큰 일치, 제목·경로 일치, 기존 검색 점수를 결합합니다. `GET /evaluations/retrieval`과 `pnpm retrieval-eval:smoke`는 리랭킹 전 기준선과 리랭킹 후 결과를 함께 비교합니다. `pnpm rerank-challenge:smoke`는 리랭커가 실제로 잘못된 1위 후보를 교체하는 회귀 방지 fixture입니다. 임베딩 모델 자체의 차이는 `GET /evaluations/embedding-comparison`과 `pnpm embedding-hard:smoke`에서 별도로 확인합니다.

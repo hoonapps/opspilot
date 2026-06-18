@@ -19,6 +19,7 @@
     "eval:regression-smoke": "pnpm --filter @opspilot/api eval:regression-smoke",
     "eval:coverage-smoke": "pnpm --filter @opspilot/api eval:coverage-smoke",
     "retrieval-eval:smoke": "pnpm --filter @opspilot/api retrieval-eval:smoke",
+    "rerank-challenge:smoke": "pnpm --filter @opspilot/api rerank-challenge:smoke",
     "embedding-eval:smoke": "pnpm --filter @opspilot/api embedding-eval:smoke",
     "embedding-hard:smoke": "pnpm --filter @opspilot/api embedding-hard:smoke",
     "openai-embedding-path:smoke": "pnpm --filter @opspilot/api openai-embedding-path:smoke",

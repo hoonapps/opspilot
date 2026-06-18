@@ -37,6 +37,7 @@ pnpm eval:cases-smoke
 pnpm eval:regression-smoke
 pnpm eval:coverage-smoke
 pnpm retrieval-eval:smoke
+pnpm rerank-challenge:smoke
 pnpm openai-embedding-path:smoke
 pnpm embedding-eval:smoke
 pnpm embedding-hard:smoke
@@ -92,7 +93,7 @@ GET /evaluations/retrieval
 - `rows[].rankDelta`: 기대 출처가 리랭킹 후 몇 등 개선 또는 하락했는지
 - `rows[].permissionEnforcement`: 권한 경계가 검색 전 SQL 필터인지, Elasticsearch 후 PostgreSQL 재검사인지
 
-`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 리포트는 같은 질문셋에 대해 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환하므로, 검색 튜닝이 top-k 품질을 실제로 개선했는지 숫자로 비교할 수 있습니다. OpenAI 임베딩을 사용할 때는 같은 명령을 `EMBEDDING_PROVIDER=openai OPENAI_API_KEY=...` 환경으로 재실행해 local hash embedding 대비 성능 차이를 남깁니다.
+`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 리포트는 같은 질문셋에 대해 리랭킹 전 기준선과 리랭킹 후 결과를 함께 반환하므로, 검색 튜닝이 top-k 품질을 실제로 개선했는지 숫자로 비교할 수 있습니다. `pnpm rerank-challenge:smoke`는 기본 검색이 과거 archive 문서를 1위로 잘못 올리는 fixture를 색인하고, 리랭커 적용 후 최신 runbook이 1위가 되며 `recall@1`, `MRR` delta가 양수인지 강제합니다. OpenAI 임베딩을 사용할 때는 같은 명령을 `EMBEDDING_PROVIDER=openai OPENAI_API_KEY=...` 환경으로 재실행해 local hash embedding 대비 성능 차이를 남깁니다.
 
 ## 임베딩 비교 리포트
 

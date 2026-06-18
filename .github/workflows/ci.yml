@@ -116,6 +116,9 @@ jobs:
       - name: Retrieval evaluation smoke
         run: pnpm retrieval-eval:smoke
 
+      - name: Rerank challenge smoke
+        run: pnpm rerank-challenge:smoke
+
       - name: OpenAI embedding path smoke
         run: pnpm openai-embedding-path:smoke
 

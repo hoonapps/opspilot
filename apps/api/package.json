@@ -19,6 +19,7 @@
     "eval:regression-smoke": "ts-node src/cli/evaluation-regression-smoke.ts",
     "eval:coverage-smoke": "ts-node src/cli/evaluation-coverage-smoke.ts",
     "retrieval-eval:smoke": "ts-node src/cli/retrieval-evaluation-smoke.ts",
+    "rerank-challenge:smoke": "ts-node src/cli/rerank-challenge-smoke.ts",
     "embedding-eval:smoke": "ts-node src/cli/embedding-comparison-smoke.ts",
     "embedding-hard:smoke": "ts-node src/cli/embedding-hard-smoke.ts",
     "openai-embedding-path:smoke": "ts-node src/cli/openai-embedding-path-smoke.ts",

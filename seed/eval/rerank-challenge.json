@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rerank-e102-timeout-runbook",
+    "question": "E102 payment.approval.timeout rollback 기준",
+    "expectedSources": ["public/e102-payment-timeout-runbook.md"],
+    "requiresHumanReview": false,
+    "actor": {
+      "roles": [],
+      "teamSlugs": []
+    }
+  }
+]
