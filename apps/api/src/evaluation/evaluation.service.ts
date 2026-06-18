@@ -1,8 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { MikroORM } from "@mikro-orm/core";
+import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { isAbsolute, join, resolve } from "node:path";
 import { AgentService } from "../agent/agent.service";
 import { calculateDocumentAgreement } from "../agent/document-agreement";
+import { SearchService } from "../agent/search.service";
 import { sha256 } from "../shared/hash";
 import { RequestContext } from "../shared/request-context";
 
@@ -247,6 +250,59 @@ export type EvaluationCoverageReport = {
   };
 };
 
+export type RetrievalEvaluationReport = {
+  schemaVersion: "opspilot.retrieval_evaluation.v1";
+  suiteName: string;
+  generatedAt: string;
+  total: number;
+  status: "pass" | "warn" | "fail";
+  metrics: {
+    recallAt1: number;
+    recallAt3: number;
+    recallAt5: number;
+    mrr: number;
+    ndcgAt5: number;
+    averageFirstRelevantRank: number | null;
+  };
+  thresholds: {
+    recallAt3: number;
+    mrr: number;
+  };
+  gates: Array<{
+    metric: "recallAt3" | "mrr";
+    score: number;
+    threshold: number;
+    passed: boolean;
+  }>;
+  rows: Array<{
+    id: string;
+    question: string;
+    expectedSources: string[];
+    rankedSources: string[];
+    firstRelevantRank: number | null;
+    reciprocalRank: number;
+    recallAt1: boolean;
+    recallAt3: boolean;
+    recallAt5: boolean;
+    ndcgAt5: number;
+    permissionEnforcement: string;
+    deniedCandidateCount: number;
+  }>;
+  actionItems: Array<{
+    id: string;
+    priority: "P0" | "P1" | "P2";
+    owner: "retrieval" | "embedding" | "reranking";
+    title: string;
+    evidence: string;
+    command: string;
+  }>;
+  integrity: {
+    reportHash: string;
+    hashAlgorithm: "sha256";
+    includedFields: string[];
+  };
+};
+
 export type EvaluationMetrics = {
   sourceHitRate: number;
   topSourceAccuracy: number;
@@ -294,7 +350,8 @@ type StoredMetricName = keyof typeof METRIC_NAMES;
 export class EvaluationService {
   constructor(
     private readonly orm: MikroORM,
-    private readonly agent: AgentService
+    private readonly agent: AgentService,
+    private readonly search: SearchService
   ) {}
 
   async run(suiteName: string, questions: EvalQuestion[]): Promise<EvalReport> {
@@ -681,6 +738,98 @@ export class EvaluationService {
     };
   }
 
+  async retrieval(suiteName: string, questions?: EvalQuestion[]): Promise<{ report: RetrievalEvaluationReport }> {
+    const evalQuestions = questions ?? (await loadEvalQuestionsFromEnv());
+    const rows = [];
+    for (const item of evalQuestions) {
+      const searchResult = await this.search.searchWithAudit(item.question, item.actor, 10);
+      const rankedSources = uniqueRankedSources(searchResult.results.map((result) => result.path));
+      const firstRelevantRank = firstRelevantSourceRank(item.expectedSources, rankedSources);
+      rows.push({
+        id: item.id,
+        question: item.question,
+        expectedSources: item.expectedSources,
+        rankedSources,
+        firstRelevantRank,
+        reciprocalRank: firstRelevantRank ? Number((1 / firstRelevantRank).toFixed(3)) : 0,
+        recallAt1: rankWithin(firstRelevantRank, 1),
+        recallAt3: rankWithin(firstRelevantRank, 3),
+        recallAt5: rankWithin(firstRelevantRank, 5),
+        ndcgAt5: ndcgAtK(item.expectedSources, rankedSources, 5),
+        permissionEnforcement: searchResult.permissionAudit.enforcement,
+        deniedCandidateCount: searchResult.permissionAudit.deniedCandidateCount
+      });
+    }
+
+    const metrics = {
+      recallAt1: ratio(rows.filter((row) => row.recallAt1).length, rows.length),
+      recallAt3: ratio(rows.filter((row) => row.recallAt3).length, rows.length),
+      recallAt5: ratio(rows.filter((row) => row.recallAt5).length, rows.length),
+      mrr: average(rows.map((row) => row.reciprocalRank)),
+      ndcgAt5: average(rows.map((row) => row.ndcgAt5)),
+      averageFirstRelevantRank: averageNullable(rows.map((row) => row.firstRelevantRank))
+    };
+    const thresholds = {
+      recallAt3: readThreshold("EVAL_MIN_RETRIEVAL_RECALL_AT_3", 1),
+      mrr: readThreshold("EVAL_MIN_RETRIEVAL_MRR", 0.8)
+    };
+    const gates = [
+      {
+        metric: "recallAt3" as const,
+        score: metrics.recallAt3,
+        threshold: thresholds.recallAt3,
+        passed: metrics.recallAt3 >= thresholds.recallAt3
+      },
+      {
+        metric: "mrr" as const,
+        score: metrics.mrr,
+        threshold: thresholds.mrr,
+        passed: metrics.mrr >= thresholds.mrr
+      }
+    ];
+    const status: RetrievalEvaluationReport["status"] = gates.every((gate) => gate.passed)
+      ? "pass"
+      : metrics.recallAt5 === 1
+        ? "warn"
+        : "fail";
+    const actionItems = buildRetrievalActionItems({ suiteName, metrics, rows });
+    const hashBasis = {
+      suiteName,
+      total: rows.length,
+      status,
+      metrics,
+      gates,
+      rows: rows.map((row) => ({
+        id: row.id,
+        expectedSources: row.expectedSources,
+        rankedSources: row.rankedSources,
+        firstRelevantRank: row.firstRelevantRank,
+        ndcgAt5: row.ndcgAt5
+      })),
+      actionItems
+    };
+
+    return {
+      report: {
+        schemaVersion: "opspilot.retrieval_evaluation.v1",
+        suiteName,
+        generatedAt: new Date().toISOString(),
+        total: rows.length,
+        status,
+        metrics,
+        thresholds,
+        gates,
+        rows,
+        actionItems,
+        integrity: {
+          reportHash: sha256(stableStringify(hashBasis)),
+          hashAlgorithm: "sha256",
+          includedFields: ["suiteName", "total", "status", "metrics", "gates", "rows", "actionItems"]
+        }
+      }
+    };
+  }
+
   private async loadSourceContents(chunkIds: string[]): Promise<string[]> {
     if (chunkIds.length === 0) {
       return [];
@@ -772,6 +921,97 @@ function average(values: number[]): number {
   }
 
   return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(3));
+}
+
+function averageNullable(values: Array<number | null>): number | null {
+  const numbers = values.filter((value): value is number => typeof value === "number");
+  return numbers.length === 0 ? null : average(numbers);
+}
+
+async function loadEvalQuestionsFromEnv(): Promise<EvalQuestion[]> {
+  const evalPath = resolveEvalPath(process.env.EVAL_SET_PATH ?? "../../seed/eval/questions.json");
+  return JSON.parse(await readFile(evalPath, "utf8")) as EvalQuestion[];
+}
+
+function resolveEvalPath(evalPath: string): string {
+  return isAbsolute(evalPath) ? evalPath : resolve(join(process.cwd(), evalPath));
+}
+
+function uniqueRankedSources(paths: string[]): string[] {
+  const seen = new Set<string>();
+  const ranked: string[] = [];
+  for (const path of paths) {
+    if (!seen.has(path)) {
+      seen.add(path);
+      ranked.push(path);
+    }
+  }
+  return ranked;
+}
+
+function firstRelevantSourceRank(expectedSources: string[], rankedSources: string[]): number | null {
+  const rank = rankedSources.findIndex((source) => expectedSources.includes(source));
+  return rank >= 0 ? rank + 1 : null;
+}
+
+function rankWithin(rank: number | null, k: number): boolean {
+  return typeof rank === "number" && rank <= k;
+}
+
+function ndcgAtK(expectedSources: string[], rankedSources: string[], k: number): number {
+  const gains = rankedSources.slice(0, k).map((source, index) => {
+    const relevance = expectedSources.includes(source) ? 1 : 0;
+    return relevance / Math.log2(index + 2);
+  });
+  const dcg = gains.reduce((sum, value) => sum + value, 0);
+  const idealRelevantCount = Math.min(expectedSources.length, k);
+  const idealDcg = Array.from({ length: idealRelevantCount }, (_, index) => 1 / Math.log2(index + 2)).reduce((sum, value) => sum + value, 0);
+  return idealDcg === 0 ? 0 : Number((dcg / idealDcg).toFixed(3));
+}
+
+function buildRetrievalActionItems(input: {
+  suiteName: string;
+  metrics: RetrievalEvaluationReport["metrics"];
+  rows: RetrievalEvaluationReport["rows"];
+}): RetrievalEvaluationReport["actionItems"] {
+  const missed = input.rows.filter((row) => !row.recallAt5);
+  const lowRanked = input.rows.filter((row) => row.recallAt5 && !row.recallAt3);
+  const items: RetrievalEvaluationReport["actionItems"] = [];
+
+  if (missed.length > 0) {
+    items.push({
+      id: "retrieval-missed-expected-source",
+      priority: "P0",
+      owner: "retrieval",
+      title: "기대 문서가 top-5 검색 후보에 없습니다.",
+      evidence: `${missed.length}개 케이스가 recall@5에 실패했습니다: ${missed.map((row) => row.id).join(", ")}`,
+      command: `pnpm retrieval-eval:smoke`
+    });
+  }
+
+  if (lowRanked.length > 0 || input.metrics.mrr < 0.8) {
+    items.push({
+      id: "retrieval-ranking-depth",
+      priority: "P1",
+      owner: "reranking",
+      title: "기대 문서가 검색되지만 상위 랭킹이 약합니다.",
+      evidence: `MRR ${input.metrics.mrr}, recall@3 ${input.metrics.recallAt3}. reranking 전후 수치 비교가 필요합니다.`,
+      command: `curl http://localhost:3000/evaluations/retrieval?suiteName=${input.suiteName}`
+    });
+  }
+
+  if (items.length === 0) {
+    items.push({
+      id: "retrieval-baseline-healthy",
+      priority: "P2",
+      owner: "embedding",
+      title: "현재 seed 평가셋의 retrieval baseline은 기준을 통과했습니다.",
+      evidence: `recall@3 ${input.metrics.recallAt3}, MRR ${input.metrics.mrr}, nDCG@5 ${input.metrics.ndcgAt5}. 다음 단계는 실제 임베딩 모델과 local hash embedding 비교입니다.`,
+      command: "AI_PROVIDER=openai OPENAI_API_KEY=... pnpm retrieval-eval:smoke"
+    });
+  }
+
+  return items;
 }
 
 function answerCitesReturnedSource(answer: string, sources: Array<{ title: string; path: string }>): boolean {

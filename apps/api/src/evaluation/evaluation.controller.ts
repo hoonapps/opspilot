@@ -31,4 +31,9 @@ export class EvaluationController {
   coverage(@Query("suiteName") suiteName?: string) {
     return this.evaluationService.coverage(suiteName ?? "seed-ops-wiki");
   }
+
+  @Get("retrieval")
+  retrieval(@Query("suiteName") suiteName?: string) {
+    return this.evaluationService.retrieval(suiteName ?? "seed-ops-wiki");
+  }
 }

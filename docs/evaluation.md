@@ -36,6 +36,7 @@ pnpm eval:history-smoke
 pnpm eval:cases-smoke
 pnpm eval:regression-smoke
 pnpm eval:coverage-smoke
+pnpm retrieval-eval:smoke
 pnpm freshness:smoke
 ```
 
@@ -68,6 +69,23 @@ GET /evaluations/coverage
 - 응답에는 action item과 SHA-256 `reportHash`가 포함됩니다.
 
 `pnpm eval:coverage-smoke`는 평가에 포함되지 않은 임시 문서를 추가해 blind spot 탐지와 리포트 해시가 생성되는지 검증합니다.
+
+## 검색 품질 리포트
+
+```txt
+GET /evaluations/retrieval
+```
+
+기존 평가의 `documentAgreementScore`는 답변과 출처의 토큰 겹침을 보는 지표입니다. 반면 검색 품질 리포트는 답변 생성 전에 검색기 자체가 기대 문서를 몇 등 안에 올리는지 측정합니다.
+
+- `recallAt1`, `recallAt3`, `recallAt5`: 기대 출처가 top-k 문서 후보에 포함됐는지
+- `mrr`: 첫 기대 출처 순위의 reciprocal rank 평균
+- `ndcgAt5`: top-5 랭킹 품질
+- `averageFirstRelevantRank`: 기대 출처가 처음 등장한 평균 순위
+- `rows[].rankedSources`: 검색 후보 문서를 중복 제거한 실제 랭킹
+- `rows[].permissionEnforcement`: 권한 경계가 검색 전 SQL 필터인지, Elasticsearch 후 PostgreSQL 재검사인지
+
+`pnpm retrieval-eval:smoke`는 seed 평가셋을 색인한 뒤 이 리포트가 `recall@3=1`, `MRR>=0.8`, `nDCG@5>=0.8`을 만족하는지 검증합니다. 이 지표는 이후 실제 임베딩 모델 연결이나 reranking을 추가할 때 before/after 개선 폭을 보여주는 기준선입니다.
 
 ## 케이스 상세 리포트
 

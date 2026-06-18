@@ -18,6 +18,7 @@
     "eval:cases-smoke": "pnpm --filter @opspilot/api eval:cases-smoke",
     "eval:regression-smoke": "pnpm --filter @opspilot/api eval:regression-smoke",
     "eval:coverage-smoke": "pnpm --filter @opspilot/api eval:coverage-smoke",
+    "retrieval-eval:smoke": "pnpm --filter @opspilot/api retrieval-eval:smoke",
     "checklist:smoke": "pnpm --filter @opspilot/api checklist:smoke",
     "incident-plan:smoke": "pnpm --filter @opspilot/api incident-plan:smoke",
     "github:smoke": "pnpm --filter @opspilot/api github:smoke",

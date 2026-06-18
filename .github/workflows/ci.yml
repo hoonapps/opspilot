@@ -113,6 +113,9 @@ jobs:
       - name: Evaluation coverage smoke
         run: pnpm eval:coverage-smoke
 
+      - name: Retrieval evaluation smoke
+        run: pnpm retrieval-eval:smoke
+
       - name: New document indexing smoke
         run: pnpm indexing:smoke
 
