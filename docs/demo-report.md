@@ -1,6 +1,6 @@
 # OpsPilot 제품 데모 리포트
 
-생성 시각: 2026-06-19T07:48:19.888Z
+생성 시각: 2026-06-19T08:15:46.462Z
 
 전체 결과: 통과
 
@@ -31,7 +31,7 @@
 
 ## 감사 추적 증거
 
-- 답변 ID: `7845e1e2-85cd-4270-a145-bcdf6a9165ee`
+- 답변 ID: `cb396105-a11c-4040-899c-dfffa5ba0c13`
 - 출처 수: 5
 - 도구 호출: search_documents:allowed, request_human_approval:needs_approval
 - 승인: sensitive_operation:pending

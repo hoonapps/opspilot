@@ -31,6 +31,7 @@
     "incident-plan:smoke": "ts-node src/cli/incident-plan-smoke.ts",
     "github:smoke": "ts-node src/cli/github-sync-smoke.ts",
     "source-ingestion:smoke": "ts-node src/cli/source-ingestion-smoke.ts",
+    "source-ingestion-http:smoke": "ts-node src/cli/source-ingestion-http-smoke.ts",
     "document-delete:smoke": "ts-node src/cli/document-delete-smoke.ts",
     "elasticsearch:smoke": "ts-node src/cli/elasticsearch-hybrid-smoke.ts",
     "indexing:smoke": "ts-node src/cli/indexing-smoke.ts",

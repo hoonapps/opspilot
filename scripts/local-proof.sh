@@ -12,6 +12,7 @@ pnpm --filter @opspilot/api db:migrate
 
 pnpm typecheck
 pnpm source-ingestion:smoke
+pnpm source-ingestion-http:smoke
 pnpm agentic-tool-use:smoke
 pnpm permission:smoke
 pnpm trace:smoke

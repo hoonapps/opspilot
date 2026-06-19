@@ -2225,10 +2225,38 @@ export async function ingestDocumentSource(input: {
   });
 
   if (!response.ok) {
-    throw new Error(await response.text());
+    throw new Error(await formatApiError(response, "문서 등록에 실패했습니다."));
   }
 
   return response.json() as Promise<SourceIngestResponse>;
+}
+
+async function formatApiError(response: Response, fallback: string): Promise<string> {
+  if (response.status === 413) {
+    return "업로드 요청이 너무 큽니다. PDF/Word는 10MB 이하 파일로 등록하거나 OPSPILOT_REQUEST_BODY_LIMIT 값을 올려주세요.";
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(text) as { message?: unknown };
+    if (typeof parsed.message === "string") {
+      if (parsed.message.includes("file is too large")) {
+        return "파일이 너무 큽니다. PDF/Word는 10MB 이하 파일만 등록할 수 있습니다.";
+      }
+      return parsed.message;
+    }
+    if (Array.isArray(parsed.message)) {
+      return parsed.message.join(", ");
+    }
+  } catch {
+    return text;
+  }
+
+  return text;
 }
 
 export async function resetDocuments(input: { reloadSeed?: boolean } = {}): Promise<ResetDocumentsResponse> {

@@ -2,6 +2,8 @@ const { chromium } = require("@playwright/test");
 const { isAbsolute, join } = require("node:path");
 
 const baseUrl = process.env.WEB_BASE_URL ?? "http://localhost:3001";
+const apiBaseUrl =
+  process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? (baseUrl.includes(":3151") ? "http://localhost:3150" : "http://localhost:3000");
 const repoRoot = join(__dirname, "../../..");
 const screenshotPath = process.env.SCREENSHOT_PATH
   ? isAbsolute(process.env.SCREENSHOT_PATH)
@@ -55,6 +57,8 @@ const usageScreenshotPath = process.env.USAGE_SCREENSHOT_PATH
   : join(repoRoot, "docs/assets/opspilot-usage-page.png");
 
 async function main() {
+  await resetSeedDocuments();
+
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
@@ -96,7 +100,11 @@ async function main() {
     await page.locator(".evalCoverage").getByText("평가 문서 커버리지", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalCoverage").getByText("리포트 해시", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalCoverage").getByText(/사각지대 있음|충분|평가 필요/u).first().waitFor({ timeout: 10000 });
-    await page.locator(".evalCoverageBlindSpot").getByText(/평가|문서|정책/u).first().waitFor({ timeout: 10000 });
+    await page
+      .locator(".evalCoverage .evalCoverageBlindSpot, .evalCoverage .evalRegressionAction")
+      .getByText(/평가|문서|정책/u)
+      .first()
+      .waitFor({ timeout: 10000 });
     await page.locator(".evalCoverage").getByText(/evaluations\/coverage|pnpm eval/u).first().waitFor({ timeout: 10000 });
     await page.locator(".evalCaseReport").getByText("케이스 상세 리포트", { exact: true }).waitFor({ timeout: 10000 });
     await page.locator(".evalCaseReport").getByText("기대 출처 적중", { exact: true }).first().waitFor({ timeout: 10000 });
@@ -814,6 +822,18 @@ async function main() {
     }
   } finally {
     await browser.close();
+  }
+}
+
+async function resetSeedDocuments() {
+  const response = await fetch(`${apiBaseUrl}/documents/reset`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reloadSeed: true })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not reset seed documents before web smoke: ${response.status} ${await response.text()}`);
   }
 }
 
