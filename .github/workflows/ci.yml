@@ -146,6 +146,9 @@ jobs:
       - name: Source ingestion and quality smoke
         run: pnpm source-ingestion:smoke
 
+      - name: Source ingestion HTTP body smoke
+        run: pnpm source-ingestion-http:smoke
+
       - name: Retrieval profile smoke
         run: pnpm retrieval-profile:smoke
 
