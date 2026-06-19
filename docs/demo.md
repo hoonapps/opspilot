@@ -1,6 +1,6 @@
-# 포트폴리오 데모
+# 제품 데모
 
-`pnpm portfolio:demo`는 브라우저 없이 핵심 시나리오를 실행하는 간단한 전체 흐름 데모입니다.
+`pnpm product:demo`는 브라우저 없이 핵심 시나리오를 실행하는 간단한 전체 흐름 데모입니다.
 
 ## 검증하는 내용
 
@@ -16,13 +16,13 @@
 ```bash
 docker compose up -d postgres redis
 pnpm --filter @opspilot/api db:migrate
-pnpm portfolio:demo
+pnpm product:demo
 ```
 
 Markdown 리포트를 남기려면:
 
 ```bash
-pnpm portfolio:report
+pnpm product:report
 ```
 
 결과는 [docs/demo-report.md](docs/demo-report.md)에 저장됩니다.

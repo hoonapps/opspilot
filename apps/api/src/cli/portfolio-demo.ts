@@ -94,7 +94,7 @@ async function main() {
     await feedback.create({
       answerId: sensitive.answerId,
       rating: 1,
-      comment: "Portfolio demo feedback confirms the review path is auditable."
+      comment: "Product demo feedback confirms the review path is auditable."
     });
 
     const trace = await traces.getTrace(sensitive.answerId, restrictedActor);
@@ -128,7 +128,7 @@ async function main() {
           approvalToolLogged: hasTool(sensitive, "request_human_approval"),
           approvalCreated: pendingApproval?.action === "sensitive_operation",
           traceReconstructsToolCalls: trace.toolCalls.some((tool) => tool.toolName === "request_human_approval"),
-          traceIncludesFeedback: trace.feedback.some((item) => item.comment?.includes("Portfolio demo feedback"))
+          traceIncludesFeedback: trace.feedback.some((item) => item.comment?.includes("Product demo feedback"))
         }
       )
     ];
@@ -170,7 +170,7 @@ async function main() {
     }
 
     if (!ok) {
-      throw new Error("Portfolio demo failed");
+      throw new Error("Product demo failed");
     }
   } finally {
     await app.close();
@@ -211,7 +211,7 @@ function getMarkdownReportPath(argv: string[]): string | null {
 
 function renderMarkdownReport(report: PortfolioReport): string {
   const lines = [
-    "# OpsPilot 포트폴리오 데모 리포트",
+    "# OpsPilot 제품 데모 리포트",
     "",
     `생성 시각: ${report.generatedAt}`,
     "",
@@ -252,7 +252,7 @@ function renderMarkdownReport(report: PortfolioReport): string {
     `- 승인: ${report.traceSummary.approvals.join(", ")}`,
     `- 피드백 수: ${report.traceSummary.feedbackCount}`,
     "",
-    "이 파일은 `pnpm portfolio:report`가 `pnpm portfolio:demo`와 같은 검증 항목을 실행한 뒤 생성합니다.",
+    "이 파일은 `pnpm product:report`가 `pnpm product:demo`와 같은 검증 항목을 실행한 뒤 생성합니다.",
     ""
   ];
 

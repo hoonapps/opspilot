@@ -605,7 +605,7 @@ async function main() {
       observabilityText.includes("도구 호출과 감사 재현성") &&
       observabilityText.includes("운영성, SLO, API 안정성") &&
       observabilityText.includes("권장 확인 흐름") &&
-      observabilityText.includes("pnpm portfolio:demo");
+      observabilityText.includes("pnpm product:demo");
     const errorBudgetVisible =
       observabilityText.includes("오류 예산 소모율") &&
       observabilityText.includes("배포 권고") &&

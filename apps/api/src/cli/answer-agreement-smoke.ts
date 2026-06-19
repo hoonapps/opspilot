@@ -36,6 +36,7 @@ async function main() {
     const trace = await traceService.getTrace(answer.answerId, { roles: [], teamSlugs: [] });
     const persistedAgreement = trace.answer.metadata.documentAgreement as { score?: number; method?: string } | undefined;
     const topSource = answer.sources[0];
+    const supportedMethods = new Set(["token_overlap_v1", "semantic_embedding_v1"]);
 
     const ok =
       topSource?.path === AGREEMENT_DOCUMENT_PATH &&
@@ -44,7 +45,9 @@ async function main() {
       answer.documentAgreement.answerTokenCount > 0 &&
       answer.documentAgreement.matchedTokenCount > 0 &&
       persistedAgreement?.score === answer.documentAgreement.score &&
-      persistedAgreement?.method === "token_overlap_v1";
+      typeof persistedAgreement?.method === "string" &&
+      supportedMethods.has(persistedAgreement.method) &&
+      supportedMethods.has(answer.documentAgreement.method);
 
     console.log(
       JSON.stringify(

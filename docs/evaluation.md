@@ -62,7 +62,7 @@ GET /evaluations/regression
 - 게이트는 통과했지만 직전 실행 대비 하락한 메트릭이 있으면 `watch`
 - 게이트 통과와 회귀 없음이 함께 만족되면 `promote`
 
-응답에는 메트릭별 delta, 실패 게이트, 고위험 케이스, 담당 영역별 액션 아이템, SHA-256 `reportHash`가 포함됩니다. 웹 콘솔 `품질` 화면의 `회귀 릴리즈 리포트`에서 같은 내용을 확인할 수 있습니다.
+응답에는 메트릭별 delta, 실패 게이트, 고위험 케이스, 담당 영역별 액션 아이템, SHA-256 `reportHash`가 포함됩니다. 웹 콘솔 `상태` 화면의 `회귀 릴리즈 리포트`에서 같은 내용을 확인할 수 있습니다.
 
 ## 평가 문서 커버리지
 
@@ -115,7 +115,7 @@ GET /evaluations/embedding-comparison
 - `integrity.reportHash`: 평가셋, 문서 청크, 모델 이름, 지표를 묶은 SHA-256 해시
 - `actionItems`: API key가 없거나 candidate가 baseline보다 낮을 때 재검증 명령과 조치
 
-로컬/CI에서는 외부 API key 없이도 `pnpm embedding-eval:smoke`가 실행됩니다. 기본 candidate는 OpenAI이므로 API key가 없으면 리포트 상태는 `skipped`이고 candidate는 `unavailable`로 남습니다. 실제 포트폴리오 데모에서는 아래처럼 실행해 OpenAI embedding 또는 로컬 Transformers embedding과 로컬 해시 기준선의 차이를 같은 리포트에 남깁니다.
+로컬/CI에서는 외부 API key 없이도 `pnpm embedding-eval:smoke`가 실행됩니다. 기본 candidate는 OpenAI이므로 API key가 없으면 리포트 상태는 `skipped`이고 candidate는 `unavailable`로 남습니다. 실제 제품 데모에서는 아래처럼 실행해 OpenAI embedding 또는 로컬 Transformers embedding과 로컬 해시 기준선의 차이를 같은 리포트에 남깁니다.
 
 ```bash
 EMBEDDING_CANDIDATE_PROVIDER=openai OPENAI_API_KEY=... pnpm embedding-eval:smoke
@@ -141,4 +141,4 @@ GET /evaluations/cases
 
 최신 평가 실행의 각 케이스를 `source_hit`, `top_source`, `human_review`, `document_agreement`, `citation` 체크로 분해합니다. 응답에는 케이스별 위험도, 실패/주의 상태, 기대 출처와 실제 출처, 문서 일치율, 인용 여부, 개선 권고가 포함됩니다.
 
-웹 콘솔 `품질` 화면의 `케이스 상세 리포트`에서 평균 점수 뒤에 숨어 있는 실패 원인을 확인할 수 있습니다. 포트폴리오 데모에서는 특정 케이스가 실패했을 때 “문서를 보강해야 하는지, 랭킹을 조정해야 하는지, 답변 템플릿을 바꿔야 하는지”를 설명하는 근거로 사용합니다.
+웹 콘솔 `상태` 화면의 `케이스 상세 리포트`에서 평균 점수 뒤에 숨어 있는 실패 원인을 확인할 수 있습니다. 제품 데모에서는 특정 케이스가 실패했을 때 “문서를 보강해야 하는지, 랭킹을 조정해야 하는지, 답변 템플릿을 바꿔야 하는지”를 설명하는 근거로 사용합니다.

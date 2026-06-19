@@ -946,7 +946,7 @@ export class ObservabilityService {
         },
         {
           step: 3,
-          screen: "질문",
+          screen: "검색",
           action: "일반 질문과 민감 작업 질문을 각각 실행합니다.",
           proof: "일반 답변은 출처와 신뢰 게이트를 보여주고, 민감 작업은 사람 승인으로 분리합니다."
         },
@@ -958,9 +958,9 @@ export class ObservabilityService {
         },
         {
           step: 5,
-          screen: "품질",
-          action: "포트폴리오 준비도, 릴리즈 게이트, SLO, 운영 액션 플랜을 확인합니다.",
-          proof: "현재 데모가 면접에서 보여줄 수 있는 수준인지 서버가 계산한 게이트로 설명합니다."
+          screen: "상태",
+          action: "제품 검증 상태, 릴리즈 게이트, SLO, 운영 액션 플랜을 확인합니다.",
+          proof: "현재 로컬 실행이 제품 확인에 충분한지 서버가 계산한 게이트로 설명합니다."
         }
       ]
     };
@@ -1213,7 +1213,7 @@ function buildPortfolioPillars(input: {
       score: roundMetric(average([searchCalls > 0 ? 1 : 0, runbookCalls > 0 ? 1 : 0.75, statusScore(checks.agent_audit_trail?.status)])),
       evidence: `search_documents ${searchCalls}회, create_runbook_checklist ${runbookCalls}회, 전체 도구 호출 ${input.summary.toolCalls.total}회.`,
       whyItMatters: "에이전트가 어떤 도구를 왜 호출했는지 사후에 재현할 수 있어야 운영 시스템으로 신뢰할 수 있습니다.",
-      demoScript: "감사 화면과 장애 대응 감사 번들에서 도구 호출 상태, 출처 계보, 정책 통과 여부, 원장 루트 해시를 확인합니다.",
+      demoScript: "기록 화면과 장애 대응 감사 번들에서 도구 호출 상태, 출처 계보, 정책 통과 여부, 원장 루트 해시를 확인합니다.",
       verification: ["pnpm trace:smoke", "pnpm evidence-bundle:smoke", "pnpm question-audit:smoke", "pnpm audit-ledger:smoke"],
       links: [
         { label: "도구 감사", href: "/tools/calls" },
@@ -1239,7 +1239,7 @@ function buildPortfolioPillars(input: {
       ),
       evidence: `릴리즈 게이트 ${formatPortfolioStatus(input.gate.status)}, SLO ${formatPortfolioStatus(input.slo.status)}, 오류 예산 ${formatPortfolioStatus(errorBudgetCheck?.status)}, API 성공률 ${Math.round(apiSuccessRate * 100)}%, p95 ${input.apiRequests.summary.p95DurationMs}ms.`,
       whyItMatters: "데모 앱이 아니라 운영 서비스처럼 준비 상태, 요청 품질, 오류 예산, 회복 액션을 보여줍니다.",
-      demoScript: "품질 화면에서 릴리즈 게이트, SLO 가드레일, 오류 예산, 운영 액션 플랜을 순서대로 엽니다.",
+      demoScript: "상태 화면에서 릴리즈 게이트, SLO 가드레일, 오류 예산, 운영 액션 플랜을 순서대로 엽니다.",
       verification: ["pnpm readiness:smoke", "pnpm observability:slo-smoke", "pnpm error-budget:smoke", "pnpm release-gate:smoke"],
       links: [
         { label: "릴리즈 게이트", href: "/observability/release-gate" },
@@ -1249,7 +1249,7 @@ function buildPortfolioPillars(input: {
     },
     {
       id: "demo_artifacts",
-      label: "포트폴리오 산출물과 재현성",
+      label: "제품 검증 산출물과 재현성",
       status: weakestStatus([
         input.summary.documents.total >= 5 ? "pass" : "fail",
         input.summary.feedback.total > 0 ? "pass" : "warn",
@@ -1257,9 +1257,9 @@ function buildPortfolioPillars(input: {
       ]),
       score: roundMetric(average([input.summary.documents.total >= 5 ? 1 : 0, input.summary.feedback.total > 0 ? 1 : 0.75, statusScore(input.gate.status === "block" ? "fail" : input.gate.status === "review" ? "warn" : "pass")])),
       evidence: `README 스크린샷, 사용법 페이지, 데모 리포트, 웹 스모크 경로가 준비됐고 서버 증거 ${input.summary.toolCalls.total}개를 집계했습니다.`,
-      whyItMatters: "코드만 있는 프로젝트가 아니라 면접관이 같은 순서로 실행하고 검증할 수 있는 산출물이 됩니다.",
-      demoScript: "사용법 화면에서 데모 순서를 열고, README 스크린샷과 `pnpm portfolio:report` 결과를 연결해 설명합니다.",
-      verification: ["pnpm portfolio:demo", "pnpm portfolio:report", "pnpm web:smoke"],
+      whyItMatters: "코드만 있는 프로젝트가 아니라 평가자가 같은 순서로 실행하고 검증할 수 있는 산출물이 됩니다.",
+      demoScript: "사용법 화면에서 데모 순서를 열고, README 스크린샷과 `pnpm product:report` 결과를 연결해 설명합니다.",
+      verification: ["pnpm product:demo", "pnpm product:report", "pnpm web:smoke"],
       links: [
         { label: "사용법", href: "/usage" },
         { label: "데모 리포트", href: "docs/demo-report.md" }
@@ -1465,12 +1465,12 @@ function portfolioHeadline(score: number, fail: number, warn: number): string {
     return "핵심 증거가 부족해 데모 전에 보강이 필요합니다.";
   }
   if (warn > 0) {
-    return `면접 데모 가능 상태입니다. 다만 ${warn}개 항목은 설명 전에 확인하세요.`;
+    return `제품 검증 가능 상태입니다. 다만 ${warn}개 항목은 공유 전에 확인하세요.`;
   }
   if (score >= 0.95) {
     return "RAG, 권한, 도구 호출, 운영성 증거가 모두 데모 가능한 상태입니다.";
   }
-  return "주요 포트폴리오 증거가 준비됐습니다.";
+  return "주요 제품 검증 증거가 준비됐습니다.";
 }
 
 function formatPortfolioStatus(status: string | null | undefined): string {

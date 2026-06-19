@@ -27,7 +27,7 @@ async function main() {
     await feedback.create({
       answerId: groundingAnswer.answerId,
       rating: 1,
-      comment: "Portfolio readiness smoke confirms demo evidence."
+      comment: "Product readiness smoke confirms local proof evidence."
     });
 
     const evalPath = resolveEvalPath(process.env.EVAL_SET_PATH ?? "../../seed/eval/questions.json");
@@ -52,7 +52,7 @@ async function main() {
     console.log(JSON.stringify({ ok, report }, null, 2));
 
     if (!ok) {
-      throw new Error("Portfolio readiness smoke test failed");
+      throw new Error("Product readiness smoke test failed");
     }
   } finally {
     await app.close();

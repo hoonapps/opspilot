@@ -62,7 +62,7 @@ GET /docs-json
 - `GET /observability/error-budget`: 5분/1시간/24시간 오류 예산 잔량, 오류 예산 소모율, 주요 실패 엔드포인트, 배포 권고
 - `GET /observability/slo`: SLO 가드레일
 - `GET /observability/release-gate`: 배포 가능성 게이트
-- `GET /observability/portfolio-readiness`: 포트폴리오 데모 준비도, 핵심 증거 pillar, 5분 데모 경로
+- `GET /observability/portfolio-readiness`: 제품 검증 상태, 핵심 증거 pillar, 5분 확인 경로
 - `GET /observability/action-plan`: 배포 게이트/SLO 결과를 담당자별 우선순위, 조치, 검증 명령으로 변환
 - `GET /observability/audit-ledger`: 질문, 답변, 도구 호출, 승인, 피드백 이벤트의 SHA-256 해시 체인
 - `POST /slack/events`: Slack Events API
@@ -74,7 +74,7 @@ GET /docs-json
 pnpm openapi:smoke
 ```
 
-이 명령은 포트폴리오 핵심 API, 요청 스키마, `x-opspilot-actor-token` 보안 스키마가 OpenAPI 문서에 남아 있는지 검증합니다. 기능이 커져도 공개 API가 조용히 깨지지 않게 하는 장치입니다.
+이 명령은 제품 핵심 API, 요청 스키마, `x-opspilot-actor-token` 보안 스키마가 OpenAPI 문서에 남아 있는지 검증합니다. 기능이 커져도 공개 API가 조용히 깨지지 않게 하는 장치입니다.
 
 ## 검색 미리보기 랭킹 설명
 
@@ -84,7 +84,7 @@ pnpm openapi:smoke
 - `matchedQueryTerms`: 제목, 경로, 본문에 실제로 매칭된 검색어
 - `scoreContributions`: 벡터 유사도, 키워드 매칭, RRF 결합 점수, 리랭킹 점수의 기여도
 - `accessDecision`: 권한 필터를 통과한 이유와 적용된 집행 방식
-- `reasonCodes`: 포트폴리오 데모와 테스트에서 확인하기 쉬운 결정 코드
+- `reasonCodes`: 제품 데모와 테스트에서 확인하기 쉬운 결정 코드
 
 이 필드는 답변 생성 전 단계에서 “검색 품질이 왜 충분한지”, “권한 경계가 어디서 적용됐는지”, “문서 내용과 질문이 어떻게 연결됐는지”를 확인하기 위한 감사용 데이터입니다.
 
@@ -160,7 +160,7 @@ POST /retrieval/robustness
 pnpm retrieval-robustness:smoke
 ```
 
-이 스모크는 테스트 문서를 색인한 뒤 질문 표현을 바꿔도 같은 근거 문서로 수렴하는지 검증합니다. RAG가 “한 번 맞았다”가 아니라 “표현이 바뀌어도 운영 의도를 안정적으로 찾는다”는 점을 보여주기 위한 포트폴리오 증거입니다.
+이 스모크는 테스트 문서를 색인한 뒤 질문 표현을 바꿔도 같은 근거 문서로 수렴하는지 검증합니다. RAG가 “한 번 맞았다”가 아니라 “표현이 바뀌어도 운영 의도를 안정적으로 찾는다”는 점을 보여주기 위한 제품 증거입니다.
 
 ## 권한별 검색 비교
 
@@ -400,7 +400,7 @@ GET /answers/{id}/evidence-bundle
 
 응답은 `opspilot.answer_evidence_bundle.v1` 스키마를 사용합니다. 번들에는 원본 추적, 증명 체크리스트, 현재 문서 기준 재실행 결과, 호출자 역할/팀 경계, 출처 접근 재검사 여부, 문서 일치율, 근거 커버리지, 출처별 근거 스니펫, 도구/승인/피드백 건수가 들어갑니다.
 
-`integrity.hash`는 반환된 번들 내용을 안정 JSON으로 정규화한 뒤 SHA-256으로 계산합니다. 이 값은 “이 화면에서 보여준 감사 증거가 나중에 조용히 바뀌지 않았는지” 확인하기 위한 포트폴리오용 증거입니다.
+`integrity.hash`는 반환된 번들 내용을 안정 JSON으로 정규화한 뒤 SHA-256으로 계산합니다. 이 값은 “이 화면에서 보여준 감사 증거가 나중에 조용히 바뀌지 않았는지” 확인하기 위한 제품 검증용 증거입니다.
 
 검증:
 

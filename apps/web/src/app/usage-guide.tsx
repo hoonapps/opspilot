@@ -94,7 +94,7 @@ const usageSteps = [
   {
     title: "제품 검증 리포트 생성",
     body: "터미널에서 핵심 동작을 JSON/Markdown 리포트로 만들고, 웹 스모크 테스트로 화면까지 검증합니다.",
-    commands: ["pnpm portfolio:demo", "pnpm portfolio:report", "pnpm web:smoke"]
+    commands: ["pnpm product:demo", "pnpm product:report", "pnpm web:smoke"]
   }
 ];
 
