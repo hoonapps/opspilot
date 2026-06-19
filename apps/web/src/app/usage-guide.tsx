@@ -60,7 +60,7 @@ const usageSteps = [
     title: "질문과 권한 경계 확인",
     body: "일반 질문은 출처와 함께 자동 답변하고, 운영 DB 수정 같은 민감 작업은 사람 승인 요청으로 분리합니다. 답변 신뢰 게이트와 문장별 근거 검증에서 공유 가능 여부와 claim별 출처 지지 점수를 확인합니다.",
     commands: [
-      "질문 화면 > OpsPilot에 질문",
+      "검색 화면 > 질문 입력 후 검색",
       "답변 신뢰 게이트 / 문장별 근거 검증 / 문서 일치율 / 출처 / 도구 호출 확인",
       "pnpm claim-support:smoke",
       "피드백 저장 후 게이트 재확인",
@@ -88,12 +88,12 @@ const usageSteps = [
       "pnpm evidence-bundle:smoke",
       "pnpm claim-support:smoke",
       "pnpm quality-gate:smoke",
-      "품질 화면 > 평가 불러오기 / 회귀 릴리즈 리포트 / 평가 문서 커버리지 / 운영 지표 불러오기"
+      "상태 화면 > 평가 불러오기 / 회귀 릴리즈 리포트 / 평가 문서 커버리지 / 운영 지표 불러오기"
     ]
   },
   {
-    title: "포트폴리오 데모 리포트 생성",
-    body: "터미널에서 핵심 증거를 JSON/Markdown 리포트로 만들고, 웹 스모크 테스트로 화면까지 검증합니다.",
+    title: "제품 검증 리포트 생성",
+    body: "터미널에서 핵심 동작을 JSON/Markdown 리포트로 만들고, 웹 스모크 테스트로 화면까지 검증합니다.",
     commands: ["pnpm portfolio:demo", "pnpm portfolio:report", "pnpm web:smoke"]
   }
 ];
@@ -114,11 +114,11 @@ const screenGuide = [
     point: "URL, Markdown, txt, PDF, Word 문서를 수집하고 청킹/임베딩/RAG 검색/근거 답변/권한 경계/도구 호출 감사/평가까지 하나의 흐름으로 검증합니다."
   },
   {
-    screen: "질문",
+    screen: "검색",
     point: "질문, 출처, 문서 일치율, 답변 신뢰 게이트, 피드백, 추적/증명/재실행을 확인합니다."
   },
   {
-    screen: "검색",
+    screen: "검색 분석",
     point: "답변 생성 전에 후보 청크, 점수 분해, 권한 차단, 권한별 검색 비교, 질문 변형 안정성을 확인합니다."
   },
   {
@@ -130,11 +130,11 @@ const screenGuide = [
     point: "Markdown 등록, GitHub 동기화, 청킹 결과, 색인 스냅샷, 색인 품질, 색인 설명, 문서 변경 영향 분석, 재검증 큐와 실행 리포트를 확인합니다."
   },
   {
-    screen: "품질",
+    screen: "상태",
     point: "평가 결과, 회귀 릴리즈 리포트, 배포 게이트, SLO, 오류 예산 소모율, 운영 액션 플랜, API 요청 관측성을 확인합니다."
   },
   {
-    screen: "승인/감사",
+    screen: "검토/기록",
     point: "민감 작업 승인 대기열, 도구 레지스트리, 도구 호출 로그, Slack 시뮬레이션을 확인합니다."
   }
 ];
@@ -145,8 +145,8 @@ const checklist = [
     body: "OpsPilot은 다양한 문서 소스를 운영 지식으로 저장하고, 질문이 들어오면 권한이 허용된 문서만 검색해 출처와 문서 일치율을 포함한 답변을 생성하는 RAG 기반 AI Agent 플랫폼입니다. Slack은 같은 파이프라인을 쓰는 확장 채널입니다."
   },
   {
-    title: "데모에서 보여줄 핵심 증거",
-    body: "색인 스냅샷 해시, 문서 출처, 문서 일치율, 답변 신뢰 게이트, 답변 변경 감지, 문서 재검증 실행 판정, 증거 번들 해시, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트, API 성공률을 순서대로 보여주면 됩니다."
+    title: "제품에서 확인할 핵심 증거",
+    body: "색인 스냅샷 해시, 문서 출처, 문서 일치율, 답변 신뢰 게이트, 답변 변경 감지, 문서 재검증 실행 판정, 증거 번들 해시, 권한 차단 후보, 도구 호출, 승인 요청, 평가 결과, 배포 게이트, API 성공률을 순서대로 확인합니다."
   },
   {
     title: "문서를 어디서 관리하나?",
@@ -158,7 +158,7 @@ const checklist = [
   },
   {
     title: "문서 일치율은 어디서 보나?",
-    body: "질문 화면 답변 상단, 답변 신뢰 게이트, 추적, 증명 패킷, 증거 번들, 문장별 근거 검증, 품질 화면 평가 지표에서 답변과 근거 문서의 일치율과 claim별 출처 지지 점수를 확인합니다."
+    body: "검색 화면 답변 상단, 답변 신뢰 게이트, 실행 기록, 증명 패킷, 증거 번들, 문장별 근거 검증, 상태 화면 평가 지표에서 답변과 근거 문서의 일치율과 claim별 출처 지지 점수를 확인합니다."
   },
   {
     title: "권한 경계는 어떻게 설명하나?",
@@ -166,11 +166,11 @@ const checklist = [
   },
   {
     title: "도구 호출은 어떻게 증명하나?",
-    body: "감사 화면에서 도구 레지스트리를 확인하고, 대응 화면의 감사 번들에서 search_documents, create_runbook_checklist, create_incident_response_plan의 정책 통과 여부와 출처 계보를 다시 검증합니다."
+    body: "기록 화면에서 도구 레지스트리를 확인하고, 대응 화면의 감사 번들에서 search_documents, create_runbook_checklist, create_incident_response_plan의 정책 통과 여부와 출처 계보를 다시 검증합니다."
   },
   {
-    title: "로컬 데모와 실제 배포 중 무엇을 보여주나?",
-    body: "포트폴리오 면접에서는 로컬 Docker Compose 데모가 가장 재현성이 좋습니다. 실제 서버 배포는 README와 배포 문서로 설명하고, 핵심 검증은 스모크 명령과 웹 콘솔에서 증명합니다."
+    title: "로컬 실행과 실제 배포는 어떻게 나누나?",
+    body: "로컬 Docker Compose 실행은 재현성이 좋고, 실제 서버 배포는 README와 배포 문서로 설명합니다. 핵심 검증은 스모크 명령과 웹 콘솔에서 확인합니다."
   }
 ];
 
@@ -180,9 +180,9 @@ export function UsageGuide({ mode = "panel" }: UsageGuideProps) {
       <div className="sectionHeader">
         <div>
           <p className="eyebrow">사용법</p>
-          <h2>로컬 데모 실행과 검증 순서</h2>
+          <h2>로컬 실행과 검증 순서</h2>
         </div>
-        <span className="badge">포트폴리오 데모</span>
+        <span className="badge">제품 검증</span>
       </div>
       <div className="usageQuickStart" aria-label="빠른 실행 명령">
         <div>

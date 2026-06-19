@@ -128,14 +128,14 @@ const apiStatusLabel = apiBaseUrl.replace(/^https?:\/\//, "");
 const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: string; description: string }>> = {
   ko: {
     ask: {
-      label: "질문",
-      title: "운영 문서에 질문하기",
-      description: "권한이 허용한 문서만 근거로 답변하고, 문서에 없거나 신뢰도가 낮으면 모른다고 답합니다."
+      label: "검색",
+      title: "OpsPilot 검색",
+      description: "문서, URL, 파일에서 색인된 지식만 근거로 답합니다. 근거가 부족하면 답을 만들지 않습니다."
     },
     retrieval: {
-      label: "검색",
-      title: "RAG 검색 실험실",
-      description: "질문이 어떤 청크를 찾는지, 권한에 따라 어떤 문서가 차단되는지 확인합니다."
+      label: "검색 분석",
+      title: "검색 분석",
+      description: "질문이 어떤 청크를 찾았는지, 권한 때문에 어떤 문서가 제외됐는지 확인합니다."
     },
     incident: {
       label: "대응",
@@ -145,12 +145,12 @@ const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: s
     documents: {
       label: "문서",
       title: "지식 베이스 관리",
-      description: "URL, Markdown, txt, PDF, Word 문서를 넣고 색인한 뒤 바로 질문으로 검증합니다."
+      description: "URL, Markdown, txt, PDF, Word 문서를 넣고 색인 상태와 질문 결과를 바로 확인합니다."
     },
     quality: {
-      label: "품질",
-      title: "품질 게이트와 운영 지표",
-      description: "평가, 문서 일치율, 커버리지, 배포 게이트를 확인합니다."
+      label: "상태",
+      title: "제품 상태",
+      description: "답변 품질, 문서 일치율, 검색 커버리지, 운영 상태를 확인합니다."
     },
     review: {
       label: "승인",
@@ -158,8 +158,8 @@ const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: s
       description: "민감 작업 승인, 답변 피드백, 도구 호출 상태를 확인합니다."
     },
     audit: {
-      label: "감사",
-      title: "감사 로그와 도구 레지스트리",
+      label: "기록",
+      title: "실행 기록과 도구",
       description: "질문, 도구 호출, 승인, 재검증 실행 이력을 추적합니다."
     },
     help: {
@@ -170,13 +170,13 @@ const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: s
   },
   en: {
     ask: {
-      label: "Ask",
-      title: "Ask Your Knowledge Base",
-      description: "Answers use only authorized documents. If evidence is missing or weak, OpsPilot says it does not know."
+      label: "Search",
+      title: "OpsPilot Search",
+      description: "Answers come only from indexed documents, URLs, and files. If evidence is weak, OpsPilot does not invent an answer."
     },
     retrieval: {
-      label: "Search",
-      title: "RAG Search Lab",
+      label: "Analysis",
+      title: "Search Analysis",
       description: "Inspect retrieved chunks, ranking signals, and permission boundaries before answering."
     },
     incident: {
@@ -190,9 +190,9 @@ const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: s
       description: "Add URL, Markdown, txt, PDF, and Word documents, index them, then test with a question."
     },
     quality: {
-      label: "Quality",
-      title: "Quality Gates and Ops Metrics",
-      description: "Review evaluations, document agreement, coverage, and release gates."
+      label: "Status",
+      title: "Product Status",
+      description: "Review answer quality, document agreement, coverage, and operating health."
     },
     review: {
       label: "Review",
@@ -200,8 +200,8 @@ const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: s
       description: "Handle sensitive approvals, answer feedback, and tool-call status."
     },
     audit: {
-      label: "Audit",
-      title: "Audit Log and Tool Registry",
+      label: "Records",
+      title: "Execution Records and Tools",
       description: "Trace questions, tool calls, approvals, and revalidation runs."
     },
     help: {
@@ -1177,7 +1177,7 @@ export default function Home() {
           <span className="brandMark">OP</span>
           <div>
 	            <strong>OpsPilot</strong>
-	            <p>운영 에이전트</p>
+	            <p>운영 지식 검색</p>
           </div>
         </div>
 	        <nav className="railNav" aria-label="콘솔 화면">
@@ -1194,12 +1194,12 @@ export default function Home() {
           ))}
         </nav>
 	        <div className="railCard">
-	          <span>{locale === "ko" ? "권한 경계" : "Permission Boundary"}</span>
-	          <strong>{locale === "ko" ? "검색 전 필터링" : "Filtered Before Prompt"}</strong>
+	          <span>{locale === "ko" ? "답변 원칙" : "Answer Policy"}</span>
+	          <strong>{locale === "ko" ? "근거가 있어야 답변" : "Evidence first"}</strong>
 	          <p>
               {locale === "ko"
-                ? "제한 문서 청크는 프롬프트 컨텍스트가 만들어지기 전에 제거됩니다."
-                : "Restricted chunks are removed before prompt context is built."}
+                ? "권한 없는 문서는 검색 단계에서 제외하고, 근거가 약하면 담당자 확인으로 넘깁니다."
+                : "Unauthorized documents are removed during retrieval. Weak evidence is routed to human review."}
             </p>
 	        </div>
       </aside>
@@ -1207,7 +1207,7 @@ export default function Home() {
       <section className="shell">
       <header className="topbar">
         <div>
-	          <p className="eyebrow">OpsPilot 콘솔</p>
+	          <p className="eyebrow">OpsPilot</p>
           <h1>{currentScreen.title}</h1>
           <p className="headerLead">{currentScreen.description}</p>
         </div>
@@ -1230,11 +1230,11 @@ export default function Home() {
 	        </div>
 	      </header>
 
-	      <section className="metrics" aria-label="검색 핵심 지표">
+	      <section className="metrics" aria-label="제품 핵심 흐름">
+	        <Metric label={locale === "ko" ? "문서 입력" : "Sources"} value="URL · PDF · Word · txt" />
 	        <Metric label={locale === "ko" ? "검색" : "Search"} value="pgvector + hybrid" />
-	        <Metric label={locale === "ko" ? "권한" : "Authz"} value={locale === "ko" ? "문서 접근 필터" : "document filter"} />
-	        <Metric label={locale === "ko" ? "검토" : "Review"} value={locale === "ko" ? "사람 승인" : "human approval"} />
-	        <Metric label={locale === "ko" ? "근거" : "Evidence"} value={locale === "ko" ? "출처 인용" : "source citation"} />
+	        <Metric label={locale === "ko" ? "권한" : "Access"} value={locale === "ko" ? "검색 전 필터" : "pre-retrieval filter"} />
+	        <Metric label={locale === "ko" ? "근거" : "Evidence"} value={locale === "ko" ? "출처와 일치율" : "sources + agreement"} />
 	      </section>
 
       {error ? <div className="errorPanel">{error}</div> : null}
@@ -1247,9 +1247,9 @@ export default function Home() {
 	        {activeScreen === "ask" ? (
         <section className="queryPanel" id="ask">
           <div className="sectionHeader">
-            <div>
-	              <p className="eyebrow">질문</p>
-	              <h2>근거 기반 운영 답변</h2>
+	            <div>
+	              <p className="eyebrow">검색</p>
+	              <h2>무엇이든 물어보세요</h2>
 	            </div>
 	            {answer ? <span className={answer.needsHumanReview ? "badge review" : "badge"}>{answer.needsHumanReview ? "검토 필요" : "자동 답변"}</span> : null}
           </div>
@@ -1262,7 +1262,7 @@ export default function Home() {
               id="ask-question"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="운영 문서에 대해 질문하세요"
+              placeholder="예: 정산 배치가 30분 이상 지연되면 어떻게 해?"
             />
             <button className="primaryButton" disabled={loading === "ask" || !question.trim()} type="submit">
 	              {loading === "ask" ? "검색 중..." : "검색"}
@@ -1309,7 +1309,7 @@ export default function Home() {
               <section className="tracePanel">
                 <div className="traceSummary">
                   <div>
-	                    <span>추적</span>
+	                    <span>실행 기록</span>
 	                    <strong>출처 {trace.summary.sourceCount}개</strong>
                   </div>
                   <div>
@@ -1339,7 +1339,7 @@ export default function Home() {
                     <strong>{formatDuration(trace.summary.durationMs)}</strong>
                   </div>
                   <button disabled={loading === "trace"} onClick={() => loadTrace()} type="button">
-	                    {loading === "trace" ? "새로고침 중..." : "추적 새로고침"}
+	                    {loading === "trace" ? "새로고침 중..." : "실행 기록 새로고침"}
                   </button>
                 </div>
                 {qualityGate ? (
@@ -1650,7 +1650,7 @@ export default function Home() {
                     </div>
                   </div>
                 ) : null}
-                <div className="traceTimeline" aria-label="답변 추적 타임라인">
+                <div className="traceTimeline" aria-label="답변 실행 타임라인">
 	                  {trace.timeline.map((event) => (
 	                    <article className="timelineItem" key={`${event.order}-${event.kind}-${event.title}-${event.at}`}>
 	                      <span>{formatTraceKind(event.kind)}</span>
@@ -2476,11 +2476,11 @@ export default function Home() {
             {observability ? (
               <>
                 {portfolioReadiness ? (
-                  <section className={`portfolioReadinessPanel portfolioReadinessPanel--${portfolioReadiness.status}`} aria-label="포트폴리오 준비도">
+                  <section className={`portfolioReadinessPanel portfolioReadinessPanel--${portfolioReadiness.status}`} aria-label="제품 검증 상태">
                     <div className="portfolioReadinessHero">
                       <div>
-                        <p className="eyebrow">면접 데모 준비도</p>
-                        <h2>포트폴리오 증거 보드</h2>
+                        <p className="eyebrow">제품 검증</p>
+                        <h2>OpsPilot 상태 보드</h2>
                         <p>{portfolioReadiness.headline}</p>
                       </div>
                       <div className="readinessScore">
@@ -2508,7 +2508,7 @@ export default function Home() {
                           <p>{pillar.evidence}</p>
                           <small>{pillar.whyItMatters}</small>
                           <div className="readinessScript">
-                            <span>데모 멘트</span>
+                            <span>확인 포인트</span>
                             <p>{pillar.demoScript}</p>
                           </div>
                           <div className="readinessCommands">
@@ -2521,7 +2521,7 @@ export default function Home() {
                     </div>
                     <div className="readinessDemoPath">
                       <div className="evalHistoryHead">
-                        <span>5분 데모 경로</span>
+                        <span>권장 확인 흐름</span>
                         <code>{formatActionPlanRecommendation(portfolioReadiness.summary.releaseRecommendation)}</code>
                       </div>
                       {portfolioReadiness.demoPath.map((step) => (

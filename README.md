@@ -2,13 +2,15 @@
 
 [![CI](https://github.com/hoonapps/opspilot/actions/workflows/ci.yml/badge.svg)](https://github.com/hoonapps/opspilot/actions/workflows/ci.yml)
 
-운영 문서, 런북, 장애 대응 정책, Slack 질문을 기반으로 답변하는 권한 인식 RAG 에이전트 플랫폼입니다. OpsPilot은 단순 문서 검색 데모가 아니라 “실제 운영 업무에 AI 에이전트를 붙이면 어디까지 검증해야 하는가”를 보여주기 위한 포트폴리오 프로젝트입니다.
+운영 문서, 런북, 장애 대응 정책, URL, PDF, Word, txt 파일을 하나의 지식 베이스로 모으고 질문에 근거 기반으로 답하는 RAG 에이전트입니다.
+
+OpsPilot은 “문서를 넣으면 바로 검색되고, 답변에는 출처와 일치율이 남고, 권한이 없는 문서는 답변에 쓰이지 않는” 운영 지식 검색 제품을 목표로 만들었습니다. Slack은 같은 검색/답변 파이프라인을 쓰는 확장 채널입니다.
 
 ![OpsPilot 대시보드 미리보기](docs/assets/opspilot-dashboard.svg)
 
 ![OpsPilot 웹 콘솔](docs/assets/opspilot-web-console.png)
 
-![OpsPilot RAG 검색 실험실](docs/assets/opspilot-retrieval-lab.png)
+![OpsPilot 검색 분석](docs/assets/opspilot-retrieval-lab.png)
 
 ![OpsPilot 색인 스냅샷](docs/assets/opspilot-index-snapshot.png)
 
@@ -18,7 +20,7 @@
 
 ![OpsPilot 장애 대응 플랜](docs/assets/opspilot-incident-plan.png)
 
-![OpsPilot 포트폴리오 증거 보드](docs/assets/opspilot-portfolio-readiness.png)
+![OpsPilot 상태 보드](docs/assets/opspilot-portfolio-readiness.png)
 
 ![OpsPilot 감사 원장 해시 체인](docs/assets/opspilot-audit-ledger.png)
 
@@ -26,25 +28,28 @@
 
 ![OpsPilot 사용법 페이지](docs/assets/opspilot-usage-page.png)
 
-## 핵심 가치
+## 무엇을 할 수 있나
 
-OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
+- URL, Markdown, txt, PDF, Word docx 문서를 넣고 텍스트 추출, 저장, 청킹, 임베딩, 검색 색인을 한 번에 실행합니다.
+- 질문하면 권한이 허용된 문서만 검색해 답변하고, 답변에는 출처, 신뢰도, 문서 일치율이 함께 남습니다.
+- 문서에 근거가 없거나 검색 신뢰도가 낮으면 답을 꾸며내지 않고 담당자 확인이 필요하다고 표시합니다.
+- 문서별 색인 상태, 청크, 버전 이력, 추출 파서, content hash, 삭제, 재검증 큐를 웹에서 관리합니다.
+- 에이전트가 호출한 도구, 승인 필요 여부, 권한 차단 후보, 답변 실행 기록을 추적합니다.
+- Slack Bot, GitHub 문서 sync, Elasticsearch 하이브리드 검색은 확장 기능으로 붙어 있습니다.
 
-- RAG 답변이 실제 문서 출처와 연결되는가?
-- 새로운 Markdown 문서를 넣으면 청킹, 임베딩, 색인, 검색, 답변까지 즉시 검증되는가?
-- 현재 지식 베이스가 어떤 문서/청크/버전/해시 조합으로 만들어졌는지 재현 가능하게 증명할 수 있는가?
-- 문서 권한 경계가 LLM 프롬프트 생성 전에 적용되는가?
-- Slack 질문도 API와 같은 RAG/도구 호출 경로를 타는가?
-- 에이전트가 어떤 도구를 호출했고, 어떤 호출은 사람 승인이 필요한지 감사할 수 있는가?
-- 개별 답변이 질문, 근거 문서, 도구 호출, 승인, 피드백과 어떤 계보로 연결되는지 설명할 수 있는가?
-- 답변이 없는 장애 플랜도 질문 단위로 권한 경계, 출처 계보, 도구 호출 정책을 증명할 수 있는가?
-- 답변과 근거 문서의 일치율, 출처 적중률, 인용 정확도를 평가할 수 있는가?
-- 이전 답변이 문서 변경 이후에도 여전히 유효한지 답변 변경 감지로 확인할 수 있는가?
-- 프롬프트 주입, 시크릿 유출, 과도한 `/ask` 호출 같은 운영 리스크를 막는 가드레일이 있는가?
+## 제품 흐름
+
+1. `문서` 화면에서 URL 또는 파일을 등록합니다.
+2. OpsPilot이 타입별 파서로 텍스트를 추출하고 표준 Markdown으로 저장합니다.
+3. 청킹, 임베딩, pgvector 저장, 선택형 Elasticsearch 미러링을 실행합니다.
+4. 바로 테스트 질문을 실행해 새 문서가 검색 후보와 답변 출처에 들어왔는지 확인합니다.
+5. `검색` 화면에서 일반 질문을 입력합니다.
+6. 답변, 출처, 문서 일치율, 사용한 도구, 사람 승인 필요 여부를 확인합니다.
+7. 문서가 바뀌면 재검증 큐로 과거 답변이 여전히 유효한지 다시 확인합니다.
 
 ## 현재 구현 범위
 
-기능별 상세 설명은 [기능 명세](docs/features.md)에 따로 정리했습니다. 포트폴리오 면접에서는 “문서 수집 → 청킹/임베딩 → 권한 인식 검색 → 근거 기반 답변 → 도구 호출/승인 → 평가” 흐름으로 설명하면 됩니다.
+기능별 상세 설명은 [기능 명세](docs/features.md)에 따로 정리했습니다. 전체 구조는 “문서 수집 → 청킹/임베딩 → 권한 인식 검색 → 근거 기반 답변 → 실행 기록/승인 → 평가” 흐름입니다.
 
 - NestJS + TypeScript API
 - PostgreSQL + pgvector 기반 권한 인식 RAG 검색
@@ -89,7 +94,7 @@ OpsPilot은 다음 질문에 답하는 구조로 설계했습니다.
 - Slack Events API와 로컬 Slack mention 시뮬레이터
 - 평가 게이트, 최신성 게이트, 배포 게이트, SLO 가드레일, 오류 예산 소모율
 - 운영 액션 플랜: 배포 게이트/SLO 결과를 담당자, 우선순위, 조치, 검증 명령으로 변환
-- 포트폴리오 준비도 API: RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 데모 산출물 집계
+- 제품 검증 상태 API: RAG 근거성, 권한 경계, 도구 호출 감사, 운영성, 검증 산출물 집계
 - 감사 원장 해시 체인: 질문, 답변, 도구 호출, 승인, 피드백 이벤트의 SHA-256 루트 해시 검증
 - API 요청 로그, 엔드포인트별 p95 지연, 오류율 관측성
 - 한국어 Next.js 웹 콘솔
@@ -139,7 +144,7 @@ http://localhost:3000/docs
 
 ## 사용법
 
-자세한 로컬 실행 순서와 데모 시나리오는 [docs/usage.md](docs/usage.md)에 정리했습니다.
+자세한 로컬 실행 순서와 검증 시나리오는 [docs/usage.md](docs/usage.md)에 정리했습니다.
 
 웹 콘솔에서도 `사용법` 화면을 열면 다음 흐름을 그대로 따라 할 수 있습니다. 실행 중인 웹 콘솔에서는 `http://localhost:3001/usage`로 독립 사용법 페이지를 바로 열 수 있습니다.
 
@@ -152,7 +157,7 @@ http://localhost:3000/docs
 7. 장애 대응 플랜의 승인 경계와 복구 검증 확인
 8. 도구 호출과 사람 승인 확인
 9. 평가/배포 게이트 확인
-10. 포트폴리오 데모 리포트 생성
+10. 제품 검증 리포트 생성
 
 ## API 예시
 
@@ -221,7 +226,7 @@ pnpm slack:simulate
 
 특정 문서 하나만 제거하려면 문서 상세의 `삭제`를 누르거나 API `DELETE /documents/{id}`를 호출합니다. 삭제 시 문서 본문, 청크, 버전, 답변 출처 연결, 재검증 실행 이력, Elasticsearch 미러 청크를 함께 정리하고, 그 문서를 근거로 사용했던 과거 답변 수와 재검증 권고를 반환합니다.
 
-`POST /documents/source` 응답의 `quality`는 `opspilot.source_ingestion_quality.v1` 스키마입니다. 추출 텍스트가 너무 짧거나, 청크가 지나치게 작거나, 검색 힌트가 부족하거나, 프롬프트 주입 위험이 있으면 `attention`으로 표시하고 개선 권고를 함께 반환합니다. 또한 제목과 검색 힌트 기반 추천 테스트 질문을 만들어 새 문서를 넣은 직후 무엇을 물어볼지 안내합니다. 데모에서는 “PDF/Word/URL을 넣는 것에서 끝나지 않고 검색 가능한 문서인지, 어떤 질문으로 검증할지까지 바로 제안한다”고 설명할 수 있습니다.
+`POST /documents/source` 응답의 `quality`는 `opspilot.source_ingestion_quality.v1` 스키마입니다. 추출 텍스트가 너무 짧거나, 청크가 지나치게 작거나, 검색 힌트가 부족하거나, 프롬프트 주입 위험이 있으면 `attention`으로 표시하고 개선 권고를 함께 반환합니다. 또한 제목과 검색 힌트 기반 추천 테스트 질문을 만들어 새 문서를 넣은 직후 무엇을 물어볼지 안내합니다. PDF/Word/URL을 넣는 것에서 끝나지 않고, 검색 가능한 문서인지와 어떤 질문으로 검증할지까지 바로 확인할 수 있습니다.
 
 같은 응답의 `provenance`는 `opspilot.source_ingestion_provenance.v1` 스키마입니다. 원본 URL/파일명, 최종 URL, content type, 원본 바이트 크기, 추출 텍스트 해시, 저장 content hash, 청크 수, URL 보안 가드 상태를 포함하므로 “어떤 자료가 어떤 파서와 해시로 지식 베이스에 들어갔는지”를 API와 웹 화면에서 설명할 수 있습니다. parser, content type, 추출 해시, 최종 URL, URL 가드는 문서 metadata에도 저장되어 문서 목록/상세 화면에서 나중에 다시 확인할 수 있습니다.
 
@@ -307,7 +312,7 @@ pnpm idempotency:smoke
 
 `pnpm source-ingestion:smoke`는 URL/txt/PDF/Word docx 수집, 각 형식의 파서 선택, 새 문서 검색, 문서 외 질문 거절, reset/seed 복구뿐 아니라 수집 품질 리포트가 좋은 문서는 `ready`, 짧은 문서는 `attention`으로 갈리는지와 추천 테스트 질문이 생성되는지도 검증합니다.
 
-## 포트폴리오 데모
+## 제품 검증 리포트
 
 브라우저 없이 핵심 시나리오를 한 번에 검증합니다.
 
@@ -322,7 +327,7 @@ pnpm portfolio-readiness:smoke
 pnpm portfolio:report
 ```
 
-생성 결과는 [docs/demo-report.md](docs/demo-report.md)에 저장됩니다. 포트폴리오 준비도는 `GET /observability/portfolio-readiness`와 품질 화면의 `포트폴리오 증거 보드`에서 확인합니다. 이 리포트는 근거 기반 RAG, 신규 문서 색인, 런북 도구 호출, 사람 승인, 답변 추적 복원을 한 번에 보여줍니다.
+생성 결과는 [docs/demo-report.md](docs/demo-report.md)에 저장됩니다. 제품 검증 상태는 `GET /observability/portfolio-readiness`와 상태 화면의 `OpsPilot 상태 보드`에서 확인합니다. 이 리포트는 근거 기반 RAG, 신규 문서 색인, 런북 도구 호출, 사람 승인, 답변 실행 기록 복원을 한 번에 보여줍니다.
 
 웹 콘솔까지 검증하고 README 스크린샷을 갱신합니다.
 
@@ -417,7 +422,7 @@ GitHub Actions는 다음 범위를 검증합니다.
 - 검토 작업 흐름
 - 답변 추적/증명/재실행
 - 답변 증거 번들
-- 포트폴리오 데모/리포트
+- 제품 검증 리포트
 - 관측성/SLO
 - OpenAPI 계약
 - Playwright 웹 스모크
