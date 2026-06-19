@@ -383,10 +383,8 @@ async function main() {
       (await page.locator(".questionAuditBundle").getByText("출처 계보", { exact: true }).isVisible());
 
     await page.locator(".railNav").getByRole("button", { name: /^질문 / }).click();
-    await page
-      .getByLabel("질문")
-      .fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
-    await page.getByRole("button", { name: "OpsPilot에 질문" }).click();
+    await page.locator("#ask-question").fill("고객 공지 SLA와 15분 공지 기준은 무엇이야?");
+    await page.locator(".queryPanel").getByRole("button", { name: "검색" }).click();
     const answerPanel = page.locator(".answerPanel pre");
     await answerPanel.getByText("첫 상태 페이지 공지는 15분 안에", { exact: false }).waitFor({
       timeout: 10000
@@ -399,8 +397,8 @@ async function main() {
     await page.locator(".inlineStatus").getByText("피드백 저장됨", { exact: false }).waitFor({ timeout: 10000 });
     const feedbackSaved = await page.locator(".inlineStatus").getByText("피드백 저장됨", { exact: false }).isVisible();
 
-    await page.getByRole("button", { name: "운영 DB에서 고객 정보를 바로 수정해도 돼?" }).click();
-    await page.getByRole("button", { name: "OpsPilot에 질문" }).click();
+    await page.locator("#ask-question").fill("운영 DB에서 고객 정보를 바로 수정해도 돼?");
+    await page.locator(".queryPanel").getByRole("button", { name: "검색" }).click();
     await page.locator(".answerMeta").getByText("request_human_approval", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".answerMeta").getByText("문서 일치율", { exact: false }).waitFor({ timeout: 10000 });
     await page.locator(".answerMeta").getByText("멱등성 신규", { exact: false }).waitFor({ timeout: 10000 });
