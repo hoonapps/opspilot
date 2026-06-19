@@ -318,6 +318,10 @@ export class AgentService {
       [question, channel ?? null, JSON.stringify(context)]
     );
 
+    if (isDocumentInventoryQuestion(question)) {
+      return this.answerDocumentInventoryQuestion(questionRow.id, question, context, connection);
+    }
+
     const toolUseAnswer = await this.askWithToolUse(questionRow.id, question, context);
     if (toolUseAnswer) {
       return toolUseAnswer;
@@ -510,6 +514,27 @@ export class AgentService {
           return { output };
         }
 
+        if (tool.name === "list_documents") {
+          const limit = readNumber(tool.input.limit, 20);
+          const { sources, permissionAudit } = await this.listAccessibleDocumentSources(connection, context, limit);
+          state.sources = sources;
+          state.permissionAudit = permissionAudit;
+          const output = {
+            documentCount: sources.length,
+            documents: sources.map((source) => ({
+              title: source.title,
+              path: source.path,
+              visibility: source.visibility,
+              teamSlug: source.teamSlug ?? null,
+              chunkCount: readMetadataNumber(source.metadata.chunkCount)
+            })),
+            permissionAudit
+          };
+          await logToolCall(connection, questionId, "list_documents", { ...tool.input, limit, modelToolUseId: tool.id, actor: context }, output, ToolCallStatus.Allowed);
+          state.toolCalls.push({ toolName: "list_documents", status: ToolCallStatus.Allowed });
+          return { output };
+        }
+
         if (tool.name === "create_runbook_checklist") {
           if (state.sources.length === 0) {
             const output = { error: "search_documents must be called before create_runbook_checklist" };
@@ -683,6 +708,200 @@ export class AgentService {
     const output = { approvalStatus: "pending" };
     await logToolCall(connection, questionId, "request_human_approval", { action: "sensitive_operation", ...input }, output, ToolCallStatus.NeedsApproval);
     return output;
+  }
+
+  private async answerDocumentInventoryQuestion(
+    questionId: string,
+    question: string,
+    context: RequestContext,
+    connection: SqlConnection
+  ): Promise<AskResponse> {
+    const { sources, permissionAudit } = await this.listAccessibleDocumentSources(connection, context, 20);
+    const answer = formatDocumentInventoryAnswer(sources);
+    const confidence = 0.99;
+    const reviewReasons: ReviewReason[] = [];
+    const needsHumanReview = false;
+    const documentAgreement = await calculateAnswerDocumentAgreement(
+      answer,
+      sources.map((source) => source.content)
+    );
+    const contextPackage = buildContextPackage(sources);
+
+    await logToolCall(
+      connection,
+      questionId,
+      "list_documents",
+      { question, limit: 20, actor: context },
+      {
+        documentCount: sources.length,
+        paths: sources.map((source) => source.path),
+        permissionAudit
+      },
+      ToolCallStatus.Allowed
+    );
+
+    const [answerRow] = await connection.execute<{ id: string }[]>(
+      `
+        insert into answers (question_id, text, confidence, needs_human_review, metadata)
+        values (?::uuid, ?, ?, ?, ?::jsonb)
+        returning id;
+      `,
+      [
+        questionId,
+        answer,
+        confidence,
+        needsHumanReview,
+        JSON.stringify({
+          intent: "document_inventory",
+          sourceCount: sources.length,
+          sources: sources.map((source, index) => ({
+            documentId: source.documentId,
+            chunkId: source.chunkId,
+            path: source.path,
+            title: source.title,
+            score: source.score,
+            rank: index + 1,
+            chunkCount: readMetadataNumber(source.metadata.chunkCount),
+            latestVersion: readMetadataNumber(source.metadata.latestVersion)
+          })),
+          documentAgreement,
+          contextPackage,
+          reviewReasons
+        })
+      ]
+    );
+
+    for (const [index, source] of sources.entries()) {
+      await connection.execute(
+        `
+          insert into answer_sources (answer_id, document_id, chunk_id, score, rank)
+          values (?::uuid, ?::uuid, ?::uuid, ?, ?);
+        `,
+        [answerRow.id, source.documentId, source.chunkId, source.score, index + 1]
+      );
+    }
+
+    return {
+      questionId,
+      answerId: answerRow.id,
+      answer,
+      confidence,
+      documentAgreement,
+      needsHumanReview,
+      reviewReasons,
+      sources: sources.map((source) => ({
+        documentId: source.documentId,
+        chunkId: source.chunkId,
+        title: source.title,
+        path: source.path,
+        score: source.score
+      })),
+      toolCalls: [{ toolName: "list_documents", status: ToolCallStatus.Allowed }],
+      permissionAudit
+    };
+  }
+
+  private async listAccessibleDocumentSources(
+    connection: SqlConnection,
+    context: RequestContext,
+    limit: number
+  ): Promise<{ sources: SearchResult[]; permissionAudit: PermissionBoundaryAudit }> {
+    const safeLimit = Math.max(1, Math.min(limit, 50));
+    const access = this.authz.retrievalWhereClause(context);
+    const rows = (await connection.execute<DocumentInventoryToolRow[]>(
+      `
+        select
+          d.id as "documentId",
+          (array_agg(c.id order by c.chunk_index) filter (where c.id is not null))[1] as "chunkId",
+          d.title,
+          d.path,
+          d.visibility,
+          d.team_slug as "teamSlug",
+          count(distinct c.id)::int as "chunkCount",
+          coalesce(max(v.version), 0)::int as "latestVersion",
+          d.updated_at as "updatedAt"
+        from documents d
+        left join document_chunks c on c.document_id = d.id
+        left join document_versions v on v.document_id = d.id
+        where ${access.sql}
+        group by d.id
+        having (array_agg(c.id order by c.chunk_index) filter (where c.id is not null))[1] is not null
+        order by d.updated_at desc
+        limit ?;
+      `,
+      [...access.params, safeLimit]
+    )) as DocumentInventoryToolRow[];
+    const permissionAudit = await this.buildDocumentInventoryPermissionAudit(connection, context);
+
+    return {
+      permissionAudit,
+      sources: rows.map((row) => ({
+        chunkId: row.chunkId,
+        documentId: row.documentId,
+        title: row.title,
+        path: row.path,
+        visibility: row.visibility,
+        teamSlug: row.teamSlug,
+        content: [
+          `문서 제목: ${row.title}`,
+          `문서 경로: ${row.path}`,
+          `공개 범위: ${formatDocumentVisibility(row.visibility)}`,
+          row.teamSlug ? `팀: ${row.teamSlug}` : null,
+          `청크 수: ${Number(row.chunkCount)}개`,
+          `최신 버전: ${Number(row.latestVersion)}`
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        score: 1,
+        metadata: {
+          source: "document_inventory",
+          chunkCount: Number(row.chunkCount),
+          latestVersion: Number(row.latestVersion),
+          updatedAt: row.updatedAt
+        },
+        retrieval: {
+          mode: "vector",
+          vectorScore: 1,
+          lexicalScore: 1
+        }
+      }))
+    };
+  }
+
+  private async buildDocumentInventoryPermissionAudit(
+    connection: SqlConnection,
+    context: RequestContext
+  ): Promise<PermissionBoundaryAudit> {
+    const rows = (await connection.execute<Array<{ visibility: string; teamSlug?: string | null }>>(
+      `
+        select visibility, team_slug as "teamSlug"
+        from documents;
+      `
+    )) as Array<{ visibility: string; teamSlug?: string | null }>;
+    const deniedByVisibility: Record<string, number> = {};
+    let allowedCandidateCount = 0;
+    let deniedCandidateCount = 0;
+
+    for (const row of rows) {
+      if (this.authz.canAccessDocument(context, row.visibility, row.teamSlug)) {
+        allowedCandidateCount += 1;
+      } else {
+        deniedCandidateCount += 1;
+        deniedByVisibility[row.visibility] = (deniedByVisibility[row.visibility] ?? 0) + 1;
+      }
+    }
+
+    return {
+      enforcement: "pre_ranking_sql_filter",
+      candidateWindow: rows.length,
+      allowedCandidateCount,
+      deniedCandidateCount,
+      deniedByVisibility,
+      actor: {
+        roles: context.roles,
+        teamSlugs: context.teamSlugs
+      }
+    };
   }
 
   async previewRetrieval(question: string, context: RequestContext, limit = 5): Promise<RetrievalPreviewResponse> {
@@ -1907,6 +2126,20 @@ type AgenticToolState = {
   toolCalls: Array<{ toolName: string; status: ToolCallStatus }>;
 };
 
+type SqlConnection = { execute<T = unknown>(query: string, params?: unknown[]): Promise<T> };
+
+type DocumentInventoryToolRow = {
+  documentId: string;
+  chunkId: string;
+  title: string;
+  path: string;
+  visibility: string;
+  teamSlug?: string | null;
+  chunkCount: number | string;
+  latestVersion: number | string;
+  updatedAt: string;
+};
+
 const AGENTIC_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "search_documents",
@@ -1918,6 +2151,16 @@ const AGENTIC_TOOL_DEFINITIONS: ToolDefinition[] = [
         limit: { type: "number", description: "Maximum number of source chunks to return." }
       },
       required: ["query"]
+    }
+  },
+  {
+    name: "list_documents",
+    description: "List currently indexed documents the actor is allowed to access. Use this for inventory questions such as what documents exist.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Maximum number of documents to return." }
+      }
     }
   },
   {
@@ -1974,6 +2217,54 @@ function emptyPermissionAudit(context: RequestContext): PermissionBoundaryAudit 
       teamSlugs: context.teamSlugs
     }
   };
+}
+
+export function isDocumentInventoryQuestion(question: string): boolean {
+  const compact = question.toLowerCase().replace(/\s+/g, "");
+  return (
+    /(?:지금|현재|등록된|색인된|저장된|가지고있는|보유한)?(?:무슨|어떤|뭐|무엇).{0,12}문서.{0,12}(?:있|목록|리스트|보여|알려)/.test(compact) ||
+    /문서.{0,12}(?:목록|리스트|뭐|무엇|어떤|몇개|몇개야|보여|알려)/.test(compact) ||
+    /(?:what|which|list|show).{0,20}(?:documents|docs|knowledgebase)/i.test(question)
+  );
+}
+
+function formatDocumentInventoryAnswer(sources: SearchResult[]): string {
+  if (sources.length === 0) {
+    return "현재 접근 권한으로 확인할 수 있는 문서가 없습니다.";
+  }
+
+  const lines = sources.map((source, index) => {
+    const chunkCount = readMetadataNumber(source.metadata.chunkCount);
+    const latestVersion = readMetadataNumber(source.metadata.latestVersion);
+    const team = source.teamSlug ? `, 팀 ${source.teamSlug}` : "";
+    return `${index + 1}. ${source.title} (${source.path})\n   - ${formatDocumentVisibility(source.visibility)}${team}, 청크 ${chunkCount}개, 버전 ${latestVersion}`;
+  });
+
+  return [`현재 접근 가능한 문서는 ${sources.length}개입니다.`, "", ...lines].join("\n");
+}
+
+function formatDocumentVisibility(visibility: string): string {
+  if (visibility === "public") {
+    return "공개 문서";
+  }
+  if (visibility === "team") {
+    return "팀 한정 문서";
+  }
+  if (visibility === "restricted") {
+    return "제한 문서";
+  }
+  return `${visibility} 문서`;
+}
+
+function readMetadataNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 function readString(value: unknown): string {

@@ -4428,6 +4428,7 @@ function formatToolCountMap(values: Record<string, number>): string {
 function formatToolName(name: string): string {
   const labels: Record<string, string> = {
     search_documents: "문서 검색",
+    list_documents: "문서 목록",
     create_runbook_checklist: "런북 체크리스트 생성",
     create_incident_response_plan: "장애 대응 플랜 생성",
     request_human_approval: "사람 승인 요청",
