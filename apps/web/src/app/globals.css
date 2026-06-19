@@ -610,6 +610,37 @@ h2 {
   gap: 14px;
 }
 
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.searchForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 10px;
+  align-items: center;
+}
+
+.searchForm input {
+  height: 56px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.searchForm .primaryButton {
+  min-height: 56px;
+}
+
 label {
   display: grid;
   gap: 7px;
@@ -653,12 +684,6 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-}
-
-.quickGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
 }
 
 .chip,
@@ -6257,7 +6282,6 @@ pre {
   .workspace,
   .fieldGrid,
   .formGrid,
-  .quickGrid,
   .docFlow,
   .sourceResult,
   .sourceProvenanceCard,
@@ -6471,9 +6495,19 @@ pre {
   }
 
   .answerMeta,
+  .searchForm,
   .sectionHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .searchForm {
+    display: flex;
+    width: 100%;
+  }
+
+  .searchForm .primaryButton {
+    width: 100%;
   }
 
   .sourceItem {

@@ -119,15 +119,11 @@ tags: incident,status-page,communication
 공지에는 영향받은 기능, 현재 영향도, 다음 업데이트 예정 시각, 장애 담당자를 반드시 포함합니다.
 `;
 
-const quickQuestions = [
-  "E102 에러가 발생하면 어떻게 대응해야 해?",
-  "정산 배치가 30분 이상 지연되면 체크리스트가 뭐야?",
-  "장애 공지는 몇 분 안에 올려야 해?",
-  "운영 DB에서 고객 정보를 바로 수정해도 돼?"
-];
-
 type ConsoleScreen = "ask" | "retrieval" | "incident" | "documents" | "quality" | "review" | "audit" | "help";
 type Locale = "ko" | "en";
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+const apiStatusLabel = apiBaseUrl.replace(/^https?:\/\//, "");
 
 const screenCopy: Record<Locale, Record<ConsoleScreen, { label: string; title: string; description: string }>> = {
   ko: {
@@ -254,7 +250,7 @@ const screenOrder: ConsoleScreen[] = ["ask", "retrieval", "incident", "documents
 export default function Home() {
   const [activeScreen, setActiveScreen] = useState<ConsoleScreen>("ask");
   const [locale, setLocale] = useState<Locale>("ko");
-  const [question, setQuestion] = useState(quickQuestions[0]);
+  const [question, setQuestion] = useState("");
   const [teamSlugs, setTeamSlugs] = useState("payments");
   const [roles, setRoles] = useState("ops_admin");
   const [path, setPath] = useState("public/status-page-policy.md");
@@ -413,6 +409,11 @@ export default function Home() {
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const nextQuestion = question.trim();
+    if (!nextQuestion) {
+      setError("질문을 입력해 주세요.");
+      return;
+    }
     setError(null);
     setFeedbackStatus(null);
     setLoading("ask");
@@ -424,7 +425,7 @@ export default function Home() {
       setClaimSupport(null);
       setLineageGraph(null);
       setQualityGate(null);
-      const nextAnswer = await askOpsPilot({ question, teamSlugs, roles });
+      const nextAnswer = await askOpsPilot({ question: nextQuestion, teamSlugs, roles });
       const [nextTrace, nextProof, nextReplay, nextEvidenceBundle, nextClaimSupport, nextLineageGraph, nextQualityGate] =
         await fetchAnswerEvidence(nextAnswer.answerId);
       setAnswer(nextAnswer);
@@ -1224,7 +1225,7 @@ export default function Home() {
 	          </a>
 	          <div className="statusGroup" aria-label="시스템 상태">
 	            <span className="statusDot" />
-	            <span>{locale === "ko" ? "API 연결: localhost:3000" : "API: localhost:3000"}</span>
+	            <span>{locale === "ko" ? `API 연결: ${apiStatusLabel}` : `API: ${apiStatusLabel}`}</span>
 	          </div>
 	        </div>
 	      </header>
@@ -1253,36 +1254,22 @@ export default function Home() {
 	            {answer ? <span className={answer.needsHumanReview ? "badge review" : "badge"}>{answer.needsHumanReview ? "검토 필요" : "자동 답변"}</span> : null}
           </div>
 
-          <form onSubmit={submitQuestion} className="stack">
-            <label>
-	              질문
-              <textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows={4} />
+          <form onSubmit={submitQuestion} className="searchForm">
+            <label className="srOnly" htmlFor="ask-question">
+              질문
             </label>
-
-            <div className="quickGrid">
-              {quickQuestions.map((item) => (
-                <button key={item} type="button" className="chip" onClick={() => setQuestion(item)}>
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="fieldGrid">
-              <label>
-	                팀
-                <input value={teamSlugs} onChange={(event) => setTeamSlugs(event.target.value)} placeholder="payments" />
-              </label>
-              <label>
-	                역할
-                <input value={roles} onChange={(event) => setRoles(event.target.value)} placeholder="ops_admin, oncall" />
-              </label>
-            </div>
-
-            <button className="primaryButton" disabled={loading === "ask"} type="submit">
-	              {loading === "ask" ? "질문 중..." : "OpsPilot에 질문"}
+            <input
+              id="ask-question"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="운영 문서에 대해 질문하세요"
+            />
+            <button className="primaryButton" disabled={loading === "ask" || !question.trim()} type="submit">
+	              {loading === "ask" ? "검색 중..." : "검색"}
             </button>
           </form>
 
+          {answer || loading === "ask" ? (
           <div className="answerPanel">
             <div className="answerMeta">
               <span>
@@ -1294,8 +1281,8 @@ export default function Home() {
 	                  ? `멱등성 ${answer.idempotency.replayed ? "재사용" : "신규"} · ${shortHash(answer.idempotency.requestHash)}`
 	                  : "멱등성 키 대기"}
 	              </span>
-	            </div>
-	            <pre>{answer?.answer ?? "질문을 실행하면 근거 기반 답변, 신뢰도, 도구 호출, 출처가 여기에 표시됩니다."}</pre>
+            </div>
+	            <pre>{loading === "ask" ? "검색 중입니다..." : answer?.answer}</pre>
             {answer ? (
               <div className="boundaryAudit">
                 <span>{formatPermissionEnforcement(answer.permissionAudit.enforcement)}</span>
@@ -1674,12 +1661,12 @@ export default function Home() {
 	                      <code>{formatRuntimeStatus(event.status)}</code>
 	                    </article>
 	                  ))}
-                </div>
-              </section>
-            ) : null}
+	                </div>
+	              </section>
+	            ) : null}
             <div className="feedbackBar">
               <input
-	                aria-label="피드백 의견"
+		                aria-label="피드백 의견"
                 disabled={!answer || loading === "feedback"}
                 onChange={(event) => setFeedbackComment(event.target.value)}
 	                placeholder="선택 입력: 답변 피드백"
@@ -1691,9 +1678,10 @@ export default function Home() {
               <button disabled={!answer || loading === "feedback"} onClick={() => submitFeedback(-1)} type="button">
 	                개선 필요
               </button>
-            </div>
-            {feedbackStatus ? <p className="inlineStatus">{feedbackStatus}</p> : null}
-          </div>
+	            </div>
+	            {feedbackStatus ? <p className="inlineStatus">{feedbackStatus}</p> : null}
+	          </div>
+	          ) : null}
         </section>
         ) : null}
 
@@ -1955,7 +1943,9 @@ export default function Home() {
                 </div>
               ))
             ) : (
-	              <p className="empty">질문을 실행하면 출처가 여기에 표시됩니다.</p>
+	              <p className="empty">
+	                {answer ? "답변에 사용할 수 있는 근거 문서가 없습니다." : "질문을 실행하면 출처가 여기에 표시됩니다."}
+	              </p>
             )}
           </div>
           </>

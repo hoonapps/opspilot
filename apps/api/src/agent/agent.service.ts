@@ -355,7 +355,7 @@ export class AgentService {
     }
     const confidence = calculateConfidence(sources);
     const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
-    const unsupportedConfidenceThreshold = Number(process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD ?? 0.05);
+    const unsupportedConfidenceThreshold = Number(process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD ?? 0.15);
     const reviewReasons = buildReviewReasons({
       sourceCount: sources.length,
       confidence,
@@ -372,11 +372,12 @@ export class AgentService {
       sensitiveAction,
       checklist
     });
+    const groundedSources = selectGroundedSourcesForAnswer(sources, confidence, unsupportedConfidenceThreshold);
     const documentAgreement = await calculateAnswerDocumentAgreement(
       answer,
-      sources.map((source) => source.content)
+      groundedSources.map((source) => source.content)
     );
-    const contextPackage = buildContextPackage(sources);
+    const contextPackage = buildContextPackage(groundedSources);
 
     const [answerRow] = await connection.execute<{ id: string }[]>(
       `
@@ -391,8 +392,9 @@ export class AgentService {
         needsHumanReview,
         JSON.stringify({
           sensitiveAction,
-          sourceCount: sources.length,
-          sources: sources.map((source, index) => ({
+          sourceCount: groundedSources.length,
+          candidateSourceCount: sources.length,
+          sources: groundedSources.map((source, index) => ({
             documentId: source.documentId,
             chunkId: source.chunkId,
             path: source.path,
@@ -408,7 +410,7 @@ export class AgentService {
       ]
     );
 
-    for (const [index, source] of sources.entries()) {
+    for (const [index, source] of groundedSources.entries()) {
       await connection.execute(
         `
           insert into answer_sources (answer_id, document_id, chunk_id, score, rank)
@@ -452,7 +454,7 @@ export class AgentService {
       documentAgreement,
       needsHumanReview,
       reviewReasons,
-      sources: sources.map((source) => ({
+      sources: groundedSources.map((source) => ({
         documentId: source.documentId,
         chunkId: source.chunkId,
         title: source.title,
@@ -558,7 +560,7 @@ export class AgentService {
 
     const confidence = calculateConfidence(state.sources);
     const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.3);
-    const unsupportedConfidenceThreshold = Number(process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD ?? 0.05);
+    const unsupportedConfidenceThreshold = Number(process.env.UNSUPPORTED_ANSWER_CONFIDENCE_THRESHOLD ?? 0.15);
     const reviewReasons = buildReviewReasons({
       sourceCount: state.sources.length,
       confidence,
@@ -566,9 +568,8 @@ export class AgentService {
       sensitiveAction: state.sensitiveAction || policySensitiveAction
     });
     const needsHumanReview = reviewReasons.length > 0;
-    const answer =
-      result.text ||
-      (await this.answerGenerator.generate({
+    const generateGuardedAnswer = () =>
+      this.answerGenerator.generate({
         question,
         sources: state.sources,
         confidence,
@@ -576,12 +577,18 @@ export class AgentService {
         needsHumanReview,
         sensitiveAction: state.sensitiveAction || policySensitiveAction,
         checklist: state.checklist
-      }));
+      });
+    const answer =
+      confidence < unsupportedConfidenceThreshold
+        ? await generateGuardedAnswer()
+        : result.text ||
+          (await generateGuardedAnswer());
+    const groundedSources = selectGroundedSourcesForAnswer(state.sources, confidence, unsupportedConfidenceThreshold);
     const documentAgreement = await calculateAnswerDocumentAgreement(
       answer,
-      state.sources.map((source) => source.content)
+      groundedSources.map((source) => source.content)
     );
-    const contextPackage = buildContextPackage(state.sources);
+    const contextPackage = buildContextPackage(groundedSources);
 
     const [answerRow] = await connection.execute<{ id: string }[]>(
       `
@@ -596,8 +603,9 @@ export class AgentService {
         needsHumanReview,
         JSON.stringify({
           sensitiveAction: state.sensitiveAction || policySensitiveAction,
-          sourceCount: state.sources.length,
-          sources: state.sources.map((source, index) => ({
+          sourceCount: groundedSources.length,
+          candidateSourceCount: state.sources.length,
+          sources: groundedSources.map((source, index) => ({
             documentId: source.documentId,
             chunkId: source.chunkId,
             path: source.path,
@@ -625,7 +633,7 @@ export class AgentService {
       ]
     );
 
-    for (const [index, source] of state.sources.entries()) {
+    for (const [index, source] of groundedSources.entries()) {
       await connection.execute(
         `
           insert into answer_sources (answer_id, document_id, chunk_id, score, rank)
@@ -643,7 +651,7 @@ export class AgentService {
       documentAgreement,
       needsHumanReview,
       reviewReasons,
-      sources: state.sources.map((source) => ({
+      sources: groundedSources.map((source) => ({
         documentId: source.documentId,
         chunkId: source.chunkId,
         title: source.title,
@@ -1257,6 +1265,14 @@ function normalizeRetrievalScore(source: SearchResult | undefined): number {
   }
 
   return source.score;
+}
+
+export function selectGroundedSourcesForAnswer(
+  sources: SearchResult[],
+  confidence: number,
+  unsupportedConfidenceThreshold: number
+): SearchResult[] {
+  return confidence < unsupportedConfidenceThreshold ? [] : sources;
 }
 
 function buildRetrievalPreview(
