@@ -68,6 +68,7 @@
     "portfolio:demo": "ts-node src/cli/portfolio-demo.ts",
     "portfolio:report": "ts-node src/cli/portfolio-demo.ts --report ../../docs/demo-report.md",
     "portfolio-readiness:smoke": "ts-node src/cli/portfolio-readiness-smoke.ts",
+    "portfolio:100": "ts-node src/cli/portfolio-100-smoke.ts",
     "observability:smoke": "ts-node src/cli/observability-smoke.ts",
     "observability:slo-smoke": "ts-node src/cli/observability-slo-smoke.ts",
     "error-budget:smoke": "ts-node src/cli/error-budget-smoke.ts",

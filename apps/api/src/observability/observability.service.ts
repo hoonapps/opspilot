@@ -1182,7 +1182,13 @@ function buildPortfolioPillars(input: {
         checks.knowledge_freshness?.status ?? "fail",
         documentAgreement >= 0.8 ? "pass" : documentAgreement >= 0.7 ? "warn" : "fail"
       ]),
-      score: roundMetric(average([documentAgreement, statusScore(checks.latest_eval_gate?.status), statusScore(checks.knowledge_freshness?.status)])),
+      score: roundMetric(
+        average([
+          documentAgreementReadinessScore(documentAgreement),
+          statusScore(checks.latest_eval_gate?.status),
+          statusScore(checks.knowledge_freshness?.status)
+        ])
+      ),
       evidence: `문서 ${input.summary.documents.total}개, 청크 ${input.summary.documents.chunks}개, 평균 문서 일치율 ${Math.round(documentAgreement * 100)}%, 최신 평가 ${checks.latest_eval_gate?.status ?? "missing"}.`,
       whyItMatters: "AI 답변이 그럴듯한 문장에 그치지 않고 실제 운영 문서와 얼마나 붙어 있는지 보여줍니다.",
       demoScript: "검색 화면에서 미리보기-답변 검증을 실행해 후보 출처와 실제 답변 출처가 일치하는지 설명합니다.",
@@ -1286,6 +1292,19 @@ function statusScore(status: ReleaseGateCheckStatus | undefined): number {
     return 0.75;
   }
   return 0;
+}
+
+function documentAgreementReadinessScore(score: number): number {
+  if (score >= 0.95) {
+    return 1;
+  }
+  if (score >= 0.8) {
+    return 0.9;
+  }
+  if (score >= 0.7) {
+    return 0.75;
+  }
+  return Math.max(0, score);
 }
 
 function average(values: number[]): number {

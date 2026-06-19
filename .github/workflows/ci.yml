@@ -275,6 +275,9 @@ jobs:
       - name: OpenAPI contract smoke
         run: pnpm openapi:smoke
 
+      - name: Portfolio 100 local proof
+        run: pnpm portfolio:100
+
       - name: Start API
         run: |
           pnpm --filter @opspilot/api start > /tmp/opspilot-api.log 2>&1 &

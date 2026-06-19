@@ -18,7 +18,8 @@ pnpm permission:smoke
 pnpm trace:smoke
 pnpm agreement:smoke
 pnpm quality-gate:smoke
-pnpm product-readiness:smoke
 pnpm product:report
+pnpm product-readiness:smoke
+pnpm portfolio:100
 
 echo "== OpsPilot local product proof passed =="

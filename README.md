@@ -16,7 +16,13 @@ cp .env.example apps/api/.env
 pnpm product:proof
 ```
 
-이 명령은 PostgreSQL/Redis 실행, DB 마이그레이션, 타입체크, URL/txt/PDF/Word 수집, RAG 답변, agentic tool-use, 권한 경계, 답변 trace, 문서 일치율, 신뢰 게이트, 제품 검증 리포트를 순서대로 확인합니다. 자세한 평가 경로는 [로컬 제품 증명](docs/local-proof.md)에 정리했습니다.
+이 명령은 PostgreSQL/Redis 실행, DB 마이그레이션, 타입체크, URL/txt/PDF/Word 수집, RAG 답변, agentic tool-use, 권한 경계, 답변 trace, 문서 일치율, 신뢰 게이트, 제품 검증 리포트, 포트폴리오 100점 게이트를 순서대로 확인합니다. 자세한 평가 경로는 [로컬 제품 증명](docs/local-proof.md)에 정리했습니다.
+
+최종 점수만 확인하려면 아래 명령을 실행합니다. 통과하면 [포트폴리오 100점 로컬 증명](docs/portfolio-100.md)에 `100/100` 리포트를 남깁니다.
+
+```bash
+pnpm portfolio:100
+```
 
 | 확인할 것 | 어디서 보나 | 핵심 기준 |
 | --- | --- | --- |
@@ -25,6 +31,7 @@ pnpm product:proof
 | Agentic tool-use | `pnpm agentic-tool-use:smoke` | 모델이 `search_documents`, `create_runbook_checklist`, `request_human_approval`을 선택함 |
 | 권한 경계 | `pnpm permission:smoke`, `pnpm retrieval-permission-diff:smoke` | 접근 불가 문서는 답변 컨텍스트에 들어가지 않음 |
 | 운영성 | `pnpm product-readiness:smoke`, `pnpm release-gate:smoke` | 제품 상태, SLO, 배포 게이트, 감사 로그가 검증됨 |
+| 최종 점수 | `pnpm portfolio:100`, `docs/portfolio-100.md` | 공개 배포 URL 없이 10개 포트폴리오 기준을 모두 통과하면 100/100 |
 
 ![OpsPilot 대시보드 미리보기](docs/assets/opspilot-dashboard.svg)
 

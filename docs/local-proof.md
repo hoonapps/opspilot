@@ -12,6 +12,14 @@ pnpm product:proof
 
 `pnpm product:proof`는 PostgreSQL/Redis를 올리고, 마이그레이션, 타입체크, 문서 수집, agentic tool-use, 권한 경계, 답변 trace, 문서 일치율, 신뢰 게이트, 제품 상태 리포트를 한 번에 검증합니다.
 
+최종 점수만 빠르게 확인하려면 다음 명령을 실행합니다.
+
+```bash
+pnpm portfolio:100
+```
+
+이 명령은 공개 배포 URL을 요구하지 않습니다. 대신 새 문서 수집, RAG 답변, tool-use, 권한 경계, trace, 평가 게이트, 운영성, CI 구성, README 스크린샷 산출물을 검사하고 모든 항목이 통과할 때만 `docs/portfolio-100.md`에 `100/100` 리포트를 생성합니다.
+
 ## 10분 제품 확인
 
 ```bash
@@ -38,6 +46,7 @@ pnpm dev:web
 | 답변 trace | `pnpm trace:smoke` | 출처, 도구 호출, 승인, 피드백이 답변 단위로 복원됨 |
 | 신뢰 게이트 | `pnpm quality-gate:smoke` | 공유 가능, 검토 필요, 차단 판정이 근거와 함께 계산됨 |
 | 제품 상태 | `pnpm product-readiness:smoke` | RAG, 권한, 도구 감사, 운영성, 검증 산출물이 집계됨 |
+| 최종 100점 게이트 | `pnpm portfolio:100` | 10개 포트폴리오 기준이 모두 통과하고 `docs/portfolio-100.md`가 100/100으로 생성됨 |
 
 ## 공개 URL을 대체하는 근거
 
@@ -45,7 +54,9 @@ pnpm dev:web
 
 - GitHub Actions 전체 CI 성공 배지
 - `pnpm product:proof` 로컬 실행 결과
+- `pnpm portfolio:100` 최종 100점 리포트
 - `docs/demo-report.md` 제품 검증 리포트
+- `docs/portfolio-100.md` 공개 URL 없는 채점표
 - `docs/assets/*.png` 실제 Playwright 스모크로 생성한 화면
 - `docs/ci.md`의 검증 범위
 
