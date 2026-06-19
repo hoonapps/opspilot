@@ -23,6 +23,8 @@ describe("isDocumentInventoryQuestion", () => {
 
   it("does not treat normal grounded questions as inventory requests", () => {
     expect(isDocumentInventoryQuestion("E102 문서 기준으로 어떻게 대응해야 해?")).toBe(false);
+    expect(isDocumentInventoryQuestion("OPSTXT-77 텍스트 문서는 무엇을 증명해?")).toBe(false);
+    expect(isDocumentInventoryQuestion("URL 수집 Smoke 문서의 검증 기준은 뭐야?")).toBe(false);
   });
 });
 

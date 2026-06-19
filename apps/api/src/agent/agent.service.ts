@@ -2223,7 +2223,7 @@ export function isDocumentInventoryQuestion(question: string): boolean {
   const compact = question.toLowerCase().replace(/\s+/g, "");
   return (
     /(?:지금|현재|등록된|색인된|저장된|가지고있는|보유한)?(?:무슨|어떤|뭐|무엇).{0,12}문서.{0,12}(?:있|목록|리스트|보여|알려)/.test(compact) ||
-    /문서.{0,12}(?:목록|리스트|뭐|무엇|어떤|몇개|몇개야|보여|알려)/.test(compact) ||
+    /문서.{0,12}(?:목록|리스트|몇개|몇개야|보여|알려)/.test(compact) ||
     /(?:what|which|list|show).{0,20}(?:documents|docs|knowledgebase)/i.test(question)
   );
 }
